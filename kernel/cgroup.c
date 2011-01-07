@@ -734,6 +734,8 @@ void cgroup_unlock(void)
  * -> cgroup_mkdir.
  */
 
+static struct dentry *cgroup_lookup(struct inode *dir,
+			struct dentry *dentry, struct nameidata *nd);
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
@@ -1995,7 +1997,7 @@ static const struct file_operations cgroup_file_operations = {
 };
 
 static const struct inode_operations cgroup_dir_inode_operations = {
-	.lookup = simple_lookup,
+	.lookup = cgroup_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
 	.rename = cgroup_rename,
@@ -2011,13 +2013,29 @@ static inline struct cftype *__file_cft(struct file *file)
 	return __d_cft(file->f_dentry);
 }
 
-static int cgroup_create_file(struct dentry *dentry, mode_t mode,
-				struct super_block *sb)
+static int cgroup_delete_dentry(struct dentry *dentry)
 {
-	static const struct dentry_operations cgroup_dops = {
+	return 1;
+}
+
+static struct dentry *cgroup_lookup(struct inode *dir,
+			struct dentry *dentry, struct nameidata *nd)
+{
+	static const struct dentry_operations cgroup_dentry_operations = {
+		.d_delete = cgroup_delete_dentry,
 		.d_iput = cgroup_diput,
 	};
 
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+	dentry->d_op = &cgroup_dentry_operations;
+	d_add(dentry, NULL);
+	return NULL;
+}
+
+static int cgroup_create_file(struct dentry *dentry, mode_t mode,
+				struct super_block *sb)
+{
 	struct inode *inode;
 
 	if (!dentry)
@@ -2043,7 +2061,6 @@ static int cgroup_create_file(struct dentry *dentry, mode_t mode,
 		inode->i_size = 0;
 		inode->i_fop = &cgroup_file_operations;
 	}
-	dentry->d_op = &cgroup_dops;
 	d_instantiate(dentry, inode);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 	return 0;
