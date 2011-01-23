@@ -1053,7 +1053,7 @@ static void ssip_pn_setup(struct net_device *dev)
 	dev->header_ops		= &phonet_header_ops;
 }
 
-static int __init ssi_protocol_probe(struct device *dev)
+static int __devinit ssi_protocol_probe(struct device *dev)
 {
 	static const char ifname[] = "phonet%d";
 	struct hsi_client *cl = to_hsi_client(dev);
@@ -1122,7 +1122,7 @@ out:
 	return err;
 }
 
-static int __exit ssi_protocol_remove(struct device *dev)
+static int __devexit ssi_protocol_remove(struct device *dev)
 {
 	struct hsi_client *cl = to_hsi_client(dev);
 	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
