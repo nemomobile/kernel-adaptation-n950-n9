@@ -48,6 +48,11 @@ ENTRY(cpu_v7_proc_fin)
 	stmfd	sp!, {lr}
 	cpsid	if				@ disable interrupts
 	bl	v7_flush_kern_cache_all
+
+	mrc	p15, 0, r0, c1, c0, 1		@ aux ctrl register
+	bic	r0, r0, #0x2			@ L2EN
+	mcr	p15, 0, r0, c1, c0, 1		@ disable L2 cache
+
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
