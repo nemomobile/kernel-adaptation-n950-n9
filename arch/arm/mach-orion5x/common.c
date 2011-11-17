@@ -717,7 +717,7 @@ void __init orion5x_init(void)
 void __init tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 			    char **from, struct meminfo *meminfo)
 {
-	for (; t->hdr.size; t = tag_next(t))
+	for (; atag_valid(t); t = tag_next(t))
 		if (t->hdr.tag == ATAG_MEM &&
 		    (!t->u.mem.size || t->u.mem.size & ~PAGE_MASK ||
 		     t->u.mem.start & ~PAGE_MASK)) {

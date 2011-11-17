@@ -21,6 +21,11 @@
 /* The list ends with an ATAG_NONE node. */
 #define ATAG_NONE	0x00000000
 
+/* Some sanity checks are needed */
+#define ATAG_MAX_SZ	PAGE_SIZE
+#define atag_valid(tag)							\
+	((tag)->hdr.size && ((tag)->hdr.size <= ATAG_MAX_SZ))
+
 struct tag_header {
 	__u32 size;
 	__u32 tag;
@@ -173,9 +178,10 @@ struct tagtable {
 	int (*parse)(const struct tag *);
 };
 
-#define tag_member_present(tag,member)				\
-	((unsigned long)(&((struct tag *)0L)->member + 1)	\
-		<= (tag)->hdr.size * 4)
+#define tag_member_present(tag,member)					\
+	(atag_valid(tag) &&						\
+		(((unsigned long)(&((struct tag *)0L)->member + 1)	\
+			<= (tag)->hdr.size * 4))
 
 #define tag_next(t)	((struct tag *)((__u32 *)(t) + (t)->hdr.size))
 #define tag_size(type)	((sizeof(struct tag_header) + sizeof(struct type)) >> 2)

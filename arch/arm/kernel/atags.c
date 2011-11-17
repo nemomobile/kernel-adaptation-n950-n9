@@ -51,7 +51,7 @@ static int __init init_atags_procfs(void)
 		return -EINVAL;
 	}
 
-	for (; tag->hdr.size; tag = tag_next(tag))
+	for (; atag_valid(tag); tag = tag_next(tag))
 		;
 
 	/* include the terminating ATAG_NONE */
