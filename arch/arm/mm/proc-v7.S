@@ -66,8 +66,51 @@ ENDPROC(cpu_v7_proc_fin)
  */
 	.align	5
 ENTRY(cpu_v7_reset)
-	mov	pc, r0
+	/*
+	 * ARM Cortex-A8 TRM chapter 6.4 says:
+	 *
+	 *    After a CP15 c1 instruction disables the MMU, the processor
+	 *    flushes all following instructions in the pipeline. The processor
+	 *    then begins refetching instructions and uses flat address mapping.
+	 *    In flat address mapping, PA = VA.
+	 *
+	 * This means that in Cortex-A8 we need to disable the MMU through the
+	 * identity mapped region.
+	 */
+	mrc	p15, 0, r5, c0, c0, 0		@ read main ID register
+	and	r6, r5, #0xff000000		@ ARM?
+	teq	r6, #0x41000000
+	bne	__disable_mmu
+
+	mov	r6, #0x0000ff00			@ check primary part number
+	orr	r6, r6, #0x00f0			@ bits [15:4]
+	and	r6, r6, r5
+
+	mov	r5, #0xc000			@ is it Cortex-A8 (0xc080)?
+	orr	r5, r5, #0x0080
+	teq	r5, r6
+	bne	__disable_mmu
+
+	/*
+	 * This is Cortex-A8 so call via identity mapping.
+	 */
+	ldr	pc, =__virt_to_phys(__disable_mmu)
 ENDPROC(cpu_v7_reset)
+
+/*
+ * Disables the MMU and jumps into address given in r0.
+ */
+__disable_mmu:
+	mov     ip, #0
+#ifdef CONFIG_MMU
+	mcr     p15, 0, ip, c8, c7, 0           @ invalidate I & D TLBs
+#endif
+	mrc     p15, 0, ip, c1, c0, 0           @ ctrl register
+	bic     ip, ip, #0x000f                 @ ............wcam
+	bic     ip, ip, #0x1100                 @ ...i...s........
+	mcr     p15, 0, ip, c1, c0, 0           @ ctrl register
+	mov     pc, r0
+ENDPROC(__disable_mmu)
 
 /*
  *	cpu_v7_do_idle()
