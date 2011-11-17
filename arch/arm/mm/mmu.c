@@ -977,6 +977,9 @@ static void __init map_lowmem(void)
 
 		create_mapping(&map);
 	}
+
+	local_flush_tlb_all();
+	flush_cache_all();
 }
 
 /*
