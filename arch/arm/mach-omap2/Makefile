@@ -392,3 +392,6 @@ obj-y					+= $(smc91x-m) $(smc91x-y)
 # HS OMAP
 obj-$(CONFIG_ARCH_OMAP3_HS)		+= omap_hs.o
 omap_hs-objs				+= hs.o sec_hal.o sec_hal_entry.o
+
+plus_sec 				:= $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_sec_hal_entry.o 			:=-Wa,-march=armv7-a$(plus_sec)
