@@ -417,6 +417,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 	decompress_fn decompress;
 	const char *compress_name;
 	static __initdata char msg_buf[64];
+	int num_archives;
 
 	header_buf = kmalloc(110, GFP_KERNEL);
 	symlink_buf = kmalloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1, GFP_KERNEL);
@@ -428,6 +429,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 	state = Start;
 	this_header = 0;
 	message = NULL;
+	num_archives = 0;
 	while (!message && len) {
 		loff_t saved_offset = this_header;
 		if (*buf == '0' && !(this_header & 3)) {
@@ -455,6 +457,13 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 					 compress_name);
 				message = msg_buf;
 			}
+		} else if (num_archives > 0) {
+			printk(KERN_INFO "initramfs compression failed, but, we already " \
+					 "decompressed (%i) archives - the remaining data " \
+					 "(%u b) is probably just garbage given by the " \
+					 "buggy bootloader, continuing with what we've got...\n",
+			 num_archives, len);
+			my_inptr = len;
 		} else
 			error("junk in compressed archive");
 		if (state != Reset)
@@ -462,6 +471,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 		this_header = saved_offset + my_inptr;
 		buf += my_inptr;
 		len -= my_inptr;
+		num_archives++;
 	}
 	dir_utime();
 	kfree(name_buf);
