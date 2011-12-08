@@ -185,6 +185,7 @@ static struct usb_configuration rndis_config_driver = {
 	.bConfigurationValue	= 2,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
+	.bMaxPower  		= 250, /* 500mA */
 };
 
 #endif
@@ -223,6 +224,7 @@ static struct usb_configuration cdc_config_driver = {
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
+	.bMaxPower  		= 250, /* 500mA */
 };
 
 #endif
