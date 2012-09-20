@@ -17,6 +17,7 @@
 
 #undef DEBUG
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
