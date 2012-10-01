@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/memblock.h>
 #include <linux/completion.h>

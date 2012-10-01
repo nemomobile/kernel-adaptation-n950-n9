@@ -35,6 +35,7 @@
 
 #include <plat/display.h>
 #include <plat/clock.h>
+#include <plat/cpu.h>
 
 #include "dss.h"
 

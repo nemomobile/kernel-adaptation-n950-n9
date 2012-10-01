@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -37,6 +38,7 @@
 #include <plat/clock.h>
 
 #include <plat/display.h>
+#include "../../../../arch/arm/mach-omap2/iomap.h"
 
 #include "dss.h"
 

@@ -16,8 +16,6 @@
 #ifndef __ASM_ARCH_CONTROL_H
 #define __ASM_ARCH_CONTROL_H
 
-#include <mach/io.h>
-
 #ifndef __ASSEMBLY__
 #define OMAP242X_CTRL_REGADDR(reg)					\
 		OMAP2_L4_IO_ADDRESS(OMAP242X_CTRL_BASE + (reg))
