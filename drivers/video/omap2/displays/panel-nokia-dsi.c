@@ -2113,6 +2113,7 @@ static int pnd_probe(struct omap_dss_device *dssdev)
 {
 	struct pnd_data *td;
 	struct backlight_device *bldev;
+	struct backlight_properties props;
 	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	struct panel_config *panel_config = NULL;
 	int r, i;
@@ -2197,8 +2198,12 @@ static int pnd_probe(struct omap_dss_device *dssdev)
 	if (!panel_data->set_backlight)
 		td->use_dsi_bl = true;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 255;
+	props.type = BACKLIGHT_RAW;
+
 	bldev = backlight_device_register(dev_name(&dssdev->dev), &dssdev->dev,
-			dssdev, &pnd_bl_ops);
+			dssdev, &pnd_bl_ops, &props);
 	if (IS_ERR(bldev)) {
 		r = PTR_ERR(bldev);
 		goto err_bl;
