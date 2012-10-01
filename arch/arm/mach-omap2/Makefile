@@ -189,6 +189,10 @@ endif
 # OMAP2420 MSDI controller integration support ("MMC")
 obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o
 
+# DSS
+omap-dss-$(CONFIG_OMAP2_DSS)		:= dss.o
+obj-y					+= $(omap-dss-m) $(omap-dss-y)
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
