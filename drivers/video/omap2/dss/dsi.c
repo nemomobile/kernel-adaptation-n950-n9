@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
-#include <linux/module.h>
 #include <linux/semaphore.h>
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
@@ -35,19 +34,16 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/debugfs.h>
-#include <linux/pm_runtime.h>
 
-#include <video/omapdss.h>
-#include <video/mipi_display.h>
+#include <plat/display.h>
 #include <plat/clock.h>
 
 #include "dss.h"
-#include "dss_features.h"
 
 /*#define VERBOSE_IRQ*/
 #define DSI_CATCH_MISSING_TE
+
+#define DSI_BASE		0x4804FC00
 
 struct dsi_reg { u16 idx; };
 
@@ -62,7 +58,6 @@ struct dsi_reg { u16 idx; };
 #define DSI_IRQSTATUS			DSI_REG(0x0018)
 #define DSI_IRQENABLE			DSI_REG(0x001C)
 #define DSI_CTRL			DSI_REG(0x0040)
-#define DSI_GNQ				DSI_REG(0x0044)
 #define DSI_COMPLEXIO_CFG1		DSI_REG(0x0048)
 #define DSI_COMPLEXIO_IRQ_STATUS	DSI_REG(0x004C)
 #define DSI_COMPLEXIO_IRQ_ENABLE	DSI_REG(0x0050)
@@ -107,11 +102,11 @@ struct dsi_reg { u16 idx; };
 #define DSI_PLL_CONFIGURATION1		DSI_REG(0x300 + 0x000C)
 #define DSI_PLL_CONFIGURATION2		DSI_REG(0x300 + 0x0010)
 
-#define REG_GET(dsidev, idx, start, end) \
-	FLD_GET(dsi_read_reg(dsidev, idx), start, end)
+#define REG_GET(idx, start, end) \
+	FLD_GET(dsi_read_reg(idx), start, end)
 
-#define REG_FLD_MOD(dsidev, idx, val, start, end) \
-	dsi_write_reg(dsidev, idx, FLD_MOD(dsi_read_reg(dsidev, idx), val, start, end))
+#define REG_FLD_MOD(idx, val, start, end) \
+	dsi_write_reg(idx, FLD_MOD(dsi_read_reg(idx), val, start, end))
 
 /* Global interrupts */
 #define DSI_IRQ_VC0		(1 << 0)
@@ -133,7 +128,7 @@ struct dsi_reg { u16 idx; };
 #define DSI_IRQ_TA_TIMEOUT	(1 << 20)
 #define DSI_IRQ_ERROR_MASK \
 	(DSI_IRQ_HS_TX_TIMEOUT | DSI_IRQ_LP_RX_TIMEOUT | DSI_IRQ_SYNC_LOST | \
-	DSI_IRQ_TA_TIMEOUT | DSI_IRQ_SYNC_LOST)
+	DSI_IRQ_TA_TIMEOUT)
 #define DSI_IRQ_CHANNEL_MASK	0xf
 
 /* Virtual channel interrupts */
@@ -155,69 +150,55 @@ struct dsi_reg { u16 idx; };
 #define DSI_CIO_IRQ_ERRSYNCESC1		(1 << 0)
 #define DSI_CIO_IRQ_ERRSYNCESC2		(1 << 1)
 #define DSI_CIO_IRQ_ERRSYNCESC3		(1 << 2)
-#define DSI_CIO_IRQ_ERRSYNCESC4		(1 << 3)
-#define DSI_CIO_IRQ_ERRSYNCESC5		(1 << 4)
 #define DSI_CIO_IRQ_ERRESC1		(1 << 5)
 #define DSI_CIO_IRQ_ERRESC2		(1 << 6)
 #define DSI_CIO_IRQ_ERRESC3		(1 << 7)
-#define DSI_CIO_IRQ_ERRESC4		(1 << 8)
-#define DSI_CIO_IRQ_ERRESC5		(1 << 9)
 #define DSI_CIO_IRQ_ERRCONTROL1		(1 << 10)
 #define DSI_CIO_IRQ_ERRCONTROL2		(1 << 11)
 #define DSI_CIO_IRQ_ERRCONTROL3		(1 << 12)
-#define DSI_CIO_IRQ_ERRCONTROL4		(1 << 13)
-#define DSI_CIO_IRQ_ERRCONTROL5		(1 << 14)
 #define DSI_CIO_IRQ_STATEULPS1		(1 << 15)
 #define DSI_CIO_IRQ_STATEULPS2		(1 << 16)
 #define DSI_CIO_IRQ_STATEULPS3		(1 << 17)
-#define DSI_CIO_IRQ_STATEULPS4		(1 << 18)
-#define DSI_CIO_IRQ_STATEULPS5		(1 << 19)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP0_1	(1 << 20)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_1	(1 << 21)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP0_2	(1 << 22)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_2	(1 << 23)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP0_3	(1 << 24)
 #define DSI_CIO_IRQ_ERRCONTENTIONLP1_3	(1 << 25)
-#define DSI_CIO_IRQ_ERRCONTENTIONLP0_4	(1 << 26)
-#define DSI_CIO_IRQ_ERRCONTENTIONLP1_4	(1 << 27)
-#define DSI_CIO_IRQ_ERRCONTENTIONLP0_5	(1 << 28)
-#define DSI_CIO_IRQ_ERRCONTENTIONLP1_5	(1 << 29)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL0	(1 << 30)
 #define DSI_CIO_IRQ_ULPSACTIVENOT_ALL1	(1 << 31)
 #define DSI_CIO_IRQ_ERROR_MASK \
 	(DSI_CIO_IRQ_ERRSYNCESC1 | DSI_CIO_IRQ_ERRSYNCESC2 | \
-	 DSI_CIO_IRQ_ERRSYNCESC3 | DSI_CIO_IRQ_ERRSYNCESC4 | \
-	 DSI_CIO_IRQ_ERRSYNCESC5 | \
-	 DSI_CIO_IRQ_ERRESC1 | DSI_CIO_IRQ_ERRESC2 | \
-	 DSI_CIO_IRQ_ERRESC3 | DSI_CIO_IRQ_ERRESC4 | \
-	 DSI_CIO_IRQ_ERRESC5 | \
-	 DSI_CIO_IRQ_ERRCONTROL1 | DSI_CIO_IRQ_ERRCONTROL2 | \
-	 DSI_CIO_IRQ_ERRCONTROL3 | DSI_CIO_IRQ_ERRCONTROL4 | \
-	 DSI_CIO_IRQ_ERRCONTROL5 | \
+	 DSI_CIO_IRQ_ERRSYNCESC3 | DSI_CIO_IRQ_ERRESC1 | DSI_CIO_IRQ_ERRESC2 | \
+	 DSI_CIO_IRQ_ERRESC3 | DSI_CIO_IRQ_ERRCONTROL1 | \
+	 DSI_CIO_IRQ_ERRCONTROL2 | DSI_CIO_IRQ_ERRCONTROL3 | \
 	 DSI_CIO_IRQ_ERRCONTENTIONLP0_1 | DSI_CIO_IRQ_ERRCONTENTIONLP1_1 | \
 	 DSI_CIO_IRQ_ERRCONTENTIONLP0_2 | DSI_CIO_IRQ_ERRCONTENTIONLP1_2 | \
-	 DSI_CIO_IRQ_ERRCONTENTIONLP0_3 | DSI_CIO_IRQ_ERRCONTENTIONLP1_3 | \
-	 DSI_CIO_IRQ_ERRCONTENTIONLP0_4 | DSI_CIO_IRQ_ERRCONTENTIONLP1_4 | \
-	 DSI_CIO_IRQ_ERRCONTENTIONLP0_5 | DSI_CIO_IRQ_ERRCONTENTIONLP1_5)
+	 DSI_CIO_IRQ_ERRCONTENTIONLP0_3 | DSI_CIO_IRQ_ERRCONTENTIONLP1_3)
+
+#define DSI_DT_DCS_SHORT_WRITE_0	0x05
+#define DSI_DT_DCS_SHORT_WRITE_1	0x15
+#define DSI_DT_DCS_READ			0x06
+#define DSI_DT_SET_MAX_RET_PKG_SIZE	0x37
+#define DSI_DT_NULL_PACKET		0x09
+#define DSI_DT_DCS_LONG_WRITE		0x39
+
+#define DSI_DT_RX_ACK_WITH_ERR		0x02
+#define DSI_DT_RX_DCS_LONG_READ		0x1c
+#define DSI_DT_RX_SHORT_READ_1		0x21
+#define DSI_DT_RX_SHORT_READ_2		0x22
+
+#define FINT_MAX 2100000
+#define FINT_MIN 750000
+#define REGN_MAX (1 << 7)
+#define REGM_MAX ((1 << 11) - 1)
+#define REGM3_MAX (1 << 4)
+#define REGM4_MAX (1 << 4)
+#define LP_DIV_MAX ((1 << 13) - 1)
 
 typedef void (*omap_dsi_isr_t) (void *arg, u32 mask);
 
 #define DSI_MAX_NR_ISRS                2
-#define DSI_MAX_NR_LANES	5
-
-enum dsi_lane_function {
-	DSI_LANE_UNUSED	= 0,
-	DSI_LANE_CLK,
-	DSI_LANE_DATA1,
-	DSI_LANE_DATA2,
-	DSI_LANE_DATA3,
-	DSI_LANE_DATA4,
-};
-
-struct dsi_lane_config {
-	enum dsi_lane_function function;
-	u8 polarity;
-};
 
 struct dsi_isr_data {
 	omap_dsi_isr_t	isr;
@@ -233,9 +214,23 @@ enum fifo_size {
 	DSI_FIFO_SIZE_128	= 4,
 };
 
-enum dsi_vc_source {
-	DSI_VC_SOURCE_L4 = 0,
-	DSI_VC_SOURCE_VP,
+enum dsi_vc_mode {
+	DSI_VC_MODE_L4 = 0,
+	DSI_VC_MODE_VP,
+};
+
+enum dsi_lane {
+	DSI_CLK_P	= 1 << 0,
+	DSI_CLK_N	= 1 << 1,
+	DSI_DATA1_P	= 1 << 2,
+	DSI_DATA1_N	= 1 << 3,
+	DSI_DATA2_P	= 1 << 4,
+	DSI_DATA2_N	= 1 << 5,
+};
+
+struct dsi_update_region {
+	u16 x, y, w, h;
+	struct omap_dss_device *device;
 };
 
 struct dsi_irq_stats {
@@ -252,16 +247,11 @@ struct dsi_isr_tables {
 	struct dsi_isr_data isr_table_cio[DSI_MAX_NR_ISRS];
 };
 
-struct dsi_data {
-	struct platform_device *pdev;
+static struct
+{
 	void __iomem	*base;
 
-	int module_id;
-
-	int irq;
-
-	struct clk *dss_clk;
-	struct clk *sys_clk;
+	void (*dsi_mux_pads)(bool enable);
 
 	struct dsi_clock_info current_cinfo;
 
@@ -269,10 +259,9 @@ struct dsi_data {
 	struct regulator *vdds_dsi_reg;
 
 	struct {
-		enum dsi_vc_source source;
+		enum dsi_vc_mode mode;
 		struct omap_dss_device *dssdev;
 		enum fifo_size fifo_size;
-		int vc_id;
 	} vc[4];
 
 	struct mutex lock;
@@ -286,12 +275,12 @@ struct dsi_data {
 	struct dsi_isr_tables isr_tables_copy;
 
 	int update_channel;
-#ifdef DEBUG
-	unsigned update_bytes;
-#endif
+	struct dsi_update_region update_region;
 
 	bool te_enabled;
 	bool ulps_enabled;
+
+	struct workqueue_struct *workqueue;
 
 	void (*framedone_callback)(int, void *);
 	void *framedone_data;
@@ -319,86 +308,47 @@ struct dsi_data {
 	spinlock_t irq_stats_lock;
 	struct dsi_irq_stats irq_stats;
 #endif
-	/* DSI PLL Parameter Ranges */
-	unsigned long regm_max, regn_max;
-	unsigned long  regm_dispc_max, regm_dsi_max;
-	unsigned long  fint_min, fint_max;
-	unsigned long lpdiv_max;
-
-	unsigned num_lanes_supported;
-
-	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
-	unsigned num_lanes_used;
-
-	unsigned scp_clk_refcount;
-};
-
-struct dsi_packet_sent_handler_data {
-	struct platform_device *dsidev;
-	struct completion *completion;
-};
-
-static struct platform_device *dsi_pdev_map[MAX_NUM_DSI];
+} dsi;
 
 #ifdef DEBUG
-static bool dsi_perf;
-module_param(dsi_perf, bool, 0644);
+static unsigned int dsi_perf;
+module_param_named(dsi_perf, dsi_perf, bool, 0644);
 #endif
 
-static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dsidev)
+static inline void dsi_write_reg(const struct dsi_reg idx, u32 val)
 {
-	return dev_get_drvdata(&dsidev->dev);
+	__raw_writel(val, dsi.base + idx.idx);
 }
 
-static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
+static inline u32 dsi_read_reg(const struct dsi_reg idx)
 {
-	return dsi_pdev_map[dssdev->phy.dsi.module];
+	return __raw_readl(dsi.base + idx.idx);
 }
 
-struct platform_device *dsi_get_dsidev_from_id(int module)
+
+void dsi_save_context(void)
 {
-	return dsi_pdev_map[module];
 }
 
-static inline void dsi_write_reg(struct platform_device *dsidev,
-		const struct dsi_reg idx, u32 val)
+void dsi_restore_context(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	__raw_writel(val, dsi->base + idx.idx);
 }
 
-static inline u32 dsi_read_reg(struct platform_device *dsidev,
-		const struct dsi_reg idx)
+void dsi_bus_lock(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return __raw_readl(dsi->base + idx.idx);
-}
-
-void dsi_bus_lock(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	down(&dsi->bus_lock);
+	down(&dsi.bus_lock);
 }
 EXPORT_SYMBOL(dsi_bus_lock);
 
-void dsi_bus_unlock(struct omap_dss_device *dssdev)
+void dsi_bus_unlock(void)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	up(&dsi->bus_lock);
+	up(&dsi.bus_lock);
 }
 EXPORT_SYMBOL(dsi_bus_unlock);
 
-static bool dsi_bus_is_locked(struct platform_device *dsidev)
+static bool dsi_bus_is_locked(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return dsi->bus_lock.count == 0;
+	return dsi.bus_lock.count == 0;
 }
 
 static void dsi_completion_handler(void *data, u32 mask)
@@ -406,66 +356,32 @@ static void dsi_completion_handler(void *data, u32 mask)
 	complete((struct completion *)data);
 }
 
-static inline int wait_for_bit_change(struct platform_device *dsidev,
-		const struct dsi_reg idx, int bitnum, int value)
+static inline int wait_for_bit_change(const struct dsi_reg idx, int bitnum,
+		int value)
 {
-	unsigned long timeout;
-	ktime_t wait;
-	int t;
+	int t = 100000;
 
-	/* first busyloop to see if the bit changes right away */
-	t = 100;
-	while (t-- > 0) {
-		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
-			return value;
+	while (REG_GET(idx, bitnum, bitnum) != value) {
+		if (--t == 0)
+			return !value;
 	}
 
-	/* then loop for 500ms, sleeping for 1ms in between */
-	timeout = jiffies + msecs_to_jiffies(500);
-	while (time_before(jiffies, timeout)) {
-		if (REG_GET(dsidev, idx, bitnum, bitnum) == value)
-			return value;
-
-		wait = ns_to_ktime(1000 * 1000);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_hrtimeout(&wait, HRTIMER_MODE_REL);
-	}
-
-	return !value;
-}
-
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
-{
-	switch (fmt) {
-	case OMAP_DSS_DSI_FMT_RGB888:
-	case OMAP_DSS_DSI_FMT_RGB666:
-		return 24;
-	case OMAP_DSS_DSI_FMT_RGB666_PACKED:
-		return 18;
-	case OMAP_DSS_DSI_FMT_RGB565:
-		return 16;
-	default:
-		BUG();
-		return 0;
-	}
+	return value;
 }
 
 #ifdef DEBUG
-static void dsi_perf_mark_setup(struct platform_device *dsidev)
+static void dsi_perf_mark_setup(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	dsi->perf_setup_time = ktime_get();
+	dsi.perf_setup_time = ktime_get();
 }
 
-static void dsi_perf_mark_start(struct platform_device *dsidev)
+static void dsi_perf_mark_start(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	dsi->perf_start_time = ktime_get();
+	dsi.perf_start_time = ktime_get();
 }
 
-static void dsi_perf_show(struct platform_device *dsidev, const char *name)
+static void dsi_perf_show(const char *name)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	ktime_t t, setup_time, trans_time;
 	u32 total_bytes;
 	u32 setup_us, trans_us, total_us;
@@ -475,19 +391,21 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 
 	t = ktime_get();
 
-	setup_time = ktime_sub(dsi->perf_start_time, dsi->perf_setup_time);
+	setup_time = ktime_sub(dsi.perf_start_time, dsi.perf_setup_time);
 	setup_us = (u32)ktime_to_us(setup_time);
 	if (setup_us == 0)
 		setup_us = 1;
 
-	trans_time = ktime_sub(t, dsi->perf_start_time);
+	trans_time = ktime_sub(t, dsi.perf_start_time);
 	trans_us = (u32)ktime_to_us(trans_time);
 	if (trans_us == 0)
 		trans_us = 1;
 
 	total_us = setup_us + trans_us;
 
-	total_bytes = dsi->update_bytes;
+	total_bytes = dsi.update_region.w *
+		dsi.update_region.h *
+		dsi.update_region.device->ctrl.pixel_size / 8;
 
 	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
 			"%u bytes, %u kbytes/sec\n",
@@ -500,25 +418,13 @@ static void dsi_perf_show(struct platform_device *dsidev, const char *name)
 			total_bytes * 1000 / total_us);
 }
 #else
-static inline void dsi_perf_mark_setup(struct platform_device *dsidev)
-{
-}
-
-static inline void dsi_perf_mark_start(struct platform_device *dsidev)
-{
-}
-
-static inline void dsi_perf_show(struct platform_device *dsidev,
-		const char *name)
-{
-}
+#define dsi_perf_mark_setup()
+#define dsi_perf_mark_start()
+#define dsi_perf_show(x)
 #endif
 
 static void print_irq_status(u32 status)
 {
-	if (status == 0)
-		return;
-
 #ifndef VERBOSE_IRQ
 	if ((status & ~DSI_IRQ_CHANNEL_MASK) == 0)
 		return;
@@ -554,9 +460,6 @@ static void print_irq_status(u32 status)
 
 static void print_irq_status_vc(int channel, u32 status)
 {
-	if (status == 0)
-		return;
-
 #ifndef VERBOSE_IRQ
 	if ((status & ~DSI_VC_IRQ_PACKET_SENT) == 0)
 		return;
@@ -583,9 +486,6 @@ static void print_irq_status_vc(int channel, u32 status)
 
 static void print_irq_status_cio(u32 status)
 {
-	if (status == 0)
-		return;
-
 	printk(KERN_DEBUG "DSI CIO IRQ 0x%x: ", status);
 
 #define PIS(x) \
@@ -617,42 +517,38 @@ static void print_irq_status_cio(u32 status)
 }
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-static void dsi_collect_irq_stats(struct platform_device *dsidev, u32 irqstatus,
-		u32 *vcstatus, u32 ciostatus)
+static void dsi_collect_irq_stats(u32 irqstatus, u32 *vcstatus, u32 ciostatus)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int i;
 
-	spin_lock(&dsi->irq_stats_lock);
+	spin_lock(&dsi.irq_stats_lock);
 
-	dsi->irq_stats.irq_count++;
-	dss_collect_irq_stats(irqstatus, dsi->irq_stats.dsi_irqs);
+	dsi.irq_stats.irq_count++;
+	dss_collect_irq_stats(irqstatus, dsi.irq_stats.dsi_irqs);
 
 	for (i = 0; i < 4; ++i)
-		dss_collect_irq_stats(vcstatus[i], dsi->irq_stats.vc_irqs[i]);
+		dss_collect_irq_stats(vcstatus[i], dsi.irq_stats.vc_irqs[i]);
 
-	dss_collect_irq_stats(ciostatus, dsi->irq_stats.cio_irqs);
+	dss_collect_irq_stats(ciostatus, dsi.irq_stats.cio_irqs);
 
-	spin_unlock(&dsi->irq_stats_lock);
+	spin_unlock(&dsi.irq_stats_lock);
 }
 #else
-#define dsi_collect_irq_stats(dsidev, irqstatus, vcstatus, ciostatus)
+#define dsi_collect_irq_stats(irqstatus, vcstatus, ciostatus)
 #endif
 
 static int debug_irq;
 
-static void dsi_handle_irq_errors(struct platform_device *dsidev, u32 irqstatus,
-		u32 *vcstatus, u32 ciostatus)
+static void dsi_handle_irq_errors(u32 irqstatus, u32 *vcstatus, u32 ciostatus)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int i;
 
 	if (irqstatus & DSI_IRQ_ERROR_MASK) {
 		DSSERR("DSI error, irqstatus %x\n", irqstatus);
 		print_irq_status(irqstatus);
-		spin_lock(&dsi->errors_lock);
-		dsi->errors |= irqstatus & DSI_IRQ_ERROR_MASK;
-		spin_unlock(&dsi->errors_lock);
+		spin_lock(&dsi.errors_lock);
+		dsi.errors |= irqstatus & DSI_IRQ_ERROR_MASK;
+		spin_unlock(&dsi.errors_lock);
 	} else if (debug_irq) {
 		print_irq_status(irqstatus);
 	}
@@ -711,29 +607,18 @@ static void dsi_handle_isrs(struct dsi_isr_tables *isr_tables,
 				ciostatus);
 }
 
-static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
+/* called from dss */
+void dsi_irq_handler(void)
 {
-	struct platform_device *dsidev;
-	struct dsi_data *dsi;
 	u32 irqstatus, vcstatus[4], ciostatus;
 	int i;
 
-	dsidev = (struct platform_device *) arg;
-	dsi = dsi_get_dsidrv_data(dsidev);
+	spin_lock(&dsi.irq_lock);
 
-	spin_lock(&dsi->irq_lock);
-
-	irqstatus = dsi_read_reg(dsidev, DSI_IRQSTATUS);
-
-	/* IRQ is not for us */
-	if (!irqstatus) {
-		spin_unlock(&dsi->irq_lock);
-		return IRQ_NONE;
-	}
-
-	dsi_write_reg(dsidev, DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
+	irqstatus = dsi_read_reg(DSI_IRQSTATUS);
+	dsi_write_reg(DSI_IRQSTATUS, irqstatus & ~DSI_IRQ_CHANNEL_MASK);
 	/* flush posted write */
-	dsi_read_reg(dsidev, DSI_IRQSTATUS);
+	dsi_read_reg(DSI_IRQSTATUS);
 
 	for (i = 0; i < 4; ++i) {
 		if ((irqstatus & (1 << i)) == 0) {
@@ -741,47 +626,44 @@ static irqreturn_t omap_dsi_irq_handler(int irq, void *arg)
 			continue;
 		}
 
-		vcstatus[i] = dsi_read_reg(dsidev, DSI_VC_IRQSTATUS(i));
+		vcstatus[i] = dsi_read_reg(DSI_VC_IRQSTATUS(i));
 
-		dsi_write_reg(dsidev, DSI_VC_IRQSTATUS(i), vcstatus[i]);
+		dsi_write_reg(DSI_VC_IRQSTATUS(i), vcstatus[i]);
 		/* flush posted write */
-		dsi_read_reg(dsidev, DSI_VC_IRQSTATUS(i));
+		dsi_read_reg(DSI_VC_IRQSTATUS(i));
 	}
 
 	if (irqstatus & DSI_IRQ_COMPLEXIO_ERR) {
-		ciostatus = dsi_read_reg(dsidev, DSI_COMPLEXIO_IRQ_STATUS);
+		ciostatus = dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 
-		dsi_write_reg(dsidev, DSI_COMPLEXIO_IRQ_STATUS, ciostatus);
+		dsi_write_reg(DSI_COMPLEXIO_IRQ_STATUS, ciostatus);
 		/* flush posted write */
-		dsi_read_reg(dsidev, DSI_COMPLEXIO_IRQ_STATUS);
+		dsi_read_reg(DSI_COMPLEXIO_IRQ_STATUS);
 	} else {
 		ciostatus = 0;
 	}
 
 #ifdef DSI_CATCH_MISSING_TE
 	if (irqstatus & DSI_IRQ_TE_TRIGGER)
-		del_timer(&dsi->te_timer);
+		del_timer(&dsi.te_timer);
 #endif
 
 	/* make a copy and unlock, so that isrs can unregister
 	 * themselves */
-	memcpy(&dsi->isr_tables_copy, &dsi->isr_tables,
-		sizeof(dsi->isr_tables));
+	memcpy(&dsi.isr_tables_copy, &dsi.isr_tables, sizeof(dsi.isr_tables));
 
-	spin_unlock(&dsi->irq_lock);
+	spin_unlock(&dsi.irq_lock);
 
-	dsi_handle_isrs(&dsi->isr_tables_copy, irqstatus, vcstatus, ciostatus);
+	dsi_handle_isrs(&dsi.isr_tables_copy, irqstatus, vcstatus, ciostatus);
 
-	dsi_handle_irq_errors(dsidev, irqstatus, vcstatus, ciostatus);
+	dsi_handle_irq_errors(irqstatus, vcstatus, ciostatus);
 
-	dsi_collect_irq_stats(dsidev, irqstatus, vcstatus, ciostatus);
-
-	return IRQ_HANDLED;
+	dsi_collect_irq_stats(irqstatus, vcstatus, ciostatus);
 }
 
-/* dsi->irq_lock has to be locked by the caller */
-static void _omap_dsi_configure_irqs(struct platform_device *dsidev,
-		struct dsi_isr_data *isr_array,
+
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_configure_irqs(struct dsi_isr_data *isr_array,
 		unsigned isr_array_size, u32 default_mask,
 		const struct dsi_reg enable_reg,
 		const struct dsi_reg status_reg)
@@ -802,67 +684,61 @@ static void _omap_dsi_configure_irqs(struct platform_device *dsidev,
 		mask |= isr_data->mask;
 	}
 
-	old_mask = dsi_read_reg(dsidev, enable_reg);
+	old_mask = dsi_read_reg(enable_reg);
 	/* clear the irqstatus for newly enabled irqs */
-	dsi_write_reg(dsidev, status_reg, (mask ^ old_mask) & mask);
-	dsi_write_reg(dsidev, enable_reg, mask);
+	dsi_write_reg(status_reg, (mask ^ old_mask) & mask);
+	dsi_write_reg(enable_reg, mask);
 
 	/* flush posted writes */
-	dsi_read_reg(dsidev, enable_reg);
-	dsi_read_reg(dsidev, status_reg);
+	dsi_read_reg(enable_reg);
+	dsi_read_reg(status_reg);
 }
 
-/* dsi->irq_lock has to be locked by the caller */
-static void _omap_dsi_set_irqs(struct platform_device *dsidev)
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 mask = DSI_IRQ_ERROR_MASK;
 #ifdef DSI_CATCH_MISSING_TE
 	mask |= DSI_IRQ_TE_TRIGGER;
 #endif
-	_omap_dsi_configure_irqs(dsidev, dsi->isr_tables.isr_table,
-			ARRAY_SIZE(dsi->isr_tables.isr_table), mask,
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table), mask,
 			DSI_IRQENABLE, DSI_IRQSTATUS);
 }
 
-/* dsi->irq_lock has to be locked by the caller */
-static void _omap_dsi_set_irqs_vc(struct platform_device *dsidev, int vc)
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs_vc(int vc)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	_omap_dsi_configure_irqs(dsidev, dsi->isr_tables.isr_table_vc[vc],
-			ARRAY_SIZE(dsi->isr_tables.isr_table_vc[vc]),
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table_vc[vc],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[vc]),
 			DSI_VC_IRQ_ERROR_MASK,
 			DSI_VC_IRQENABLE(vc), DSI_VC_IRQSTATUS(vc));
 }
 
-/* dsi->irq_lock has to be locked by the caller */
-static void _omap_dsi_set_irqs_cio(struct platform_device *dsidev)
+/* dsi.irq_lock has to be locked by the caller */
+static void _omap_dsi_set_irqs_cio(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	_omap_dsi_configure_irqs(dsidev, dsi->isr_tables.isr_table_cio,
-			ARRAY_SIZE(dsi->isr_tables.isr_table_cio),
+	_omap_dsi_configure_irqs(dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio),
 			DSI_CIO_IRQ_ERROR_MASK,
 			DSI_COMPLEXIO_IRQ_ENABLE, DSI_COMPLEXIO_IRQ_STATUS);
 }
 
-static void _dsi_initialize_irq(struct platform_device *dsidev)
+static void _dsi_initialize_irq(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int vc;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
-	memset(&dsi->isr_tables, 0, sizeof(dsi->isr_tables));
+	memset(&dsi.isr_tables, 0, sizeof(dsi.isr_tables));
 
-	_omap_dsi_set_irqs(dsidev);
+	_omap_dsi_set_irqs();
 	for (vc = 0; vc < 4; ++vc)
-		_omap_dsi_set_irqs_vc(dsidev, vc);
-	_omap_dsi_set_irqs_cio(dsidev);
+		_omap_dsi_set_irqs_vc(vc);
+	_omap_dsi_set_irqs_cio();
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 }
 
 static int _dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
@@ -921,182 +797,154 @@ static int _dsi_unregister_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
 	return -EINVAL;
 }
 
-static int dsi_register_isr(struct platform_device *dsidev, omap_dsi_isr_t isr,
-		void *arg, u32 mask)
+static int dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
-	r = _dsi_register_isr(isr, arg, mask, dsi->isr_tables.isr_table,
-			ARRAY_SIZE(dsi->isr_tables.isr_table));
+	r = _dsi_register_isr(isr, arg, mask, dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table));
 
 	if (r == 0)
-		_omap_dsi_set_irqs(dsidev);
+		_omap_dsi_set_irqs();
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static int dsi_unregister_isr(struct platform_device *dsidev,
-		omap_dsi_isr_t isr, void *arg, u32 mask)
+static int dsi_unregister_isr(omap_dsi_isr_t isr, void *arg, u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
-	r = _dsi_unregister_isr(isr, arg, mask, dsi->isr_tables.isr_table,
-			ARRAY_SIZE(dsi->isr_tables.isr_table));
+	r = _dsi_unregister_isr(isr, arg, mask, dsi.isr_tables.isr_table,
+			ARRAY_SIZE(dsi.isr_tables.isr_table));
 
 	if (r == 0)
-		_omap_dsi_set_irqs(dsidev);
+		_omap_dsi_set_irqs();
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static int dsi_register_isr_vc(struct platform_device *dsidev, int channel,
-		omap_dsi_isr_t isr, void *arg, u32 mask)
+static int dsi_register_isr_vc(int channel, omap_dsi_isr_t isr, void *arg,
+		u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
 	r = _dsi_register_isr(isr, arg, mask,
-			dsi->isr_tables.isr_table_vc[channel],
-			ARRAY_SIZE(dsi->isr_tables.isr_table_vc[channel]));
+			dsi.isr_tables.isr_table_vc[channel],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[channel]));
 
 	if (r == 0)
-		_omap_dsi_set_irqs_vc(dsidev, channel);
+		_omap_dsi_set_irqs_vc(channel);
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static int dsi_unregister_isr_vc(struct platform_device *dsidev, int channel,
-		omap_dsi_isr_t isr, void *arg, u32 mask)
+static int dsi_unregister_isr_vc(int channel, omap_dsi_isr_t isr, void *arg,
+		u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
 	r = _dsi_unregister_isr(isr, arg, mask,
-			dsi->isr_tables.isr_table_vc[channel],
-			ARRAY_SIZE(dsi->isr_tables.isr_table_vc[channel]));
+			dsi.isr_tables.isr_table_vc[channel],
+			ARRAY_SIZE(dsi.isr_tables.isr_table_vc[channel]));
 
 	if (r == 0)
-		_omap_dsi_set_irqs_vc(dsidev, channel);
+		_omap_dsi_set_irqs_vc(channel);
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static int dsi_register_isr_cio(struct platform_device *dsidev,
-		omap_dsi_isr_t isr, void *arg, u32 mask)
+static int dsi_register_isr_cio(omap_dsi_isr_t isr, void *arg, u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
-	r = _dsi_register_isr(isr, arg, mask, dsi->isr_tables.isr_table_cio,
-			ARRAY_SIZE(dsi->isr_tables.isr_table_cio));
+	r = _dsi_register_isr(isr, arg, mask, dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio));
 
 	if (r == 0)
-		_omap_dsi_set_irqs_cio(dsidev);
+		_omap_dsi_set_irqs_cio();
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static int dsi_unregister_isr_cio(struct platform_device *dsidev,
-		omap_dsi_isr_t isr, void *arg, u32 mask)
+static int dsi_unregister_isr_cio(omap_dsi_isr_t isr, void *arg, u32 mask)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	int r;
 
-	spin_lock_irqsave(&dsi->irq_lock, flags);
+	spin_lock_irqsave(&dsi.irq_lock, flags);
 
-	r = _dsi_unregister_isr(isr, arg, mask, dsi->isr_tables.isr_table_cio,
-			ARRAY_SIZE(dsi->isr_tables.isr_table_cio));
+	r = _dsi_unregister_isr(isr, arg, mask, dsi.isr_tables.isr_table_cio,
+			ARRAY_SIZE(dsi.isr_tables.isr_table_cio));
 
 	if (r == 0)
-		_omap_dsi_set_irqs_cio(dsidev);
+		_omap_dsi_set_irqs_cio();
 
-	spin_unlock_irqrestore(&dsi->irq_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_lock, flags);
 
 	return r;
 }
 
-static u32 dsi_get_errors(struct platform_device *dsidev)
+static u32 dsi_get_errors(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	u32 e;
-	spin_lock_irqsave(&dsi->errors_lock, flags);
-	e = dsi->errors;
-	dsi->errors = 0;
-	spin_unlock_irqrestore(&dsi->errors_lock, flags);
+	spin_lock_irqsave(&dsi.errors_lock, flags);
+	e = dsi.errors;
+	dsi.errors = 0;
+	spin_unlock_irqrestore(&dsi.errors_lock, flags);
 	return e;
 }
 
-int dsi_runtime_get(struct platform_device *dsidev)
+/* DSI func clock. this could also be DSI2_PLL_FCLK */
+static inline void enable_clocks(bool enable)
 {
-	int r;
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	DSSDBG("dsi_runtime_get\n");
-
-	r = pm_runtime_get_sync(&dsi->pdev->dev);
-	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
-}
-
-void dsi_runtime_put(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int r;
-
-	DSSDBG("dsi_runtime_put\n");
-
-	r = pm_runtime_put_sync(&dsi->pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	if (enable)
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	else
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 }
 
 /* source clock for DSI PLL. this could also be PCLKFREE */
-static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
-		bool enable)
+static inline void dsi_enable_pll_clock(bool enable)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
 	if (enable)
-		clk_enable(dsi->sys_clk);
+		dss_clk_enable(DSS_CLK_FCK2);
 	else
-		clk_disable(dsi->sys_clk);
+		dss_clk_disable(DSS_CLK_FCK2);
 
-	if (enable && dsi->pll_locked) {
-		if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 1, 1) != 1)
+	if (enable && dsi.pll_locked) {
+		if (wait_for_bit_change(DSI_PLL_STATUS, 1, 1) != 1)
 			DSSERR("cannot lock PLL when enabling clocks\n");
 	}
 }
 
 #ifdef DEBUG
-static void _dsi_print_reset_status(struct platform_device *dsidev)
+static void _dsi_print_reset_status(void)
 {
 	u32 l;
 	int b0, b1, b2;
@@ -1107,27 +955,32 @@ static void _dsi_print_reset_status(struct platform_device *dsidev)
 	/* A dummy read using the SCP interface to any DSIPHY register is
 	 * required after DSIPHY reset to complete the reset of the DSI complex
 	 * I/O. */
-	l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
+	l = dsi_read_reg(DSI_DSIPHY_CFG5);
 
 	printk(KERN_DEBUG "DSI resets: ");
 
-	l = dsi_read_reg(dsidev, DSI_PLL_STATUS);
+	l = dsi_read_reg(DSI_PLL_STATUS);
 	printk("PLL (%d) ", FLD_GET(l, 0, 0));
 
-	l = dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG1);
+	l = dsi_read_reg(DSI_COMPLEXIO_CFG1);
 	printk("CIO (%d) ", FLD_GET(l, 29, 29));
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC)) {
-		b0 = 28;
-		b1 = 27;
-		b2 = 26;
-	} else {
+	/*
+	 * TXCLKESCx bits for lanes 0, 1, 2 respectively:
+	 * 3430: 28, 27, 26
+	 * 3630: 24, 25, 26
+	 */
+	if (cpu_is_omap3630()) {
 		b0 = 24;
 		b1 = 25;
 		b2 = 26;
+	} else {
+		b0 = 28;
+		b1 = 27;
+		b2 = 26;
 	}
 
-	l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
+	l = dsi_read_reg(DSI_DSIPHY_CFG5);
 	printk("PHY (%x%x%x, %d, %d, %d)\n",
 			FLD_GET(l, b0, b0),
 			FLD_GET(l, b1, b1),
@@ -1137,17 +990,17 @@ static void _dsi_print_reset_status(struct platform_device *dsidev)
 			FLD_GET(l, 31, 31));
 }
 #else
-#define _dsi_print_reset_status(x)
+#define _dsi_print_reset_status()
 #endif
 
-static inline int dsi_if_enable(struct platform_device *dsidev, bool enable)
+static inline int dsi_if_enable(bool enable)
 {
 	DSSDBG("dsi_if_enable(%d)\n", enable);
 
 	enable = enable ? 1 : 0;
-	REG_FLD_MOD(dsidev, DSI_CTRL, enable, 0, 0); /* IF_EN */
+	REG_FLD_MOD(DSI_CTRL, enable, 0, 0); /* IF_EN */
 
-	if (wait_for_bit_change(dsidev, DSI_CTRL, 0, enable) != enable) {
+	if (wait_for_bit_change(DSI_CTRL, 0, enable) != enable) {
 			DSSERR("Failed to set dsi_if_enable to %d\n", enable);
 			return -EIO;
 	}
@@ -1155,38 +1008,31 @@ static inline int dsi_if_enable(struct platform_device *dsidev, bool enable)
 	return 0;
 }
 
-unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev)
+unsigned long dsi_get_dsi1_pll_rate(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return dsi->current_cinfo.dsi_pll_hsdiv_dispc_clk;
+	return dsi.current_cinfo.dsi1_pll_fclk;
 }
 
-static unsigned long dsi_get_pll_hsdiv_dsi_rate(struct platform_device *dsidev)
+static unsigned long dsi_get_dsi2_pll_rate(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return dsi->current_cinfo.dsi_pll_hsdiv_dsi_clk;
+	return dsi.current_cinfo.dsi2_pll_fclk;
 }
 
-static unsigned long dsi_get_txbyteclkhs(struct platform_device *dsidev)
+static unsigned long dsi_get_txbyteclkhs(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	return dsi->current_cinfo.clkin4ddr / 16;
+	return dsi.current_cinfo.clkin4ddr / 16;
 }
 
-static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
+static unsigned long dsi_fclk_rate(void)
 {
 	unsigned long r;
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
-	if (dss_get_dsi_clk_source(dsi->module_id) == OMAP_DSS_CLK_SRC_FCK) {
-		/* DSI FCLK source is DSS_CLK_FCK */
-		r = clk_get_rate(dsi->dss_clk);
+	if (dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK) {
+		/* DSI FCLK source is DSS1_ALWON_FCK, which is dss1_fck */
+		r = dss_clk_get_rate(DSS_CLK_FCK1);
 	} else {
-		/* DSI FCLK source is dsi_pll_hsdiv_dsi_clk */
-		r = dsi_get_pll_hsdiv_dsi_rate(dsidev);
+		/* DSI FCLK source is DSI2_PLL_FCLK */
+		r = dsi_get_dsi2_pll_rate();
 	}
 
 	return r;
@@ -1194,50 +1040,31 @@ static unsigned long dsi_fclk_rate(struct platform_device *dsidev)
 
 static int dsi_set_lp_clk_divisor(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long dsi_fclk;
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
 
 	lp_clk_div = dssdev->clocks.dsi.lp_clk_div;
 
-	if (lp_clk_div == 0 || lp_clk_div > dsi->lpdiv_max)
+	if (lp_clk_div == 0 || lp_clk_div > LP_DIV_MAX)
 		return -EINVAL;
 
-	dsi_fclk = dsi_fclk_rate(dsidev);
+	dsi_fclk = dsi_fclk_rate();
 
 	lp_clk = dsi_fclk / 2 / lp_clk_div;
 
 	DSSDBG("LP_CLK_DIV %u, LP_CLK %lu\n", lp_clk_div, lp_clk);
-	dsi->current_cinfo.lp_clk = lp_clk;
-	dsi->current_cinfo.lp_clk_div = lp_clk_div;
+	dsi.current_cinfo.lp_clk = lp_clk;
+	dsi.current_cinfo.lp_clk_div = lp_clk_div;
 
-	/* LP_CLK_DIVISOR */
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, lp_clk_div, 12, 0);
+	REG_FLD_MOD(DSI_CLK_CTRL, lp_clk_div, 12, 0);   /* LP_CLK_DIVISOR */
 
-	/* LP_RX_SYNCHRO_ENABLE */
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, dsi_fclk > 30000000 ? 1 : 0, 21, 21);
+	REG_FLD_MOD(DSI_CLK_CTRL, dsi_fclk > 30000000 ? 1 : 0,
+			21, 21);		/* LP_RX_SYNCHRO_ENABLE */
 
 	return 0;
 }
 
-static void dsi_enable_scp_clk(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->scp_clk_refcount++ == 0)
-		REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 1, 14, 14); /* CIO_CLK_ICG */
-}
-
-static void dsi_disable_scp_clk(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	WARN_ON(dsi->scp_clk_refcount == 0);
-	if (--dsi->scp_clk_refcount == 0)
-		REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 0, 14, 14); /* CIO_CLK_ICG */
-}
 
 enum dsi_pll_power_state {
 	DSI_PLL_POWER_OFF	= 0x0,
@@ -1246,21 +1073,14 @@ enum dsi_pll_power_state {
 	DSI_PLL_POWER_ON_DIV	= 0x3,
 };
 
-static int dsi_pll_power(struct platform_device *dsidev,
-		enum dsi_pll_power_state state)
+static int dsi_pll_power(enum dsi_pll_power_state state)
 {
 	int t = 0;
 
-	/* DSI-PLL power command 0x3 is not working */
-	if (dss_has_feature(FEAT_DSI_PLL_PWR_BUG) &&
-			state == DSI_PLL_POWER_ON_DIV)
-		state = DSI_PLL_POWER_ON_ALL;
-
-	/* PLL_PWR_CMD */
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, state, 31, 30);
+	REG_FLD_MOD(DSI_CLK_CTRL, state, 31, 30);	/* PLL_PWR_CMD */
 
 	/* PLL_PWR_STATUS */
-	while (FLD_GET(dsi_read_reg(dsidev, DSI_CLK_CTRL), 29, 28) != state) {
+	while (FLD_GET(dsi_read_reg(DSI_CLK_CTRL), 29, 28) != state) {
 		if (++t > 1000) {
 			DSSERR("Failed to set DSI PLL power mode to %d\n",
 					state);
@@ -1273,27 +1093,37 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 /* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct platform_device *dsidev,
-		struct dsi_clock_info *cinfo)
+static int dsi_calc_clock_rates(struct dsi_clock_info *cinfo)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (cinfo->regn == 0 || cinfo->regn > dsi->regn_max)
+	if (cinfo->regn == 0 || cinfo->regn > REGN_MAX)
 		return -EINVAL;
 
-	if (cinfo->regm == 0 || cinfo->regm > dsi->regm_max)
+	if (cinfo->regm == 0 || cinfo->regm > REGM_MAX)
 		return -EINVAL;
 
-	if (cinfo->regm_dispc > dsi->regm_dispc_max)
+	if (cinfo->regm3 > REGM3_MAX)
 		return -EINVAL;
 
-	if (cinfo->regm_dsi > dsi->regm_dsi_max)
+	if (cinfo->regm4 > REGM4_MAX)
 		return -EINVAL;
 
-	cinfo->clkin = clk_get_rate(dsi->sys_clk);
-	cinfo->fint = cinfo->clkin / cinfo->regn;
+	if (cinfo->use_dss2_fck) {
+		cinfo->clkin = dss_clk_get_rate(DSS_CLK_FCK2);
+		/* XXX it is unclear if highfreq should be used
+		 * with DSS2_FCK source also */
+		cinfo->highfreq = 0;
+	} else {
+		cinfo->clkin = dispc_pclk_rate();
 
-	if (cinfo->fint > dsi->fint_max || cinfo->fint < dsi->fint_min)
+		if (cinfo->clkin < 32000000)
+			cinfo->highfreq = 0;
+		else
+			cinfo->highfreq = 1;
+	}
+
+	cinfo->fint = cinfo->clkin / (cinfo->regn * (cinfo->highfreq ? 2 : 1));
+
+	if (cinfo->fint > FINT_MAX || cinfo->fint < FINT_MIN)
 		return -EINVAL;
 
 	cinfo->clkin4ddr = 2 * cinfo->regm * cinfo->fint;
@@ -1301,49 +1131,44 @@ static int dsi_calc_clock_rates(struct platform_device *dsidev,
 	if (cinfo->clkin4ddr > 1800 * 1000 * 1000)
 		return -EINVAL;
 
-	if (cinfo->regm_dispc > 0)
-		cinfo->dsi_pll_hsdiv_dispc_clk =
-			cinfo->clkin4ddr / cinfo->regm_dispc;
+	if (cinfo->regm3 > 0)
+		cinfo->dsi1_pll_fclk = cinfo->clkin4ddr / cinfo->regm3;
 	else
-		cinfo->dsi_pll_hsdiv_dispc_clk = 0;
+		cinfo->dsi1_pll_fclk = 0;
 
-	if (cinfo->regm_dsi > 0)
-		cinfo->dsi_pll_hsdiv_dsi_clk =
-			cinfo->clkin4ddr / cinfo->regm_dsi;
+	if (cinfo->regm4 > 0)
+		cinfo->dsi2_pll_fclk = cinfo->clkin4ddr / cinfo->regm4;
 	else
-		cinfo->dsi_pll_hsdiv_dsi_clk = 0;
+		cinfo->dsi2_pll_fclk = 0;
 
 	return 0;
 }
 
-int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev, bool is_tft,
-		unsigned long req_pck, struct dsi_clock_info *dsi_cinfo,
+int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
+		struct dsi_clock_info *dsi_cinfo,
 		struct dispc_clock_info *dispc_cinfo)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dsi_clock_info cur, best;
 	struct dispc_clock_info best_dispc;
 	int min_fck_per_pck;
 	int match = 0;
-	unsigned long dss_sys_clk, max_dss_fck;
+	unsigned long dss_clk_fck2;
 
-	dss_sys_clk = clk_get_rate(dsi->sys_clk);
+	dss_clk_fck2 = dss_clk_get_rate(DSS_CLK_FCK2);
 
-	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
-
-	if (req_pck == dsi->cache_req_pck &&
-			dsi->cache_cinfo.clkin == dss_sys_clk) {
+	if (req_pck == dsi.cache_req_pck &&
+			dsi.cache_cinfo.clkin == dss_clk_fck2) {
 		DSSDBG("DSI clock info found from cache\n");
-		*dsi_cinfo = dsi->cache_cinfo;
-		dispc_find_clk_divs(is_tft, req_pck,
-			dsi_cinfo->dsi_pll_hsdiv_dispc_clk, dispc_cinfo);
+		*dsi_cinfo = dsi.cache_cinfo;
+		dispc_find_clk_divs(is_tft, req_pck, dsi_cinfo->dsi1_pll_fclk,
+				dispc_cinfo);
 		return 0;
 	}
 
 	min_fck_per_pck = CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK;
 
 	if (min_fck_per_pck &&
-		req_pck * min_fck_per_pck > max_dss_fck) {
+		req_pck * min_fck_per_pck > DISPC_MAX_FCK) {
 		DSSERR("Requested pixel clock not possible with the current "
 				"OMAP2_DSS_MIN_FCK_PER_PCK setting. Turning "
 				"the constraint off.\n");
@@ -1357,53 +1182,57 @@ retry:
 	memset(&best_dispc, 0, sizeof(best_dispc));
 
 	memset(&cur, 0, sizeof(cur));
-	cur.clkin = dss_sys_clk;
+	cur.clkin = dss_clk_fck2;
+	cur.use_dss2_fck = 1;
+	cur.highfreq = 0;
 
-	/* 0.75MHz < Fint = clkin / regn < 2.1MHz */
+	/* no highfreq: 0.75MHz < Fint = clkin / regn < 2.1MHz */
+	/* highfreq: 0.75MHz < Fint = clkin / (2*regn) < 2.1MHz */
 	/* To reduce PLL lock time, keep Fint high (around 2 MHz) */
-	for (cur.regn = 1; cur.regn < dsi->regn_max; ++cur.regn) {
-		cur.fint = cur.clkin / cur.regn;
+	for (cur.regn = 1; cur.regn < REGN_MAX; ++cur.regn) {
+		if (cur.highfreq == 0)
+			cur.fint = cur.clkin / cur.regn;
+		else
+			cur.fint = cur.clkin / (2 * cur.regn);
 
-		if (cur.fint > dsi->fint_max || cur.fint < dsi->fint_min)
+		if (cur.fint > FINT_MAX || cur.fint < FINT_MIN)
 			continue;
 
-		/* DSIPHY(MHz) = (2 * regm / regn) * clkin */
-		for (cur.regm = 1; cur.regm < dsi->regm_max; ++cur.regm) {
+		/* DSIPHY(MHz) = (2 * regm / regn) * (clkin / (highfreq + 1)) */
+		for (cur.regm = 1; cur.regm < REGM_MAX; ++cur.regm) {
 			unsigned long a, b;
 
 			a = 2 * cur.regm * (cur.clkin/1000);
-			b = cur.regn;
+			b = cur.regn * (cur.highfreq + 1);
 			cur.clkin4ddr = a / b * 1000;
 
 			if (cur.clkin4ddr > 1800 * 1000 * 1000)
 				break;
 
-			/* dsi_pll_hsdiv_dispc_clk(MHz) =
-			 * DSIPHY(MHz) / regm_dispc  < 173MHz/186Mhz */
-			for (cur.regm_dispc = 1; cur.regm_dispc <
-					dsi->regm_dispc_max; ++cur.regm_dispc) {
+			/* DSI1_PLL_FCLK(MHz) = DSIPHY(MHz) / regm3  < 173MHz */
+			for (cur.regm3 = 1; cur.regm3 < REGM3_MAX;
+					++cur.regm3) {
 				struct dispc_clock_info cur_dispc;
-				cur.dsi_pll_hsdiv_dispc_clk =
-					cur.clkin4ddr / cur.regm_dispc;
+				cur.dsi1_pll_fclk = cur.clkin4ddr / cur.regm3;
 
 				/* this will narrow down the search a bit,
 				 * but still give pixclocks below what was
 				 * requested */
-				if (cur.dsi_pll_hsdiv_dispc_clk  < req_pck)
+				if (cur.dsi1_pll_fclk  < req_pck)
 					break;
 
-				if (cur.dsi_pll_hsdiv_dispc_clk > max_dss_fck)
+				if (cur.dsi1_pll_fclk > DISPC_MAX_FCK)
 					continue;
 
 				if (min_fck_per_pck &&
-					cur.dsi_pll_hsdiv_dispc_clk <
+					cur.dsi1_pll_fclk <
 						req_pck * min_fck_per_pck)
 					continue;
 
 				match = 1;
 
 				dispc_find_clk_divs(is_tft, req_pck,
-						cur.dsi_pll_hsdiv_dispc_clk,
+						cur.dsi1_pll_fclk,
 						&cur_dispc);
 
 				if (abs(cur_dispc.pck - req_pck) <
@@ -1432,56 +1261,53 @@ found:
 		return -EINVAL;
 	}
 
-	/* dsi_pll_hsdiv_dsi_clk (regm_dsi) is not used */
-	best.regm_dsi = 0;
-	best.dsi_pll_hsdiv_dsi_clk = 0;
+	/* DSI2_PLL_FCLK (regm4) is not used */
+	best.regm4 = 0;
+	best.dsi2_pll_fclk = 0;
 
 	if (dsi_cinfo)
 		*dsi_cinfo = best;
 	if (dispc_cinfo)
 		*dispc_cinfo = best_dispc;
 
-	dsi->cache_req_pck = req_pck;
-	dsi->cache_clk_freq = 0;
-	dsi->cache_cinfo = best;
+	dsi.cache_req_pck = req_pck;
+	dsi.cache_clk_freq = 0;
+	dsi.cache_cinfo = best;
 
 	return 0;
 }
 
-int dsi_pll_set_clock_div(struct platform_device *dsidev,
-		struct dsi_clock_info *cinfo)
+int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r = 0;
 	u32 l;
-	int f = 0;
-	u8 regn_start, regn_end, regm_start, regm_end;
-	u8 regm_dispc_start, regm_dispc_end, regm_dsi_start, regm_dsi_end;
+	int f;
 
 	DSSDBGF();
 
-	dsi->current_cinfo.clkin = cinfo->clkin;
-	dsi->current_cinfo.fint = cinfo->fint;
-	dsi->current_cinfo.clkin4ddr = cinfo->clkin4ddr;
-	dsi->current_cinfo.dsi_pll_hsdiv_dispc_clk =
-			cinfo->dsi_pll_hsdiv_dispc_clk;
-	dsi->current_cinfo.dsi_pll_hsdiv_dsi_clk =
-			cinfo->dsi_pll_hsdiv_dsi_clk;
+	dsi.current_cinfo.fint = cinfo->fint;
+	dsi.current_cinfo.clkin4ddr = cinfo->clkin4ddr;
+	dsi.current_cinfo.dsi1_pll_fclk = cinfo->dsi1_pll_fclk;
+	dsi.current_cinfo.dsi2_pll_fclk = cinfo->dsi2_pll_fclk;
 
-	dsi->current_cinfo.regn = cinfo->regn;
-	dsi->current_cinfo.regm = cinfo->regm;
-	dsi->current_cinfo.regm_dispc = cinfo->regm_dispc;
-	dsi->current_cinfo.regm_dsi = cinfo->regm_dsi;
+	dsi.current_cinfo.regn = cinfo->regn;
+	dsi.current_cinfo.regm = cinfo->regm;
+	dsi.current_cinfo.regm3 = cinfo->regm3;
+	dsi.current_cinfo.regm4 = cinfo->regm4;
 
 	DSSDBG("DSI Fint %ld\n", cinfo->fint);
 
-	DSSDBG("clkin rate %ld\n", cinfo->clkin);
+	DSSDBG("clkin (%s) rate %ld, highfreq %d\n",
+			cinfo->use_dss2_fck ? "dss2_fck" : "pclkfree",
+			cinfo->clkin,
+			cinfo->highfreq);
 
 	/* DSIPHY == CLKIN4DDR */
-	DSSDBG("CLKIN4DDR = 2 * %d / %d * %lu = %lu\n",
+	DSSDBG("CLKIN4DDR = 2 * %d / %d * %lu / %d = %lu\n",
 			cinfo->regm,
 			cinfo->regn,
 			cinfo->clkin,
+			cinfo->highfreq + 1,
 			cinfo->clkin4ddr);
 
 	DSSDBG("Data rate on 1 DSI lane %ld Mbps\n",
@@ -1489,75 +1315,63 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 
 	DSSDBG("Clock lane freq %ld Hz\n", cinfo->clkin4ddr / 4);
 
-	DSSDBG("regm_dispc = %d, %s (%s) = %lu\n", cinfo->regm_dispc,
-		dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
-		dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
-		cinfo->dsi_pll_hsdiv_dispc_clk);
-	DSSDBG("regm_dsi = %d, %s (%s) = %lu\n", cinfo->regm_dsi,
-		dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
-		dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
-		cinfo->dsi_pll_hsdiv_dsi_clk);
+	DSSDBG("regm3 = %d, dsi1_pll_fclk = %lu\n",
+			cinfo->regm3, cinfo->dsi1_pll_fclk);
+	DSSDBG("regm4 = %d, dsi2_pll_fclk = %lu\n",
+			cinfo->regm4, cinfo->dsi2_pll_fclk);
 
-	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGN, &regn_start, &regn_end);
-	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM, &regm_start, &regm_end);
-	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM_DISPC, &regm_dispc_start,
-			&regm_dispc_end);
-	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM_DSI, &regm_dsi_start,
-			&regm_dsi_end);
+	REG_FLD_MOD(DSI_PLL_CONTROL, 0, 0, 0); /* DSI_PLL_AUTOMODE = manual */
 
-	/* DSI_PLL_AUTOMODE = manual */
-	REG_FLD_MOD(dsidev, DSI_PLL_CONTROL, 0, 0, 0);
-
-	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION1);
+	l = dsi_read_reg(DSI_PLL_CONFIGURATION1);
 	l = FLD_MOD(l, 1, 0, 0);		/* DSI_PLL_STOPMODE */
-	/* DSI_PLL_REGN */
-	l = FLD_MOD(l, cinfo->regn - 1, regn_start, regn_end);
-	/* DSI_PLL_REGM */
-	l = FLD_MOD(l, cinfo->regm, regm_start, regm_end);
-	/* DSI_CLOCK_DIV */
-	l = FLD_MOD(l, cinfo->regm_dispc > 0 ? cinfo->regm_dispc - 1 : 0,
-			regm_dispc_start, regm_dispc_end);
-	/* DSIPROTO_CLOCK_DIV */
-	l = FLD_MOD(l, cinfo->regm_dsi > 0 ? cinfo->regm_dsi - 1 : 0,
-			regm_dsi_start, regm_dsi_end);
-	dsi_write_reg(dsidev, DSI_PLL_CONFIGURATION1, l);
+	l = FLD_MOD(l, cinfo->regn - 1, 7, 1);	/* DSI_PLL_REGN */
+	l = FLD_MOD(l, cinfo->regm, 18, 8);	/* DSI_PLL_REGM */
+	l = FLD_MOD(l, cinfo->regm3 > 0 ? cinfo->regm3 - 1 : 0,
+			22, 19);		/* DSI_CLOCK_DIV */
+	l = FLD_MOD(l, cinfo->regm4 > 0 ? cinfo->regm4 - 1 : 0,
+			26, 23);		/* DSIPROTO_CLOCK_DIV */
+	dsi_write_reg(DSI_PLL_CONFIGURATION1, l);
 
-	BUG_ON(cinfo->fint < dsi->fint_min || cinfo->fint > dsi->fint_max);
+	BUG_ON(cinfo->fint < 750000 || cinfo->fint > 2100000);
+	if (cinfo->fint < 1000000)
+		f = 0x3;
+	else if (cinfo->fint < 1250000)
+		f = 0x4;
+	else if (cinfo->fint < 1500000)
+		f = 0x5;
+	else if (cinfo->fint < 1750000)
+		f = 0x6;
+	else
+		f = 0x7;
 
-	if (dss_has_feature(FEAT_DSI_PLL_FREQSEL)) {
-		f = cinfo->fint < 1000000 ? 0x3 :
-			cinfo->fint < 1250000 ? 0x4 :
-			cinfo->fint < 1500000 ? 0x5 :
-			cinfo->fint < 1750000 ? 0x6 :
-			0x7;
-	}
-
-	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION2);
-
-	if (dss_has_feature(FEAT_DSI_PLL_FREQSEL))
-		l = FLD_MOD(l, f, 4, 1);	/* DSI_PLL_FREQSEL */
+	l = dsi_read_reg(DSI_PLL_CONFIGURATION2);
+	l = FLD_MOD(l, f, 4, 1);		/* DSI_PLL_FREQSEL */
+	l = FLD_MOD(l, cinfo->use_dss2_fck ? 0 : 1,
+			11, 11);		/* DSI_PLL_CLKSEL */
+	l = FLD_MOD(l, cinfo->highfreq,
+			12, 12);		/* DSI_PLL_HIGHFREQ */
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
 	l = FLD_MOD(l, 0, 14, 14);		/* DSIPHY_CLKINEN */
 	l = FLD_MOD(l, 1, 20, 20);		/* DSI_HSDIVBYPASS */
-	dsi_write_reg(dsidev, DSI_PLL_CONFIGURATION2, l);
+	dsi_write_reg(DSI_PLL_CONFIGURATION2, l);
 
-	REG_FLD_MOD(dsidev, DSI_PLL_GO, 1, 0, 0);	/* DSI_PLL_GO */
+	REG_FLD_MOD(DSI_PLL_GO, 1, 0, 0);	/* DSI_PLL_GO */
 
-	if (wait_for_bit_change(dsidev, DSI_PLL_GO, 0, 0) != 0) {
+	if (wait_for_bit_change(DSI_PLL_GO, 0, 0) != 0) {
 		DSSERR("dsi pll go bit not going down.\n");
 		r = -EIO;
 		goto err;
 	}
 
-	if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 1, 1) != 1) {
+	if (wait_for_bit_change(DSI_PLL_STATUS, 1, 1) != 1) {
 		DSSERR("cannot lock PLL\n");
 		r = -EIO;
 		goto err;
 	}
 
-	dsi->pll_locked = 1;
+	dsi.pll_locked = 1;
 
-	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION2);
+	l = dsi_read_reg(DSI_PLL_CONFIGURATION2);
 	l = FLD_MOD(l, 0, 0, 0);	/* DSI_PLL_IDLE */
 	l = FLD_MOD(l, 0, 5, 5);	/* DSI_PLL_PLLLPMODE */
 	l = FLD_MOD(l, 0, 6, 6);	/* DSI_PLL_LOWCURRSTBY */
@@ -1572,52 +1386,55 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	l = FLD_MOD(l, 1, 18, 18);	/* DSI_PROTO_CLOCK_EN */
 	l = FLD_MOD(l, 0, 19, 19);	/* DSI_PROTO_CLOCK_PWDN */
 	l = FLD_MOD(l, 0, 20, 20);	/* DSI_HSDIVBYPASS */
-	dsi_write_reg(dsidev, DSI_PLL_CONFIGURATION2, l);
+	dsi_write_reg(DSI_PLL_CONFIGURATION2, l);
 
 	DSSDBG("PLL config done\n");
 err:
 	return r;
 }
 
-int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
+int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 		bool enable_hsdiv)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r = 0;
 	enum dsi_pll_power_state pwstate;
+	u32 l;
 
 	DSSDBG("PLL init\n");
 
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
+	enable_clocks(1);
+	dsi_enable_pll_clock(1);
 
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
+	if (!dsi.vdds_dsi_enabled) {
+		/* Enabling VDDS_DSI regulator causes small glitches
+		 * on the DSI lanes. This will override the lanes
+		 * to keep the at ground */
+		l = dsi_read_reg(DSI_DSIPHY_CFG2);
+		l = FLD_MOD(l, 0x7, 15, 11);      /* REGULPMTX */
+		l = FLD_MOD(l, 1, 16, 16);      /* OVRRDULPMTX */
+		dsi_write_reg(DSI_DSIPHY_CFG2, l);
 
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
-
-	dsi_enable_pll_clock(dsidev, 1);
-	/*
-	 * Note: SCP CLK is not required on OMAP3, but it is required on OMAP4.
-	 */
-	dsi_enable_scp_clk(dsidev);
-
-	if (!dsi->vdds_dsi_enabled) {
-		r = regulator_enable(dsi->vdds_dsi_reg);
+		r = regulator_enable(dsi.vdds_dsi_reg);
 		if (r)
 			goto err0;
-		dsi->vdds_dsi_enabled = true;
+		dsi.vdds_dsi_enabled = true;
+
+		l = dsi_read_reg(DSI_DSIPHY_CFG2);
+		l = FLD_MOD(l, 0x0, 15, 11);      /* REGULPMTX */
+		l = FLD_MOD(l, 0, 16, 16);      /* OVRRDULPMTX */
+		dsi_write_reg(DSI_DSIPHY_CFG2, l);
+
+		/* XXX magical sleep that makes DSI PLL lock work on 3630.
+		 * This seems to be related to vdds_dsi regulator: if the
+		 * sleep is before enabling the regulator, it doesn't help.
+		 * Study this more */
+		msleep(1);
 	}
 
 	/* XXX PLL does not come out of reset without this... */
 	dispc_pck_free_enable(1);
 
-	if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 0, 1) != 1) {
+	if (wait_for_bit_change(DSI_PLL_STATUS, 0, 1) != 1) {
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
 		dispc_pck_free_enable(0);
@@ -1637,7 +1454,7 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	else
 		pwstate = DSI_PLL_POWER_OFF;
 
-	r = dsi_pll_power(dsidev, pwstate);
+	r = dsi_pll_power(pwstate);
 
 	if (r)
 		goto err1;
@@ -1646,120 +1463,99 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 
 	return 0;
 err1:
-	if (dsi->vdds_dsi_enabled) {
-		regulator_disable(dsi->vdds_dsi_reg);
-		dsi->vdds_dsi_enabled = false;
+	if (dsi.vdds_dsi_enabled) {
+		regulator_disable(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_enabled = false;
 	}
 err0:
-	dsi_disable_scp_clk(dsidev);
-	dsi_enable_pll_clock(dsidev, 0);
+	enable_clocks(0);
+	dsi_enable_pll_clock(0);
 	return r;
 }
 
-void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
+void dsi_pll_uninit(bool disconnect_lanes)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	enable_clocks(0);
+	dsi_enable_pll_clock(0);
 
-	dsi->pll_locked = 0;
-	dsi_pll_power(dsidev, DSI_PLL_POWER_OFF);
+	dsi.pll_locked = 0;
+	dsi_pll_power(DSI_PLL_POWER_OFF);
 	if (disconnect_lanes) {
-		WARN_ON(!dsi->vdds_dsi_enabled);
-		regulator_disable(dsi->vdds_dsi_reg);
-		dsi->vdds_dsi_enabled = false;
+		WARN_ON(!dsi.vdds_dsi_enabled);
+		regulator_disable(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_enabled = false;
 	}
-
-	dsi_disable_scp_clk(dsidev);
-	dsi_enable_pll_clock(dsidev, 0);
-
 	DSSDBG("PLL uninit done\n");
 }
 
-static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
-		struct seq_file *s)
+void dsi_dump_clocks(struct seq_file *s)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct dsi_clock_info *cinfo = &dsi->current_cinfo;
-	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
-	int dsi_module = dsi->module_id;
+	int clksel;
+	struct dsi_clock_info *cinfo = &dsi.current_cinfo;
 
-	dispc_clk_src = dss_get_dispc_clk_source();
-	dsi_clk_src = dss_get_dsi_clk_source(dsi_module);
+	enable_clocks(1);
 
-	if (dsi_runtime_get(dsidev))
-		return;
+	clksel = REG_GET(DSI_PLL_CONFIGURATION2, 11, 11);
 
-	seq_printf(s,	"- DSI%d PLL -\n", dsi_module + 1);
+	seq_printf(s,	"- DSI PLL -\n");
 
-	seq_printf(s,	"dsi pll clkin\t%lu\n", cinfo->clkin);
+	seq_printf(s,	"dsi pll source = %s\n",
+			clksel == 0 ?
+			"dss2_alwon_fclk" : "pclkfree");
 
 	seq_printf(s,	"Fint\t\t%-16luregn %u\n", cinfo->fint, cinfo->regn);
 
 	seq_printf(s,	"CLKIN4DDR\t%-16luregm %u\n",
 			cinfo->clkin4ddr, cinfo->regm);
 
-	seq_printf(s,	"DSI_PLL_HSDIV_DISPC (%s)\t%-16luregm_dispc %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC),
-			cinfo->dsi_pll_hsdiv_dispc_clk,
-			cinfo->regm_dispc,
-			dispc_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+	seq_printf(s,	"dsi1_pll_fck\t%-16luregm3 %u\t(%s)\n",
+			cinfo->dsi1_pll_fclk,
+			cinfo->regm3,
+			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
 			"off" : "on");
 
-	seq_printf(s,	"DSI_PLL_HSDIV_DSI (%s)\t%-16luregm_dsi %u\t(%s)\n",
-			dss_feat_get_clk_source_name(dsi_module == 0 ?
-				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
-				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI),
-			cinfo->dsi_pll_hsdiv_dsi_clk,
-			cinfo->regm_dsi,
-			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
+	seq_printf(s,	"dsi2_pll_fck\t%-16luregm4 %u\t(%s)\n",
+			cinfo->dsi2_pll_fclk,
+			cinfo->regm4,
+			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
 			"off" : "on");
 
-	seq_printf(s,	"- DSI%d -\n", dsi_module + 1);
+	seq_printf(s,	"- DSI -\n");
 
-	seq_printf(s,	"dsi fclk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(dsi_clk_src),
-			dss_feat_get_clk_source_name(dsi_clk_src));
+	seq_printf(s,	"dsi fclk source = %s\n",
+			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			"dss1_alwon_fclk" : "dsi2_pll_fclk");
 
-	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate(dsidev));
+	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate());
 
 	seq_printf(s,	"DDR_CLK\t\t%lu\n",
 			cinfo->clkin4ddr / 4);
 
-	seq_printf(s,	"TxByteClkHS\t%lu\n", dsi_get_txbyteclkhs(dsidev));
+	seq_printf(s,	"TxByteClkHS\t%lu\n", dsi_get_txbyteclkhs());
 
 	seq_printf(s,	"LP_CLK\t\t%lu\n", cinfo->lp_clk);
 
-	dsi_runtime_put(dsidev);
-}
+	seq_printf(s,	"VP_CLK\t\t%lu\n"
+			"VP_PCLK\t\t%lu\n",
+			dispc_lclk_rate(),
+			dispc_pclk_rate());
 
-void dsi_dump_clocks(struct seq_file *s)
-{
-	struct platform_device *dsidev;
-	int i;
-
-	for  (i = 0; i < MAX_NUM_DSI; i++) {
-		dsidev = dsi_get_dsidev_from_id(i);
-		if (dsidev)
-			dsi_dump_dsidev_clocks(dsidev, s);
-	}
+	enable_clocks(0);
 }
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
-		struct seq_file *s)
+void dsi_dump_irqs(struct seq_file *s)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned long flags;
 	struct dsi_irq_stats stats;
 
-	spin_lock_irqsave(&dsi->irq_stats_lock, flags);
+	spin_lock_irqsave(&dsi.irq_stats_lock, flags);
 
-	stats = dsi->irq_stats;
-	memset(&dsi->irq_stats, 0, sizeof(dsi->irq_stats));
-	dsi->irq_stats.last_reset = jiffies;
+	stats = dsi.irq_stats;
+	memset(&dsi.irq_stats, 0, sizeof(dsi.irq_stats));
+	dsi.irq_stats.last_reset = jiffies;
 
-	spin_unlock_irqrestore(&dsi->irq_stats_lock, flags);
+	spin_unlock_irqrestore(&dsi.irq_stats_lock, flags);
 
 	seq_printf(s, "period %u ms\n",
 			jiffies_to_msecs(jiffies - stats.last_reset));
@@ -1768,7 +1564,7 @@ static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
 #define PIS(x) \
 	seq_printf(s, "%-20s %10d\n", #x, stats.dsi_irqs[ffs(DSI_IRQ_##x)-1]);
 
-	seq_printf(s, "-- DSI%d interrupts --\n", dsi->module_id + 1);
+	seq_printf(s, "-- DSI interrupts --\n");
 	PIS(VC0);
 	PIS(VC1);
 	PIS(VC2);
@@ -1834,30 +1630,13 @@ static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
 	PIS(ULPSACTIVENOT_ALL1);
 #undef PIS
 }
-
-static void dsi1_dump_irqs(struct seq_file *s)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
-
-	dsi_dump_dsidev_irqs(dsidev, s);
-}
-
-static void dsi2_dump_irqs(struct seq_file *s)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
-
-	dsi_dump_dsidev_irqs(dsidev, s);
-}
 #endif
 
-static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
-		struct seq_file *s)
+void dsi_dump_regs(struct seq_file *s)
 {
-#define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(dsidev, r))
+#define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(r))
 
-	if (dsi_runtime_get(dsidev))
-		return;
-	dsi_enable_scp_clk(dsidev);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	DUMPREG(DSI_REVISION);
 	DUMPREG(DSI_SYSCONFIG);
@@ -1929,23 +1708,8 @@ static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
 	DUMPREG(DSI_PLL_CONFIGURATION1);
 	DUMPREG(DSI_PLL_CONFIGURATION2);
 
-	dsi_disable_scp_clk(dsidev);
-	dsi_runtime_put(dsidev);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 #undef DUMPREG
-}
-
-static void dsi1_dump_regs(struct seq_file *s)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
-
-	dsi_dump_dsidev_regs(dsidev, s);
-}
-
-static void dsi2_dump_regs(struct seq_file *s)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
-
-	dsi_dump_dsidev_regs(dsidev, s);
 }
 
 enum dsi_cio_power_state {
@@ -1954,17 +1718,15 @@ enum dsi_cio_power_state {
 	DSI_COMPLEXIO_POWER_ULPS	= 0x2,
 };
 
-static int dsi_cio_power(struct platform_device *dsidev,
-		enum dsi_cio_power_state state)
+static int dsi_cio_power(enum dsi_cio_power_state state)
 {
 	int t = 0;
 
 	/* PWR_CMD */
-	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG1, state, 28, 27);
+	REG_FLD_MOD(DSI_COMPLEXIO_CFG1, state, 28, 27);
 
 	/* PWR_STATUS */
-	while (FLD_GET(dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG1),
-			26, 25) != state) {
+	while (FLD_GET(dsi_read_reg(DSI_COMPLEXIO_CFG1), 26, 25) != state) {
 		if (++t > 1000) {
 			DSSERR("failed to set complexio power state to "
 					"%d\n", state);
@@ -1976,105 +1738,59 @@ static int dsi_cio_power(struct platform_device *dsidev,
 	return 0;
 }
 
-static unsigned dsi_get_line_buf_size(struct platform_device *dsidev)
+static void dsi_set_lane_config(struct omap_dss_device *dssdev)
 {
-	int val;
-
-	/* line buffer on OMAP3 is 1024 x 24bits */
-	/* XXX: for some reason using full buffer size causes
-	 * considerable TX slowdown with update sizes that fill the
-	 * whole buffer */
-	if (!dss_has_feature(FEAT_DSI_GNQ))
-		return 1023 * 3;
-
-	val = REG_GET(dsidev, DSI_GNQ, 14, 12); /* VP1_LINE_BUFFER_SIZE */
-
-	switch (val) {
-	case 1:
-		return 512 * 3;		/* 512x24 bits */
-	case 2:
-		return 682 * 3;		/* 682x24 bits */
-	case 3:
-		return 853 * 3;		/* 853x24 bits */
-	case 4:
-		return 1024 * 3;	/* 1024x24 bits */
-	case 5:
-		return 1194 * 3;	/* 1194x24 bits */
-	case 6:
-		return 1365 * 3;	/* 1365x24 bits */
-	default:
-		BUG();
-		return 0;
-	}
-}
-
-static int dsi_set_lane_config(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	static const u8 offsets[] = { 0, 4, 8, 12, 16 };
-	static const enum dsi_lane_function functions[] = {
-		DSI_LANE_CLK,
-		DSI_LANE_DATA1,
-		DSI_LANE_DATA2,
-		DSI_LANE_DATA3,
-		DSI_LANE_DATA4,
-	};
 	u32 r;
-	int i;
 
-	r = dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG1);
+	int clk_lane   = dssdev->phy.dsi.clk_lane;
+	int data1_lane = dssdev->phy.dsi.data1_lane;
+	int data2_lane = dssdev->phy.dsi.data2_lane;
+	int clk_pol    = dssdev->phy.dsi.clk_pol;
+	int data1_pol  = dssdev->phy.dsi.data1_pol;
+	int data2_pol  = dssdev->phy.dsi.data2_pol;
 
-	for (i = 0; i < dsi->num_lanes_used; ++i) {
-		unsigned offset = offsets[i];
-		unsigned polarity, lane_number;
-		unsigned t;
+	r = dsi_read_reg(DSI_COMPLEXIO_CFG1);
+	r = FLD_MOD(r, clk_lane, 2, 0);
+	r = FLD_MOD(r, clk_pol, 3, 3);
+	r = FLD_MOD(r, data1_lane, 6, 4);
+	r = FLD_MOD(r, data1_pol, 7, 7);
+	r = FLD_MOD(r, data2_lane, 10, 8);
+	r = FLD_MOD(r, data2_pol, 11, 11);
+	dsi_write_reg(DSI_COMPLEXIO_CFG1, r);
 
-		for (t = 0; t < dsi->num_lanes_supported; ++t)
-			if (dsi->lanes[t].function == functions[i])
-				break;
+	/* The configuration of the DSI complex I/O (number of data lanes,
+	   position, differential order) should not be changed while
+	   DSS.DSI_CLK_CRTRL[20] LP_CLK_ENABLE bit is set to 1. In order for
+	   the hardware to take into account a new configuration of the complex
+	   I/O (done in DSS.DSI_COMPLEXIO_CFG1 register), it is recommended to
+	   follow this sequence: First set the DSS.DSI_CTRL[0] IF_EN bit to 1,
+	   then reset the DSS.DSI_CTRL[0] IF_EN to 0, then set
+	   DSS.DSI_CLK_CTRL[20] LP_CLK_ENABLE to 1 and finally set again the
+	   DSS.DSI_CTRL[0] IF_EN bit to 1. If the sequence is not followed, the
+	   DSI complex I/O configuration is unknown. */
 
-		if (t == dsi->num_lanes_supported)
-			return -EINVAL;
-
-		lane_number = t;
-		polarity = dsi->lanes[t].polarity;
-
-		r = FLD_MOD(r, lane_number + 1, offset + 2, offset);
-		r = FLD_MOD(r, polarity, offset + 3, offset + 3);
-	}
-
-	/* clear the unused lanes */
-	for (; i < dsi->num_lanes_supported; ++i) {
-		unsigned offset = offsets[i];
-
-		r = FLD_MOD(r, 0, offset + 2, offset);
-		r = FLD_MOD(r, 0, offset + 3, offset + 3);
-	}
-
-	dsi_write_reg(dsidev, DSI_COMPLEXIO_CFG1, r);
-
-	return 0;
+	/*
+	REG_FLD_MOD(DSI_CTRL, 1, 0, 0);
+	REG_FLD_MOD(DSI_CTRL, 0, 0, 0);
+	REG_FLD_MOD(DSI_CLK_CTRL, 1, 20, 20);
+	REG_FLD_MOD(DSI_CTRL, 1, 0, 0);
+	*/
 }
 
-static inline unsigned ns2ddr(struct platform_device *dsidev, unsigned ns)
+static inline unsigned ns2ddr(unsigned ns)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
 	/* convert time in ns to ddr ticks, rounding up */
-	unsigned long ddr_clk = dsi->current_cinfo.clkin4ddr / 4;
+	unsigned long ddr_clk = dsi.current_cinfo.clkin4ddr / 4;
 	return (ns * (ddr_clk / 1000 / 1000) + 999) / 1000;
 }
 
-static inline unsigned ddr2ns(struct platform_device *dsidev, unsigned ddr)
+static inline unsigned ddr2ns(unsigned ddr)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	unsigned long ddr_clk = dsi->current_cinfo.clkin4ddr / 4;
+	unsigned long ddr_clk = dsi.current_cinfo.clkin4ddr / 4;
 	return ddr * 1000 * 1000 / (ddr_clk / 1000);
 }
 
-static void dsi_cio_timings(struct platform_device *dsidev)
+static void dsi_cio_timings(void)
 {
 	u32 r;
 	u32 ths_prepare, ths_prepare_ths_zero, ths_trail, ths_exit;
@@ -2086,152 +1802,228 @@ static void dsi_cio_timings(struct platform_device *dsidev)
 	/* 1 * DDR_CLK = 2 * UI */
 
 	/* min 40ns + 4*UI	max 85ns + 6*UI */
-	ths_prepare = ns2ddr(dsidev, 70) + 2;
+	ths_prepare = ns2ddr(70) + 2;
 
 	/* min 145ns + 10*UI */
-	ths_prepare_ths_zero = ns2ddr(dsidev, 175) + 2;
+	ths_prepare_ths_zero = ns2ddr(175) + 2;
 
 	/* min max(8*UI, 60ns+4*UI) */
-	ths_trail = ns2ddr(dsidev, 60) + 5;
+	ths_trail = ns2ddr(60) + 5;
 
 	/* min 100ns */
-	ths_exit = ns2ddr(dsidev, 145);
+	ths_exit = ns2ddr(145);
 
 	/* tlpx min 50n */
-	tlpx_half = ns2ddr(dsidev, 25);
+	tlpx_half = ns2ddr(25);
 
 	/* min 60ns */
-	tclk_trail = ns2ddr(dsidev, 60) + 2;
+	tclk_trail = ns2ddr(60) + 2;
 
 	/* min 38ns, max 95ns */
-	tclk_prepare = ns2ddr(dsidev, 65);
+	tclk_prepare = ns2ddr(65);
 
 	/* min tclk-prepare + tclk-zero = 300ns */
-	tclk_zero = ns2ddr(dsidev, 260);
+	tclk_zero = ns2ddr(260);
 
 	DSSDBG("ths_prepare %u (%uns), ths_prepare_ths_zero %u (%uns)\n",
-		ths_prepare, ddr2ns(dsidev, ths_prepare),
-		ths_prepare_ths_zero, ddr2ns(dsidev, ths_prepare_ths_zero));
+		ths_prepare, ddr2ns(ths_prepare),
+		ths_prepare_ths_zero, ddr2ns(ths_prepare_ths_zero));
 	DSSDBG("ths_trail %u (%uns), ths_exit %u (%uns)\n",
-			ths_trail, ddr2ns(dsidev, ths_trail),
-			ths_exit, ddr2ns(dsidev, ths_exit));
+			ths_trail, ddr2ns(ths_trail),
+			ths_exit, ddr2ns(ths_exit));
 
 	DSSDBG("tlpx_half %u (%uns), tclk_trail %u (%uns), "
 			"tclk_zero %u (%uns)\n",
-			tlpx_half, ddr2ns(dsidev, tlpx_half),
-			tclk_trail, ddr2ns(dsidev, tclk_trail),
-			tclk_zero, ddr2ns(dsidev, tclk_zero));
+			tlpx_half, ddr2ns(tlpx_half),
+			tclk_trail, ddr2ns(tclk_trail),
+			tclk_zero, ddr2ns(tclk_zero));
 	DSSDBG("tclk_prepare %u (%uns)\n",
-			tclk_prepare, ddr2ns(dsidev, tclk_prepare));
+			tclk_prepare, ddr2ns(tclk_prepare));
 
 	/* program timings */
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG0);
+	r = dsi_read_reg(DSI_DSIPHY_CFG0);
 	r = FLD_MOD(r, ths_prepare, 31, 24);
 	r = FLD_MOD(r, ths_prepare_ths_zero, 23, 16);
 	r = FLD_MOD(r, ths_trail, 15, 8);
 	r = FLD_MOD(r, ths_exit, 7, 0);
-	dsi_write_reg(dsidev, DSI_DSIPHY_CFG0, r);
+	dsi_write_reg(DSI_DSIPHY_CFG0, r);
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG1);
+	r = dsi_read_reg(DSI_DSIPHY_CFG1);
 	r = FLD_MOD(r, tlpx_half, 22, 16);
 	r = FLD_MOD(r, tclk_trail, 15, 8);
 	r = FLD_MOD(r, tclk_zero, 7, 0);
-	dsi_write_reg(dsidev, DSI_DSIPHY_CFG1, r);
+	dsi_write_reg(DSI_DSIPHY_CFG1, r);
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG2);
+	r = dsi_read_reg(DSI_DSIPHY_CFG2);
 	r = FLD_MOD(r, tclk_prepare, 7, 0);
-	dsi_write_reg(dsidev, DSI_DSIPHY_CFG2, r);
+	dsi_write_reg(DSI_DSIPHY_CFG2, r);
 }
 
-/* lane masks have lane 0 at lsb. mask_p for positive lines, n for negative */
 static void dsi_cio_enable_lane_override(struct omap_dss_device *dssdev,
-		unsigned mask_p, unsigned mask_n)
+		enum dsi_lane lanes)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int i;
-	u32 l;
-	u8 lptxscp_start = dsi->num_lanes_supported == 3 ? 22 : 26;
+	int clk_lane   = dssdev->phy.dsi.clk_lane;
+	int data1_lane = dssdev->phy.dsi.data1_lane;
+	int data2_lane = dssdev->phy.dsi.data2_lane;
+	int clk_pol    = dssdev->phy.dsi.clk_pol;
+	int data1_pol  = dssdev->phy.dsi.data1_pol;
+	int data2_pol  = dssdev->phy.dsi.data2_pol;
 
-	l = 0;
+	u32 l = 0;
 
-	for (i = 0; i < dsi->num_lanes_supported; ++i) {
-		unsigned p = dsi->lanes[i].polarity;
+	if (lanes & DSI_CLK_P)
+		l |= 1 << ((clk_lane - 1) * 2 + (clk_pol ? 0 : 1));
+	if (lanes & DSI_CLK_N)
+		l |= 1 << ((clk_lane - 1) * 2 + (clk_pol ? 1 : 0));
 
-		if (mask_p & (1 << i))
-			l |= 1 << (i * 2 + (p ? 0 : 1));
+	if (lanes & DSI_DATA1_P)
+		l |= 1 << ((data1_lane - 1) * 2 + (data1_pol ? 0 : 1));
+	if (lanes & DSI_DATA1_N)
+		l |= 1 << ((data1_lane - 1) * 2 + (data1_pol ? 1 : 0));
 
-		if (mask_n & (1 << i))
-			l |= 1 << (i * 2 + (p ? 1 : 0));
-	}
+	if (lanes & DSI_DATA2_P)
+		l |= 1 << ((data2_lane - 1) * 2 + (data2_pol ? 0 : 1));
+	if (lanes & DSI_DATA2_N)
+		l |= 1 << ((data2_lane - 1) * 2 + (data2_pol ? 1 : 0));
 
 	/*
 	 * Bits in REGLPTXSCPDAT4TO0DXDY:
 	 * 17: DY0 18: DX0
 	 * 19: DY1 20: DX1
 	 * 21: DY2 22: DX2
-	 * 23: DY3 24: DX3
-	 * 25: DY4 26: DX4
 	 */
 
 	/* Set the lane override configuration */
-
-	/* REGLPTXSCPDAT4TO0DXDY */
-	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, l, lptxscp_start, 17);
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, l, 22, 17); /* REGLPTXSCPDAT4TO0DXDY */
 
 	/* Enable lane override */
-
-	/* ENLPTXSCPDAT */
-	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, 1, 27, 27);
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 1, 27, 27); /* ENLPTXSCPDAT */
 }
 
-static void dsi_cio_disable_lane_override(struct platform_device *dsidev)
+static void dsi_cio_disable_lane_override(void)
 {
 	/* Disable lane override */
-	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, 0, 27, 27); /* ENLPTXSCPDAT */
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 0, 27, 27); /* ENLPTXSCPDAT */
 	/* Reset the lane override configuration */
-	/* REGLPTXSCPDAT4TO0DXDY */
-	REG_FLD_MOD(dsidev, DSI_DSIPHY_CFG10, 0, 22, 17);
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 0, 22, 17); /* REGLPTXSCPDAT4TO0DXDY */
+}
+
+static int dsi_cio_scp_init(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	DSSDBG("CIO SCP init\n");
+
+	if (dsi.dsi_mux_pads)
+		dsi.dsi_mux_pads(true);
+
+	/* CIO_CLK_ICG, enable L3 clk to CIO */
+	REG_FLD_MOD(DSI_CLK_CTRL, 1, 14, 14);
+
+	/* A dummy read using the SCP interface to any DSIPHY register is
+	 * required after DSIPHY reset to complete the reset of the DSI complex
+	 * I/O. */
+	dsi_read_reg(DSI_DSIPHY_CFG5);
+
+	if (wait_for_bit_change(DSI_DSIPHY_CFG5, 30, 1) != 1) {
+		DSSERR("CIO SCP Clock domain not coming out of reset.\n");
+		r = -ENODEV;
+		goto err;
+	}
+
+	DSSDBG("CIO SCP init done\n");
+
+	return 0;
+err:
+	REG_FLD_MOD(DSI_CLK_CTRL, 0, 14, 14);
+	return r;
+}
+
+static int dsi_cio_pwr_init(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	DSSDBG("CIO PWR init\n");
+
+	if (wait_for_bit_change(DSI_COMPLEXIO_CFG1, 21, 1) != 1) {
+		DSSERR("CIO LDO power down.\n");
+		r = -ENODEV;
+		goto err1;
+	}
+
+	r = dsi_cio_power(DSI_COMPLEXIO_POWER_ON);
+	if (r)
+		goto err1;
+
+	if (wait_for_bit_change(DSI_COMPLEXIO_CFG1, 29, 1) != 1) {
+		DSSERR("CIO PWR clock domain not coming out of reset.\n");
+		r = -ENODEV;
+		goto err2;
+	}
+
+	DSSDBG("CIO PWR init done\n");
+
+	return 0;
+err2:
+	dsi_cio_power(DSI_COMPLEXIO_POWER_OFF);
+err1:
+	return r;
 }
 
 static int dsi_cio_wait_tx_clk_esc_reset(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int t, i;
-	bool in_use[DSI_MAX_NR_LANES];
-	static const u8 offsets_old[] = { 28, 27, 26 };
-	static const u8 offsets_new[] = { 24, 25, 26, 27, 28 };
-	const u8 *offsets;
+	int t;
+	int bits[3];
+	bool in_use[3];
 
-	if (dss_has_feature(FEAT_DSI_REVERSE_TXCLKESC))
-		offsets = offsets_old;
-	else
-		offsets = offsets_new;
+	/*
+	 * TXCLKESCx bits for lanes 0, 1, 2 respectively:
+	 * 3430: 28, 27, 26
+	 * 3630: 24, 25, 26
+	 */
 
-	for (i = 0; i < dsi->num_lanes_supported; ++i)
-		in_use[i] = dsi->lanes[i].function != DSI_LANE_UNUSED;
+	if (cpu_is_omap3630()) {
+		bits[0] = 24;
+		bits[1] = 25;
+		bits[2] = 26;
+	} else {
+		bits[0] = 28;
+		bits[1] = 27;
+		bits[2] = 26;
+	}
+
+	in_use[0] = false;
+	in_use[1] = false;
+	in_use[2] = false;
+
+	if (dssdev->phy.dsi.clk_lane != 0)
+		in_use[dssdev->phy.dsi.clk_lane - 1] = true;
+	if (dssdev->phy.dsi.data1_lane != 0)
+		in_use[dssdev->phy.dsi.data1_lane - 1] = true;
+	if (dssdev->phy.dsi.data2_lane != 0)
+		in_use[dssdev->phy.dsi.data2_lane - 1] = true;
 
 	t = 100000;
 	while (true) {
 		u32 l;
+		int i;
 		int ok;
 
-		l = dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
+		l = dsi_read_reg(DSI_DSIPHY_CFG5);
 
 		ok = 0;
-		for (i = 0; i < dsi->num_lanes_supported; ++i) {
-			if (!in_use[i] || (l & (1 << offsets[i])))
+		for (i = 0; i < 3; ++i) {
+			if (!in_use[i] || (l & (1 << bits[i])))
 				ok++;
 		}
 
-		if (ok == dsi->num_lanes_supported)
+		if (ok == 3)
 			break;
 
 		if (--t == 0) {
-			for (i = 0; i < dsi->num_lanes_supported; ++i) {
-				if (!in_use[i] || (l & (1 << offsets[i])))
+			for (i = 0; i < 3; ++i) {
+				if (!in_use[i] || (l & (1 << bits[i])))
 					continue;
 
 				DSSERR("CIO TXCLKESC%d domain not coming " \
@@ -2244,105 +2036,55 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-/* return bitmask of enabled lanes, lane0 being the lsb */
-static unsigned dsi_get_lane_mask(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	unsigned mask = 0;
-	int i;
-
-	for (i = 0; i < dsi->num_lanes_supported; ++i) {
-		if (dsi->lanes[i].function != DSI_LANE_UNUSED)
-			mask |= 1 << i;
-	}
-
-	return mask;
-}
-
 static int dsi_cio_init(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int r;
+	int r = 0;
 	u32 l;
 
 	DSSDBGF();
 
-	r = dss_dsi_enable_pads(dsi->module_id, dsi_get_lane_mask(dssdev));
-	if (r)
-		return r;
+	dsi_set_lane_config(dssdev);
 
-	dsi_enable_scp_clk(dsidev);
+	/*
+	 * If skip_first_init is set, the bootloader has
+	 * put the panel into ULPS.
+	 */
+	if (dssdev->skip_first_init)
+		dsi.ulps_enabled = true;
 
-	/* A dummy read using the SCP interface to any DSIPHY register is
-	 * required after DSIPHY reset to complete the reset of the DSI complex
-	 * I/O. */
-	dsi_read_reg(dsidev, DSI_DSIPHY_CFG5);
-
-	if (wait_for_bit_change(dsidev, DSI_DSIPHY_CFG5, 30, 1) != 1) {
-		DSSERR("CIO SCP Clock domain not coming out of reset.\n");
-		r = -EIO;
-		goto err_scp_clk_dom;
-	}
-
-	r = dsi_set_lane_config(dssdev);
-	if (r)
-		goto err_scp_clk_dom;
+	if (dsi.ulps_enabled)
+		DSSDBG("manual ulps exit\n");
 
 	/* set TX STOP MODE timer to maximum for this operation */
-	l = dsi_read_reg(dsidev, DSI_TIMING1);
+	l = dsi_read_reg(DSI_TIMING1);
 	l = FLD_MOD(l, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
 	l = FLD_MOD(l, 1, 14, 14);	/* STOP_STATE_X16_IO */
 	l = FLD_MOD(l, 1, 13, 13);	/* STOP_STATE_X4_IO */
 	l = FLD_MOD(l, 0x1fff, 12, 0);	/* STOP_STATE_COUNTER_IO */
-	dsi_write_reg(dsidev, DSI_TIMING1, l);
+	dsi_write_reg(DSI_TIMING1, l);
 
-	if (dsi->ulps_enabled) {
-		unsigned mask_p;
-		int i;
-
-		DSSDBG("manual ulps exit\n");
-
+	if (dsi.ulps_enabled) {
 		/* ULPS is exited by Mark-1 state for 1ms, followed by
 		 * stop state. DSS HW cannot do this via the normal
 		 * ULPS exit sequence, as after reset the DSS HW thinks
 		 * that we are not in ULPS mode, and refuses to send the
 		 * sequence. So we need to send the ULPS exit sequence
-		 * manually by setting positive lines high and negative lines
-		 * low for 1ms.
+		 * manually.
 		 */
 
-		mask_p = 0;
-
-		for (i = 0; i < dsi->num_lanes_supported; ++i) {
-			if (dsi->lanes[i].function == DSI_LANE_UNUSED)
-				continue;
-			mask_p |= 1 << i;
-		}
-
-		dsi_cio_enable_lane_override(dssdev, mask_p, 0);
+		dsi_cio_enable_lane_override(dssdev,
+				DSI_CLK_P | DSI_DATA1_P | DSI_DATA2_P);
 	}
 
-	r = dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_ON);
+	r = dsi_cio_pwr_init(dssdev);
 	if (r)
-		goto err_cio_pwr;
+		goto err;
 
-	if (wait_for_bit_change(dsidev, DSI_COMPLEXIO_CFG1, 29, 1) != 1) {
-		DSSERR("CIO PWR clock domain not coming out of reset.\n");
-		r = -ENODEV;
-		goto err_cio_pwr_dom;
-	}
+	dsi_if_enable(true);
+	dsi_if_enable(false);
+	REG_FLD_MOD(DSI_CLK_CTRL, 1, 20, 20); /* LP_CLK_ENABLE */
 
-	dsi_if_enable(dsidev, true);
-	dsi_if_enable(dsidev, false);
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 1, 20, 20); /* LP_CLK_ENABLE */
-
-	r = dsi_cio_wait_tx_clk_esc_reset(dssdev);
-	if (r)
-		goto err_tx_clk_esc_rst;
-
-	if (dsi->ulps_enabled) {
+	if (dsi.ulps_enabled) {
 		/* Keep Mark-1 state for 1ms (as per DSI spec) */
 		ktime_t wait = ns_to_ktime(1000 * 1000);
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2350,74 +2092,84 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 
 		/* Disable the override. The lanes should be set to Mark-11
 		 * state by the HW */
-		dsi_cio_disable_lane_override(dsidev);
+		dsi_cio_disable_lane_override();
 	}
 
 	/* FORCE_TX_STOP_MODE_IO */
-	REG_FLD_MOD(dsidev, DSI_TIMING1, 0, 15, 15);
+	REG_FLD_MOD(DSI_TIMING1, 0, 15, 15);
 
-	dsi_cio_timings(dsidev);
+	r = dsi_cio_wait_tx_clk_esc_reset(dssdev);
+	if (r)
+		goto err;
 
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		/* DDR_CLK_ALWAYS_ON */
-		REG_FLD_MOD(dsidev, DSI_CLK_CTRL,
-			dssdev->panel.dsi_vm_data.ddr_clk_always_on, 13, 13);
+	if (wait_for_bit_change(DSI_COMPLEXIO_CFG1, 29, 1) != 1) {
+		DSSERR("ComplexIO not coming out of reset.\n");
+		r = -ENODEV;
+		goto err;
 	}
 
-	dsi->ulps_enabled = false;
+	if (wait_for_bit_change(DSI_COMPLEXIO_CFG1, 21, 1) != 1) {
+		DSSERR("ComplexIO LDO power down.\n");
+		r = -ENODEV;
+		goto err;
+	}
+
+	dsi_cio_timings();
+
+	dsi.ulps_enabled = false;
 
 	DSSDBG("CIO init done\n");
-
-	return 0;
-
-err_tx_clk_esc_rst:
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 0, 20, 20); /* LP_CLK_ENABLE */
-err_cio_pwr_dom:
-	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
-err_cio_pwr:
-	if (dsi->ulps_enabled)
-		dsi_cio_disable_lane_override(dsidev);
-err_scp_clk_dom:
-	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dssdev));
+err:
 	return r;
 }
 
-static void dsi_cio_uninit(struct omap_dss_device *dssdev)
+static void dsi_cio_uninit(void)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	/* DDR_CLK_ALWAYS_ON */
-	REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 0, 13, 13);
-
-	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
-	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dssdev));
+	dsi_cio_power(DSI_COMPLEXIO_POWER_OFF);
+	REG_FLD_MOD(DSI_CLK_CTRL, 0, 14, 14);
 }
 
-static void dsi_config_tx_fifo(struct platform_device *dsidev,
-		enum fifo_size size1, enum fifo_size size2,
+static int _dsi_wait_reset(void)
+{
+	int t = 0;
+
+	while (REG_GET(DSI_SYSSTATUS, 0, 0) == 0) {
+		if (++t > 5) {
+			DSSERR("soft reset failed\n");
+			return -ENODEV;
+		}
+		udelay(1);
+	}
+
+	return 0;
+}
+
+static int _dsi_reset(void)
+{
+	/* Soft reset */
+	dsi_write_reg(DSI_SYSCONFIG, 0x2);
+	return _dsi_wait_reset();
+}
+
+static void dsi_config_tx_fifo(enum fifo_size size1, enum fifo_size size2,
 		enum fifo_size size3, enum fifo_size size4)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r = 0;
 	int add = 0;
 	int i;
 
-	dsi->vc[0].fifo_size = size1;
-	dsi->vc[1].fifo_size = size2;
-	dsi->vc[2].fifo_size = size3;
-	dsi->vc[3].fifo_size = size4;
+	dsi.vc[0].fifo_size = size1;
+	dsi.vc[1].fifo_size = size2;
+	dsi.vc[2].fifo_size = size3;
+	dsi.vc[3].fifo_size = size4;
 
 	for (i = 0; i < 4; i++) {
 		u8 v;
-		int size = dsi->vc[i].fifo_size;
+		int size = dsi.vc[i].fifo_size;
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
 			BUG();
-			return;
 		}
 
 		v = FLD_VAL(add, 2, 0) | FLD_VAL(size, 7, 4);
@@ -2426,31 +2178,28 @@ static void dsi_config_tx_fifo(struct platform_device *dsidev,
 		add += size;
 	}
 
-	dsi_write_reg(dsidev, DSI_TX_FIFO_VC_SIZE, r);
+	dsi_write_reg(DSI_TX_FIFO_VC_SIZE, r);
 }
 
-static void dsi_config_rx_fifo(struct platform_device *dsidev,
-		enum fifo_size size1, enum fifo_size size2,
+static void dsi_config_rx_fifo(enum fifo_size size1, enum fifo_size size2,
 		enum fifo_size size3, enum fifo_size size4)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r = 0;
 	int add = 0;
 	int i;
 
-	dsi->vc[0].fifo_size = size1;
-	dsi->vc[1].fifo_size = size2;
-	dsi->vc[2].fifo_size = size3;
-	dsi->vc[3].fifo_size = size4;
+	dsi.vc[0].fifo_size = size1;
+	dsi.vc[1].fifo_size = size2;
+	dsi.vc[2].fifo_size = size3;
+	dsi.vc[3].fifo_size = size4;
 
 	for (i = 0; i < 4; i++) {
 		u8 v;
-		int size = dsi->vc[i].fifo_size;
+		int size = dsi.vc[i].fifo_size;
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
 			BUG();
-			return;
 		}
 
 		v = FLD_VAL(add, 2, 0) | FLD_VAL(size, 7, 4);
@@ -2459,18 +2208,18 @@ static void dsi_config_rx_fifo(struct platform_device *dsidev,
 		add += size;
 	}
 
-	dsi_write_reg(dsidev, DSI_RX_FIFO_VC_SIZE, r);
+	dsi_write_reg(DSI_RX_FIFO_VC_SIZE, r);
 }
 
-static int dsi_force_tx_stop_mode_io(struct platform_device *dsidev)
+static int dsi_force_tx_stop_mode_io(void)
 {
 	u32 r;
 
-	r = dsi_read_reg(dsidev, DSI_TIMING1);
+	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
-	dsi_write_reg(dsidev, DSI_TIMING1, r);
+	dsi_write_reg(DSI_TIMING1, r);
 
-	if (wait_for_bit_change(dsidev, DSI_TIMING1, 15, 0) != 0) {
+	if (wait_for_bit_change(DSI_TIMING1, 15, 0) != 0) {
 		DSSERR("TX_STOP bit not going down\n");
 		return -EIO;
 	}
@@ -2478,136 +2227,16 @@ static int dsi_force_tx_stop_mode_io(struct platform_device *dsidev)
 	return 0;
 }
 
-static bool dsi_vc_is_enabled(struct platform_device *dsidev, int channel)
-{
-	return REG_GET(dsidev, DSI_VC_CTRL(channel), 0, 0);
-}
-
-static void dsi_packet_sent_handler_vp(void *data, u32 mask)
-{
-	struct dsi_packet_sent_handler_data *vp_data =
-		(struct dsi_packet_sent_handler_data *) data;
-	struct dsi_data *dsi = dsi_get_dsidrv_data(vp_data->dsidev);
-	const int channel = dsi->update_channel;
-	u8 bit = dsi->te_enabled ? 30 : 31;
-
-	if (REG_GET(vp_data->dsidev, DSI_VC_TE(channel), bit, bit) == 0)
-		complete(vp_data->completion);
-}
-
-static int dsi_sync_vc_vp(struct platform_device *dsidev, int channel)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data vp_data = { dsidev, &completion };
-	int r = 0;
-	u8 bit;
-
-	bit = dsi->te_enabled ? 30 : 31;
-
-	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&vp_data, DSI_VC_IRQ_PACKET_SENT);
-	if (r)
-		goto err0;
-
-	/* Wait for completion only if TE_EN/TE_START is still set */
-	if (REG_GET(dsidev, DSI_VC_TE(channel), bit, bit)) {
-		if (wait_for_completion_timeout(&completion,
-				msecs_to_jiffies(10)) == 0) {
-			DSSERR("Failed to complete previous frame transfer\n");
-			r = -EIO;
-			goto err1;
-		}
-	}
-
-	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&vp_data, DSI_VC_IRQ_PACKET_SENT);
-
-	return 0;
-err1:
-	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_vp,
-		&vp_data, DSI_VC_IRQ_PACKET_SENT);
-err0:
-	return r;
-}
-
-static void dsi_packet_sent_handler_l4(void *data, u32 mask)
-{
-	struct dsi_packet_sent_handler_data *l4_data =
-		(struct dsi_packet_sent_handler_data *) data;
-	struct dsi_data *dsi = dsi_get_dsidrv_data(l4_data->dsidev);
-	const int channel = dsi->update_channel;
-
-	if (REG_GET(l4_data->dsidev, DSI_VC_CTRL(channel), 5, 5) == 0)
-		complete(l4_data->completion);
-}
-
-static int dsi_sync_vc_l4(struct platform_device *dsidev, int channel)
-{
-	DECLARE_COMPLETION_ONSTACK(completion);
-	struct dsi_packet_sent_handler_data l4_data = { dsidev, &completion };
-	int r = 0;
-
-	r = dsi_register_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&l4_data, DSI_VC_IRQ_PACKET_SENT);
-	if (r)
-		goto err0;
-
-	/* Wait for completion only if TX_FIFO_NOT_EMPTY is still set */
-	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 5, 5)) {
-		if (wait_for_completion_timeout(&completion,
-				msecs_to_jiffies(10)) == 0) {
-			DSSERR("Failed to complete previous l4 transfer\n");
-			r = -EIO;
-			goto err1;
-		}
-	}
-
-	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&l4_data, DSI_VC_IRQ_PACKET_SENT);
-
-	return 0;
-err1:
-	dsi_unregister_isr_vc(dsidev, channel, dsi_packet_sent_handler_l4,
-		&l4_data, DSI_VC_IRQ_PACKET_SENT);
-err0:
-	return r;
-}
-
-static int dsi_sync_vc(struct platform_device *dsidev, int channel)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	WARN_ON(!dsi_bus_is_locked(dsidev));
-
-	WARN_ON(in_interrupt());
-
-	if (!dsi_vc_is_enabled(dsidev, channel))
-		return 0;
-
-	switch (dsi->vc[channel].source) {
-	case DSI_VC_SOURCE_VP:
-		return dsi_sync_vc_vp(dsidev, channel);
-	case DSI_VC_SOURCE_L4:
-		return dsi_sync_vc_l4(dsidev, channel);
-	default:
-		BUG();
-		return -EINVAL;
-	}
-}
-
-static int dsi_vc_enable(struct platform_device *dsidev, int channel,
-		bool enable)
+static int dsi_vc_enable(int channel, bool enable)
 {
 	DSSDBG("dsi_vc_enable channel %d, enable %d\n",
 			channel, enable);
 
 	enable = enable ? 1 : 0;
 
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 0, 0);
+	REG_FLD_MOD(DSI_VC_CTRL(channel), enable, 0, 0);
 
-	if (wait_for_bit_change(dsidev, DSI_VC_CTRL(channel),
-		0, enable) != enable) {
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 0, enable) != enable) {
 			DSSERR("Failed to set dsi_vc_enable to %d\n", enable);
 			return -EIO;
 	}
@@ -2615,13 +2244,13 @@ static int dsi_vc_enable(struct platform_device *dsidev, int channel,
 	return 0;
 }
 
-static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
+static void dsi_vc_initial_config(int channel)
 {
 	u32 r;
 
 	DSSDBGF("%d", channel);
 
-	r = dsi_read_reg(dsidev, DSI_VC_CTRL(channel));
+	r = dsi_read_reg(DSI_VC_CTRL(channel));
 
 	if (FLD_GET(r, 15, 15)) /* VC_BUSY */
 		DSSERR("VC(%d) busy when trying to configure it!\n",
@@ -2634,81 +2263,95 @@ static void dsi_vc_initial_config(struct platform_device *dsidev, int channel)
 	r = FLD_MOD(r, 1, 7, 7); /* CS_TX_EN */
 	r = FLD_MOD(r, 1, 8, 8); /* ECC_TX_EN */
 	r = FLD_MOD(r, 0, 9, 9); /* MODE_SPEED, high speed on/off */
-	if (dss_has_feature(FEAT_DSI_VC_OCP_WIDTH))
-		r = FLD_MOD(r, 3, 11, 10);	/* OCP_WIDTH = 32 bit */
 
 	r = FLD_MOD(r, 4, 29, 27); /* DMA_RX_REQ_NB = no dma */
 	r = FLD_MOD(r, 4, 23, 21); /* DMA_TX_REQ_NB = no dma */
 
-	dsi_write_reg(dsidev, DSI_VC_CTRL(channel), r);
+	dsi_write_reg(DSI_VC_CTRL(channel), r);
+
+	dsi.vc[channel].mode = DSI_VC_MODE_L4;
 }
 
-static int dsi_vc_config_source(struct platform_device *dsidev, int channel,
-		enum dsi_vc_source source)
+static int dsi_vc_config_l4(int channel)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->vc[channel].source == source)
+	if (dsi.vc[channel].mode == DSI_VC_MODE_L4)
 		return 0;
 
 	DSSDBGF("%d", channel);
 
-	dsi_sync_vc(dsidev, channel);
-
-	dsi_vc_enable(dsidev, channel, 0);
+	dsi_vc_enable(channel, 0);
 
 	/* VC_BUSY */
-	if (wait_for_bit_change(dsidev, DSI_VC_CTRL(channel), 15, 0) != 0) {
-		DSSERR("vc(%d) busy when trying to config for VP\n", channel);
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
+		DSSERR("vc(%d) busy when trying to config for L4\n", channel);
 		return -EIO;
 	}
 
-	/* SOURCE, 0 = L4, 1 = video port */
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), source, 1, 1);
+	REG_FLD_MOD(DSI_VC_CTRL(channel), 0, 1, 1); /* SOURCE, 0 = L4 */
 
-	/* DCS_CMD_ENABLE */
-	if (dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
-		bool enable = source == DSI_VC_SOURCE_VP;
-		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 30, 30);
-	}
+	dsi_vc_enable(channel, 1);
 
-	dsi_vc_enable(dsidev, channel, 1);
-
-	dsi->vc[channel].source = source;
+	dsi.vc[channel].mode = DSI_VC_MODE_L4;
 
 	return 0;
 }
 
-void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
-		bool enable)
+static int dsi_vc_config_vp(int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	if (dsi.vc[channel].mode == DSI_VC_MODE_VP)
+		return 0;
 
+	DSSDBGF("%d", channel);
+
+	dsi_vc_enable(channel, 0);
+
+	/* VC_BUSY */
+	if (wait_for_bit_change(DSI_VC_CTRL(channel), 15, 0) != 0) {
+		DSSERR("vc(%d) busy when trying to config for VP\n", channel);
+		return -EIO;
+	}
+
+	REG_FLD_MOD(DSI_VC_CTRL(channel), 1, 1, 1); /* SOURCE, 1 = video port */
+
+	dsi_vc_enable(channel, 1);
+
+	dsi.vc[channel].mode = DSI_VC_MODE_VP;
+
+	return 0;
+}
+
+
+void omapdss_dsi_vc_enable_hs(int channel, bool enable)
+{
 	DSSDBG("dsi_vc_enable_hs(%d, %d)\n", channel, enable);
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	dsi_vc_enable(dsidev, channel, 0);
-	dsi_if_enable(dsidev, 0);
+	dsi_vc_enable(channel, 0);
+	dsi_if_enable(0);
 
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), enable, 9, 9);
+	REG_FLD_MOD(DSI_VC_CTRL(channel), enable, 9, 9);
 
-	dsi_vc_enable(dsidev, channel, 1);
-	dsi_if_enable(dsidev, 1);
+	dsi_vc_enable(channel, 1);
+	dsi_if_enable(1);
 
-	dsi_force_tx_stop_mode_io(dsidev);
-
-	/* start the DDR clock by sending a NULL packet */
-	if (dssdev->panel.dsi_vm_data.ddr_clk_always_on && enable)
-		dsi_vc_send_null(dssdev, channel);
+	dsi_force_tx_stop_mode_io();
 }
 EXPORT_SYMBOL(omapdss_dsi_vc_enable_hs);
 
-static void dsi_vc_flush_long_data(struct platform_device *dsidev, int channel)
+bool omapdss_dsi_vc_is_hs_enabled(int channel)
 {
-	while (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20)) {
+	WARN_ON(!dsi_bus_is_locked());
+
+	return REG_GET(DSI_VC_CTRL(channel), 9, 9);
+}
+EXPORT_SYMBOL(omapdss_dsi_vc_is_hs_enabled);
+
+static void dsi_vc_flush_long_data(int channel)
+{
+	while (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
 		u32 val;
-		val = dsi_read_reg(dsidev, DSI_VC_SHORT_PACKET_HEADER(channel));
+		val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
 		DSSDBG("\t\tb1 %#02x b2 %#02x b3 %#02x b4 %#02x\n",
 				(val >> 0) & 0xff,
 				(val >> 8) & 0xff,
@@ -2754,29 +2397,28 @@ static void dsi_show_rx_ack_with_err(u16 err)
 		DSSERR("\t\tDSI Protocol Violation\n");
 }
 
-static u16 dsi_vc_flush_receive_data(struct platform_device *dsidev,
-		int channel)
+static u16 dsi_vc_flush_receive_data(int channel)
 {
 	/* RX_FIFO_NOT_EMPTY */
-	while (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20)) {
+	while (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
 		u32 val;
 		u8 dt;
-		val = dsi_read_reg(dsidev, DSI_VC_SHORT_PACKET_HEADER(channel));
+		val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
 		DSSERR("\trawval %#08x\n", val);
 		dt = FLD_GET(val, 5, 0);
-		if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
+		if (dt == DSI_DT_RX_ACK_WITH_ERR) {
 			u16 err = FLD_GET(val, 23, 8);
 			dsi_show_rx_ack_with_err(err);
-		} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE) {
+		} else if (dt == DSI_DT_RX_SHORT_READ_1) {
 			DSSERR("\tDCS short response, 1 byte: %#x\n",
 					FLD_GET(val, 23, 8));
-		} else if (dt == MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE) {
+		} else if (dt == DSI_DT_RX_SHORT_READ_2) {
 			DSSERR("\tDCS short response, 2 byte: %#x\n",
 					FLD_GET(val, 23, 8));
-		} else if (dt == MIPI_DSI_RX_DCS_LONG_READ_RESPONSE) {
+		} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
 			DSSERR("\tDCS long response, len %d\n",
 					FLD_GET(val, 23, 8));
-			dsi_vc_flush_long_data(dsidev, channel);
+			dsi_vc_flush_long_data(channel);
 		} else {
 			DSSERR("\tunknown datatype 0x%02x\n", dt);
 		}
@@ -2784,47 +2426,40 @@ static u16 dsi_vc_flush_receive_data(struct platform_device *dsidev,
 	return 0;
 }
 
-static int dsi_vc_send_bta(struct platform_device *dsidev, int channel)
+static int dsi_vc_send_bta(int channel)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->debug_write || dsi->debug_read)
+	if (dsi.debug_write || dsi.debug_read)
 		DSSDBG("dsi_vc_send_bta %d\n", channel);
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20)) {
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {	/* RX_FIFO_NOT_EMPTY */
 		DSSERR("rx fifo not empty when sending BTA, dumping data:\n");
-		dsi_vc_flush_receive_data(dsidev, channel);
+		dsi_vc_flush_receive_data(channel);
 	}
 
-	REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 6, 6); /* BTA_EN */
-
-	/* flush posted write */
-	dsi_read_reg(dsidev, DSI_VC_CTRL(channel));
+	REG_FLD_MOD(DSI_VC_CTRL(channel), 1, 6, 6); /* BTA_EN */
 
 	return 0;
 }
 
-int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel)
+int dsi_vc_send_bta_sync(int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int r = 0;
 	u32 err;
 
-	r = dsi_register_isr_vc(dsidev, channel, dsi_completion_handler,
+	r = dsi_register_isr_vc(channel, dsi_completion_handler,
 			&completion, DSI_VC_IRQ_BTA);
 	if (r)
 		goto err0;
 
-	r = dsi_register_isr(dsidev, dsi_completion_handler, &completion,
+	r = dsi_register_isr(dsi_completion_handler, &completion,
 			DSI_IRQ_ERROR_MASK);
 	if (r)
 		goto err1;
 
-	r = dsi_vc_send_bta(dsidev, channel);
+	r = dsi_vc_send_bta(channel);
 	if (r)
 		goto err2;
 
@@ -2835,42 +2470,41 @@ int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel)
 		goto err2;
 	}
 
-	err = dsi_get_errors(dsidev);
+	err = dsi_get_errors();
 	if (err) {
 		DSSERR("Error while sending BTA: %x\n", err);
 		r = -EIO;
 		goto err2;
 	}
 err2:
-	dsi_unregister_isr(dsidev, dsi_completion_handler, &completion,
+	dsi_unregister_isr(dsi_completion_handler, &completion,
 			DSI_IRQ_ERROR_MASK);
 err1:
-	dsi_unregister_isr_vc(dsidev, channel, dsi_completion_handler,
+	dsi_unregister_isr_vc(channel, dsi_completion_handler,
 			&completion, DSI_VC_IRQ_BTA);
 err0:
 	return r;
 }
 EXPORT_SYMBOL(dsi_vc_send_bta_sync);
 
-static inline void dsi_vc_write_long_header(struct platform_device *dsidev,
-		int channel, u8 data_type, u16 len, u8 ecc)
+static inline void dsi_vc_write_long_header(int channel, u8 data_type,
+		u16 len, u8 ecc)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 val;
 	u8 data_id;
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	data_id = data_type | dsi->vc[channel].vc_id << 6;
+	data_id = data_type | channel << 6;
 
 	val = FLD_VAL(data_id, 7, 0) | FLD_VAL(len, 23, 8) |
 		FLD_VAL(ecc, 31, 24);
 
-	dsi_write_reg(dsidev, DSI_VC_LONG_PACKET_HEADER(channel), val);
+	dsi_write_reg(DSI_VC_LONG_PACKET_HEADER(channel), val);
 }
 
-static inline void dsi_vc_write_long_payload(struct platform_device *dsidev,
-		int channel, u8 b1, u8 b2, u8 b3, u8 b4)
+static inline void dsi_vc_write_long_payload(int channel,
+		u8 b1, u8 b2, u8 b3, u8 b4)
 {
 	u32 val;
 
@@ -2879,35 +2513,34 @@ static inline void dsi_vc_write_long_payload(struct platform_device *dsidev,
 /*	DSSDBG("\twriting %02x, %02x, %02x, %02x (%#010x)\n",
 			b1, b2, b3, b4, val); */
 
-	dsi_write_reg(dsidev, DSI_VC_LONG_PACKET_PAYLOAD(channel), val);
+	dsi_write_reg(DSI_VC_LONG_PACKET_PAYLOAD(channel), val);
 }
 
-static int dsi_vc_send_long(struct platform_device *dsidev, int channel,
-		u8 data_type, u8 *data, u16 len, u8 ecc)
+static int dsi_vc_send_long(int channel, u8 data_type, u8 *data, u16 len,
+		u8 ecc)
 {
 	/*u32 val; */
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int i;
 	u8 *p;
 	int r = 0;
 	u8 b1, b2, b3, b4;
 
-	if (dsi->debug_write)
+	if (dsi.debug_write)
 		DSSDBG("dsi_vc_send_long, %d bytes\n", len);
 
 	/* len + header */
-	if (dsi->vc[channel].fifo_size * 32 * 4 < len + 4) {
+	if (dsi.vc[channel].fifo_size * 32 * 4 < len + 4) {
 		DSSERR("unable to send long packet: packet too long.\n");
 		return -EINVAL;
 	}
 
-	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_L4);
+	dsi_vc_config_l4(channel);
 
-	dsi_vc_write_long_header(dsidev, channel, data_type, len, ecc);
+	dsi_vc_write_long_header(channel, data_type, len, ecc);
 
 	p = data;
 	for (i = 0; i < len >> 2; i++) {
-		if (dsi->debug_write)
+		if (dsi.debug_write)
 			DSSDBG("\tsending full packet %d\n", i);
 
 		b1 = *p++;
@@ -2915,14 +2548,14 @@ static int dsi_vc_send_long(struct platform_device *dsidev, int channel,
 		b3 = *p++;
 		b4 = *p++;
 
-		dsi_vc_write_long_payload(dsidev, channel, b1, b2, b3, b4);
+		dsi_vc_write_long_payload(channel, b1, b2, b3, b4);
 	}
 
 	i = len % 4;
 	if (i) {
 		b1 = 0; b2 = 0; b3 = 0;
 
-		if (dsi->debug_write)
+		if (dsi.debug_write)
 			DSSDBG("\tsending remainder bytes %d\n", i);
 
 		switch (i) {
@@ -2940,273 +2573,149 @@ static int dsi_vc_send_long(struct platform_device *dsidev, int channel,
 			break;
 		}
 
-		dsi_vc_write_long_payload(dsidev, channel, b1, b2, b3, 0);
+		dsi_vc_write_long_payload(channel, b1, b2, b3, 0);
 	}
 
 	return r;
 }
 
-static int dsi_vc_send_short(struct platform_device *dsidev, int channel,
-		u8 data_type, u16 data, u8 ecc)
+static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r;
 	u8 data_id;
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	if (dsi->debug_write)
+	if (dsi.debug_write)
 		DSSDBG("dsi_vc_send_short(ch%d, dt %#x, b1 %#x, b2 %#x)\n",
 				channel,
 				data_type, data & 0xff, (data >> 8) & 0xff);
 
-	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_L4);
+	dsi_vc_config_l4(channel);
 
-	if (FLD_GET(dsi_read_reg(dsidev, DSI_VC_CTRL(channel)), 16, 16)) {
+	if (FLD_GET(dsi_read_reg(DSI_VC_CTRL(channel)), 16, 16)) {
 		DSSERR("ERROR FIFO FULL, aborting transfer\n");
 		return -EINVAL;
 	}
 
-	data_id = data_type | dsi->vc[channel].vc_id << 6;
+	data_id = data_type | channel << 6;
 
 	r = (data_id << 0) | (data << 8) | (ecc << 24);
 
-	dsi_write_reg(dsidev, DSI_VC_SHORT_PACKET_HEADER(channel), r);
+	dsi_write_reg(DSI_VC_SHORT_PACKET_HEADER(channel), r);
 
 	return 0;
 }
 
-int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel)
+int dsi_vc_send_null(int channel)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-
-	return dsi_vc_send_long(dsidev, channel, MIPI_DSI_NULL_PACKET, NULL,
-		0, 0);
+	u8 nullpkg[] = {0, 0, 0, 0};
+	return dsi_vc_send_long(channel, DSI_DT_NULL_PACKET, nullpkg, 4, 0);
 }
 EXPORT_SYMBOL(dsi_vc_send_null);
 
-static int dsi_vc_write_nosync_common(struct omap_dss_device *dssdev,
-		int channel, u8 *data, int len, enum dss_dsi_content_type type)
+int dsi_vc_dcs_write_nosync(int channel, u8 *data, int len)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	int r;
 
-	if (len == 0) {
-		BUG_ON(type == DSS_DSI_CONTENT_DCS);
-		r = dsi_vc_send_short(dsidev, channel,
-				MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM, 0, 0);
-	} else if (len == 1) {
-		r = dsi_vc_send_short(dsidev, channel,
-				type == DSS_DSI_CONTENT_GENERIC ?
-				MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM :
-				MIPI_DSI_DCS_SHORT_WRITE, data[0], 0);
+	BUG_ON(len == 0);
+
+	if (len == 1) {
+		r = dsi_vc_send_short(channel, DSI_DT_DCS_SHORT_WRITE_0,
+				data[0], 0);
 	} else if (len == 2) {
-		r = dsi_vc_send_short(dsidev, channel,
-				type == DSS_DSI_CONTENT_GENERIC ?
-				MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM :
-				MIPI_DSI_DCS_SHORT_WRITE_PARAM,
+		r = dsi_vc_send_short(channel, DSI_DT_DCS_SHORT_WRITE_1,
 				data[0] | (data[1] << 8), 0);
 	} else {
-		r = dsi_vc_send_long(dsidev, channel,
-				type == DSS_DSI_CONTENT_GENERIC ?
-				MIPI_DSI_GENERIC_LONG_WRITE :
-				MIPI_DSI_DCS_LONG_WRITE, data, len, 0);
+		/* 0x39 = DCS Long Write */
+		r = dsi_vc_send_long(channel, DSI_DT_DCS_LONG_WRITE,
+				data, len, 0);
 	}
 
 	return r;
 }
-
-int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len)
-{
-	return dsi_vc_write_nosync_common(dssdev, channel, data, len,
-			DSS_DSI_CONTENT_DCS);
-}
 EXPORT_SYMBOL(dsi_vc_dcs_write_nosync);
 
-int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len)
+int dsi_vc_dcs_write(int channel, u8 *data, int len)
 {
-	return dsi_vc_write_nosync_common(dssdev, channel, data, len,
-			DSS_DSI_CONTENT_GENERIC);
-}
-EXPORT_SYMBOL(dsi_vc_generic_write_nosync);
-
-static int dsi_vc_write_common(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len, enum dss_dsi_content_type type)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	int r;
 
-	r = dsi_vc_write_nosync_common(dssdev, channel, data, len, type);
+	r = dsi_vc_dcs_write_nosync(channel, data, len);
 	if (r)
 		goto err;
 
-	r = dsi_vc_send_bta_sync(dssdev, channel);
+	r = dsi_vc_send_bta_sync(channel);
 	if (r)
 		goto err;
 
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20)) {
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {	/* RX_FIFO_NOT_EMPTY */
 		DSSERR("rx fifo not empty after write, dumping data:\n");
-		dsi_vc_flush_receive_data(dsidev, channel);
+		dsi_vc_flush_receive_data(channel);
 		r = -EIO;
 		goto err;
 	}
 
 	return 0;
 err:
-	DSSERR("dsi_vc_write_common(ch %d, cmd 0x%02x, len %d) failed\n",
+	DSSERR("dsi_vc_dcs_write(ch %d, cmd 0x%02x, len %d) failed\n",
 			channel, data[0], len);
 	return r;
 }
-
-int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len)
-{
-	return dsi_vc_write_common(dssdev, channel, data, len,
-			DSS_DSI_CONTENT_DCS);
-}
 EXPORT_SYMBOL(dsi_vc_dcs_write);
 
-int dsi_vc_generic_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len)
+int dsi_vc_dcs_write_0(int channel, u8 dcs_cmd)
 {
-	return dsi_vc_write_common(dssdev, channel, data, len,
-			DSS_DSI_CONTENT_GENERIC);
-}
-EXPORT_SYMBOL(dsi_vc_generic_write);
-
-int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd)
-{
-	return dsi_vc_dcs_write(dssdev, channel, &dcs_cmd, 1);
+	return dsi_vc_dcs_write(channel, &dcs_cmd, 1);
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write_0);
 
-int dsi_vc_generic_write_0(struct omap_dss_device *dssdev, int channel)
-{
-	return dsi_vc_generic_write(dssdev, channel, NULL, 0);
-}
-EXPORT_SYMBOL(dsi_vc_generic_write_0);
-
-int dsi_vc_dcs_write_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 param)
+int dsi_vc_dcs_write_1(int channel, u8 dcs_cmd, u8 param)
 {
 	u8 buf[2];
 	buf[0] = dcs_cmd;
 	buf[1] = param;
-	return dsi_vc_dcs_write(dssdev, channel, buf, 2);
+	return dsi_vc_dcs_write(channel, buf, 2);
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write_1);
 
-int dsi_vc_generic_write_1(struct omap_dss_device *dssdev, int channel,
-		u8 param)
+int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 {
-	return dsi_vc_generic_write(dssdev, channel, &param, 1);
-}
-EXPORT_SYMBOL(dsi_vc_generic_write_1);
-
-int dsi_vc_generic_write_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2)
-{
-	u8 buf[2];
-	buf[0] = param1;
-	buf[1] = param2;
-	return dsi_vc_generic_write(dssdev, channel, buf, 2);
-}
-EXPORT_SYMBOL(dsi_vc_generic_write_2);
-
-static int dsi_vc_dcs_send_read_request(struct omap_dss_device *dssdev,
-		int channel, u8 dcs_cmd)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int r;
-
-	if (dsi->debug_read)
-		DSSDBG("dsi_vc_dcs_send_read_request(ch%d, dcs_cmd %x)\n",
-			channel, dcs_cmd);
-
-	r = dsi_vc_send_short(dsidev, channel, MIPI_DSI_DCS_READ, dcs_cmd, 0);
-	if (r) {
-		DSSERR("dsi_vc_dcs_send_read_request(ch %d, cmd 0x%02x)"
-			" failed\n", channel, dcs_cmd);
-		return r;
-	}
-
-	return 0;
-}
-
-static int dsi_vc_generic_send_read_request(struct omap_dss_device *dssdev,
-		int channel, u8 *reqdata, int reqlen)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	u16 data;
-	u8 data_type;
-	int r;
-
-	if (dsi->debug_read)
-		DSSDBG("dsi_vc_generic_send_read_request(ch %d, reqlen %d)\n",
-			channel, reqlen);
-
-	if (reqlen == 0) {
-		data_type = MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM;
-		data = 0;
-	} else if (reqlen == 1) {
-		data_type = MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM;
-		data = reqdata[0];
-	} else if (reqlen == 2) {
-		data_type = MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM;
-		data = reqdata[0] | (reqdata[1] << 8);
-	} else {
-		BUG();
-		return -EINVAL;
-	}
-
-	r = dsi_vc_send_short(dsidev, channel, data_type, data, 0);
-	if (r) {
-		DSSERR("dsi_vc_generic_send_read_request(ch %d, reqlen %d)"
-			" failed\n", channel, reqlen);
-		return r;
-	}
-
-	return 0;
-}
-
-static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
-		u8 *buf, int buflen, enum dss_dsi_content_type type)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 val;
 	u8 dt;
 	int r;
 
+	if (dsi.debug_read)
+		DSSDBG("dsi_vc_dcs_read(ch%d, dcs_cmd %x)\n", channel, dcs_cmd);
+
+	r = dsi_vc_send_short(channel, DSI_DT_DCS_READ, dcs_cmd, 0);
+	if (r)
+		goto err;
+
+	r = dsi_vc_send_bta_sync(channel);
+	if (r)
+		goto err;
+
 	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(dsidev, DSI_VC_CTRL(channel), 20, 20) == 0) {
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20) == 0) {
 		DSSERR("RX fifo empty when trying to read.\n");
 		r = -EIO;
 		goto err;
 	}
 
-	val = dsi_read_reg(dsidev, DSI_VC_SHORT_PACKET_HEADER(channel));
-	if (dsi->debug_read)
+	val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
+	if (dsi.debug_read)
 		DSSDBG("\theader: %08x\n", val);
 	dt = FLD_GET(val, 5, 0);
-	if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
+	if (dt == DSI_DT_RX_ACK_WITH_ERR) {
 		u16 err = FLD_GET(val, 23, 8);
 		dsi_show_rx_ack_with_err(err);
 		r = -EIO;
 		goto err;
 
-	} else if (dt == (type == DSS_DSI_CONTENT_GENERIC ?
-			MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE :
-			MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE)) {
+	} else if (dt == DSI_DT_RX_SHORT_READ_1) {
 		u8 data = FLD_GET(val, 15, 8);
-		if (dsi->debug_read)
-			DSSDBG("\t%s short response, 1 byte: %02x\n",
-				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
-				"DCS", data);
+		if (dsi.debug_read)
+			DSSDBG("\tDCS short response, 1 byte: %02x\n", data);
 
 		if (buflen < 1) {
 			r = -EIO;
@@ -3216,14 +2725,10 @@ static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
 		buf[0] = data;
 
 		return 1;
-	} else if (dt == (type == DSS_DSI_CONTENT_GENERIC ?
-			MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE :
-			MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE)) {
+	} else if (dt == DSI_DT_RX_SHORT_READ_2) {
 		u16 data = FLD_GET(val, 23, 8);
-		if (dsi->debug_read)
-			DSSDBG("\t%s short response, 2 byte: %04x\n",
-				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
-				"DCS", data);
+		if (dsi.debug_read)
+			DSSDBG("\tDCS short response, 2 byte: %04x\n", data);
 
 		if (buflen < 2) {
 			r = -EIO;
@@ -3234,15 +2739,11 @@ static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
 		buf[1] = (data >> 8) & 0xff;
 
 		return 2;
-	} else if (dt == (type == DSS_DSI_CONTENT_GENERIC ?
-			MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE :
-			MIPI_DSI_RX_DCS_LONG_READ_RESPONSE)) {
+	} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
 		int w;
 		int len = FLD_GET(val, 23, 8);
-		if (dsi->debug_read)
-			DSSDBG("\t%s long response, len %d\n",
-				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
-				"DCS", len);
+		if (dsi.debug_read)
+			DSSDBG("\tDCS long response, len %d\n", len);
 
 		if (len > buflen) {
 			r = -EIO;
@@ -3252,9 +2753,8 @@ static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
 		/* two byte checksum ends the packet, not included in len */
 		for (w = 0; w < len + 2;) {
 			int b;
-			val = dsi_read_reg(dsidev,
-				DSI_VC_SHORT_PACKET_HEADER(channel));
-			if (dsi->debug_read)
+			val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
+			if (dsi.debug_read)
 				DSSDBG("\t\t%02x %02x %02x %02x\n",
 						(val >> 0) & 0xff,
 						(val >> 8) & 0xff,
@@ -3276,226 +2776,129 @@ static int dsi_vc_read_rx_fifo(struct platform_device *dsidev, int channel,
 		goto err;
 	}
 
+	BUG();
 err:
-	DSSERR("dsi_vc_read_rx_fifo(ch %d type %s) failed\n", channel,
-		type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" : "DCS");
-
+	DSSERR("dsi_vc_dcs_read(ch %d, cmd 0x%02x) failed\n",
+			channel, dcs_cmd);
 	return r;
-}
 
-int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *buf, int buflen)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int r;
-
-	r = dsi_vc_dcs_send_read_request(dssdev, channel, dcs_cmd);
-	if (r)
-		goto err;
-
-	r = dsi_vc_send_bta_sync(dssdev, channel);
-	if (r)
-		goto err;
-
-	r = dsi_vc_read_rx_fifo(dsidev, channel, buf, buflen,
-		DSS_DSI_CONTENT_DCS);
-	if (r < 0)
-		goto err;
-
-	if (r != buflen) {
-		r = -EIO;
-		goto err;
-	}
-
-	return 0;
-err:
-	DSSERR("dsi_vc_dcs_read(ch %d, cmd 0x%02x) failed\n", channel, dcs_cmd);
-	return r;
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
-static int dsi_vc_generic_read(struct omap_dss_device *dssdev, int channel,
-		u8 *reqdata, int reqlen, u8 *buf, int buflen)
+int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	int r;
 
-	r = dsi_vc_generic_send_read_request(dssdev, channel, reqdata, reqlen);
-	if (r)
-		return r;
+	r = dsi_vc_dcs_read(channel, dcs_cmd, data, 1);
 
-	r = dsi_vc_send_bta_sync(dssdev, channel);
-	if (r)
-		return r;
-
-	r = dsi_vc_read_rx_fifo(dsidev, channel, buf, buflen,
-		DSS_DSI_CONTENT_GENERIC);
 	if (r < 0)
 		return r;
 
-	if (r != buflen) {
-		r = -EIO;
-		return r;
-	}
+	if (r != 1)
+		return -EIO;
 
 	return 0;
 }
+EXPORT_SYMBOL(dsi_vc_dcs_read_1);
 
-int dsi_vc_generic_read_0(struct omap_dss_device *dssdev, int channel, u8 *buf,
-		int buflen)
+int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u8 *data1, u8 *data2)
 {
+	u8 buf[2];
 	int r;
 
-	r = dsi_vc_generic_read(dssdev, channel, NULL, 0, buf, buflen);
-	if (r) {
-		DSSERR("dsi_vc_generic_read_0(ch %d) failed\n", channel);
+	r = dsi_vc_dcs_read(channel, dcs_cmd, buf, 2);
+
+	if (r < 0)
 		return r;
-	}
+
+	if (r != 2)
+		return -EIO;
+
+	*data1 = buf[0];
+	*data2 = buf[1];
 
 	return 0;
 }
-EXPORT_SYMBOL(dsi_vc_generic_read_0);
+EXPORT_SYMBOL(dsi_vc_dcs_read_2);
 
-int dsi_vc_generic_read_1(struct omap_dss_device *dssdev, int channel, u8 param,
-		u8 *buf, int buflen)
+int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 {
-	int r;
-
-	r = dsi_vc_generic_read(dssdev, channel, &param, 1, buf, buflen);
-	if (r) {
-		DSSERR("dsi_vc_generic_read_1(ch %d) failed\n", channel);
-		return r;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(dsi_vc_generic_read_1);
-
-int dsi_vc_generic_read_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2, u8 *buf, int buflen)
-{
-	int r;
-	u8 reqdata[2];
-
-	reqdata[0] = param1;
-	reqdata[1] = param2;
-
-	r = dsi_vc_generic_read(dssdev, channel, reqdata, 2, buf, buflen);
-	if (r) {
-		DSSERR("dsi_vc_generic_read_2(ch %d) failed\n", channel);
-		return r;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(dsi_vc_generic_read_2);
-
-int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
-		u16 len)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-
-	return dsi_vc_send_short(dsidev, channel,
-			MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE, len, 0);
+	return dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
+			len, 0);
 }
 EXPORT_SYMBOL(dsi_vc_set_max_rx_packet_size);
 
-static int dsi_enter_ulps(struct platform_device *dsidev)
+static int dsi_enter_ulps(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	DECLARE_COMPLETION_ONSTACK(completion);
-	int r, i;
-	unsigned mask;
+	int r;
 
-	DSSDBGF();
+	DSSDBG("dsi_enter_ulps\n");
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	WARN_ON(dsi->ulps_enabled);
+	WARN_ON(dsi.ulps_enabled);
 
-	if (dsi->ulps_enabled)
+	if (dsi.ulps_enabled)
 		return 0;
 
-	/* DDR_CLK_ALWAYS_ON */
-	if (REG_GET(dsidev, DSI_CLK_CTRL, 13, 13)) {
-		dsi_if_enable(dsidev, 0);
-		REG_FLD_MOD(dsidev, DSI_CLK_CTRL, 0, 13, 13);
-		dsi_if_enable(dsidev, 1);
+	if (REG_GET(DSI_CLK_CTRL, 13, 13)) {
+		DSSERR("DDR_CLK_ALWAYS_ON enabled when entering ULPS\n");
+		return -EIO;
 	}
 
-	dsi_sync_vc(dsidev, 0);
-	dsi_sync_vc(dsidev, 1);
-	dsi_sync_vc(dsidev, 2);
-	dsi_sync_vc(dsidev, 3);
+	dsi_force_tx_stop_mode_io();
 
-	dsi_force_tx_stop_mode_io(dsidev);
+	dsi_vc_enable(0, false);
+	dsi_vc_enable(1, false);
+	dsi_vc_enable(2, false);
+	dsi_vc_enable(3, false);
 
-	dsi_vc_enable(dsidev, 0, false);
-	dsi_vc_enable(dsidev, 1, false);
-	dsi_vc_enable(dsidev, 2, false);
-	dsi_vc_enable(dsidev, 3, false);
-
-	if (REG_GET(dsidev, DSI_COMPLEXIO_CFG2, 16, 16)) {	/* HS_BUSY */
+	if (REG_GET(DSI_COMPLEXIO_CFG2, 16, 16)) {	/* HS_BUSY */
 		DSSERR("HS busy when enabling ULPS\n");
 		return -EIO;
 	}
 
-	if (REG_GET(dsidev, DSI_COMPLEXIO_CFG2, 17, 17)) {	/* LP_BUSY */
+	if (REG_GET(DSI_COMPLEXIO_CFG2, 17, 17)) {	/* LP_BUSY */
 		DSSERR("LP busy when enabling ULPS\n");
 		return -EIO;
 	}
 
-	r = dsi_register_isr_cio(dsidev, dsi_completion_handler, &completion,
+	r = dsi_register_isr_cio(dsi_completion_handler, &completion,
 			DSI_CIO_IRQ_ULPSACTIVENOT_ALL0);
-	if (r)
-		return r;
 
-	mask = 0;
-
-	for (i = 0; i < dsi->num_lanes_supported; ++i) {
-		if (dsi->lanes[i].function == DSI_LANE_UNUSED)
-			continue;
-		mask |= 1 << i;
-	}
 	/* Assert TxRequestEsc for data lanes and TxUlpsClk for clk lane */
 	/* LANEx_ULPS_SIG2 */
-	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, mask, 9, 5);
-
-	/* flush posted write and wait for SCP interface to finish the write */
-	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
+	REG_FLD_MOD(DSI_COMPLEXIO_CFG2, (1 << 0) | (1 << 1) | (1 << 2), 7, 5);
 
 	if (wait_for_completion_timeout(&completion,
-				msecs_to_jiffies(1000)) == 0) {
+			msecs_to_jiffies(1000)) == 0) {
 		DSSERR("ULPS enable timeout\n");
 		r = -EIO;
 		goto err;
 	}
 
-	dsi_unregister_isr_cio(dsidev, dsi_completion_handler, &completion,
+	dsi_unregister_isr_cio(dsi_completion_handler, &completion,
 			DSI_CIO_IRQ_ULPSACTIVENOT_ALL0);
 
-	/* Reset LANEx_ULPS_SIG2 */
-	REG_FLD_MOD(dsidev, DSI_COMPLEXIO_CFG2, 0, 9, 5);
+	dsi_cio_power(DSI_COMPLEXIO_POWER_ULPS);
 
-	/* flush posted write and wait for SCP interface to finish the write */
-	dsi_read_reg(dsidev, DSI_COMPLEXIO_CFG2);
+	dsi_if_enable(false);
 
-	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_ULPS);
+	if (dsi.dsi_mux_pads)
+		dsi.dsi_mux_pads(false);
 
-	dsi_if_enable(dsidev, false);
-
-	dsi->ulps_enabled = true;
+	dsi.ulps_enabled = true;
 
 	return 0;
 
 err:
-	dsi_unregister_isr_cio(dsidev, dsi_completion_handler, &completion,
+	dsi_unregister_isr_cio(dsi_completion_handler, &completion,
 			DSI_CIO_IRQ_ULPSACTIVENOT_ALL0);
 	return r;
 }
 
-static void dsi_set_lp_rx_timeout(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+static void dsi_set_lp_rx_timeout(unsigned ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3504,14 +2907,14 @@ static void dsi_set_lp_rx_timeout(struct platform_device *dsidev,
 	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-	fck = dsi_fclk_rate(dsidev);
+	fck = dsi_fclk_rate();
 
-	r = dsi_read_reg(dsidev, DSI_TIMING2);
+	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 15, 15);	/* LP_RX_TO */
 	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* LP_RX_TO_X16 */
 	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* LP_RX_TO_X4 */
 	r = FLD_MOD(r, ticks, 12, 0);	/* LP_RX_COUNTER */
-	dsi_write_reg(dsidev, DSI_TIMING2, r);
+	dsi_write_reg(DSI_TIMING2, r);
 
 	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
 
@@ -3521,8 +2924,7 @@ static void dsi_set_lp_rx_timeout(struct platform_device *dsidev,
 			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_ta_timeout(struct platform_device *dsidev, unsigned ticks,
-		bool x8, bool x16)
+static void dsi_set_ta_timeout(unsigned ticks, bool x8, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3531,14 +2933,14 @@ static void dsi_set_ta_timeout(struct platform_device *dsidev, unsigned ticks,
 	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-	fck = dsi_fclk_rate(dsidev);
+	fck = dsi_fclk_rate();
 
-	r = dsi_read_reg(dsidev, DSI_TIMING1);
+	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 31, 31);	/* TA_TO */
 	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* TA_TO_X16 */
 	r = FLD_MOD(r, x8 ? 1 : 0, 29, 29);	/* TA_TO_X8 */
 	r = FLD_MOD(r, ticks, 28, 16);	/* TA_TO_COUNTER */
-	dsi_write_reg(dsidev, DSI_TIMING1, r);
+	dsi_write_reg(DSI_TIMING1, r);
 
 	total_ticks = ticks * (x16 ? 16 : 1) * (x8 ? 8 : 1);
 
@@ -3548,8 +2950,7 @@ static void dsi_set_ta_timeout(struct platform_device *dsidev, unsigned ticks,
 			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_stop_state_counter(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+static void dsi_set_stop_state_counter(unsigned ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3558,14 +2959,14 @@ static void dsi_set_stop_state_counter(struct platform_device *dsidev,
 	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
-	fck = dsi_fclk_rate(dsidev);
+	fck = dsi_fclk_rate();
 
-	r = dsi_read_reg(dsidev, DSI_TIMING1);
+	r = dsi_read_reg(DSI_TIMING1);
 	r = FLD_MOD(r, 1, 15, 15);	/* FORCE_TX_STOP_MODE_IO */
 	r = FLD_MOD(r, x16 ? 1 : 0, 14, 14);	/* STOP_STATE_X16_IO */
 	r = FLD_MOD(r, x4 ? 1 : 0, 13, 13);	/* STOP_STATE_X4_IO */
 	r = FLD_MOD(r, ticks, 12, 0);	/* STOP_STATE_COUNTER_IO */
-	dsi_write_reg(dsidev, DSI_TIMING1, r);
+	dsi_write_reg(DSI_TIMING1, r);
 
 	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
 
@@ -3575,8 +2976,7 @@ static void dsi_set_stop_state_counter(struct platform_device *dsidev,
 			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
 
-static void dsi_set_hs_tx_timeout(struct platform_device *dsidev,
-		unsigned ticks, bool x4, bool x16)
+static void dsi_set_hs_tx_timeout(unsigned ticks, bool x4, bool x16)
 {
 	unsigned long fck;
 	unsigned long total_ticks;
@@ -3585,14 +2985,14 @@ static void dsi_set_hs_tx_timeout(struct platform_device *dsidev,
 	BUG_ON(ticks > 0x1fff);
 
 	/* ticks in TxByteClkHS */
-	fck = dsi_get_txbyteclkhs(dsidev);
+	fck = dsi_get_txbyteclkhs();
 
-	r = dsi_read_reg(dsidev, DSI_TIMING2);
+	r = dsi_read_reg(DSI_TIMING2);
 	r = FLD_MOD(r, 1, 31, 31);	/* HS_TX_TO */
 	r = FLD_MOD(r, x16 ? 1 : 0, 30, 30);	/* HS_TX_TO_X16 */
 	r = FLD_MOD(r, x4 ? 1 : 0, 29, 29);	/* HS_TX_TO_X8 (4 really) */
 	r = FLD_MOD(r, ticks, 28, 16);	/* HS_TX_TO_COUNTER */
-	dsi_write_reg(dsidev, DSI_TIMING2, r);
+	dsi_write_reg(DSI_TIMING2, r);
 
 	total_ticks = ticks * (x16 ? 16 : 1) * (x4 ? 4 : 1);
 
@@ -3601,278 +3001,28 @@ static void dsi_set_hs_tx_timeout(struct platform_device *dsidev,
 			ticks, x4 ? " x4" : "", x16 ? " x16" : "",
 			(total_ticks * 1000) / (fck / 1000 / 1000));
 }
-
-static void dsi_config_vp_num_line_buffers(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int num_line_buffers;
-
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
-		unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
-		struct omap_video_timings *timings = &dssdev->panel.timings;
-		/*
-		 * Don't use line buffers if width is greater than the video
-		 * port's line buffer size
-		 */
-		if (line_buf_size <= timings->x_res * bpp / 8)
-			num_line_buffers = 0;
-		else
-			num_line_buffers = 2;
-	} else {
-		/* Use maximum number of line buffers in command mode */
-		num_line_buffers = 2;
-	}
-
-	/* LINE_BUFFER */
-	REG_FLD_MOD(dsidev, DSI_CTRL, num_line_buffers, 13, 12);
-}
-
-static void dsi_config_vp_sync_events(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int de_pol = dssdev->panel.dsi_vm_data.vp_de_pol;
-	int hsync_pol = dssdev->panel.dsi_vm_data.vp_hsync_pol;
-	int vsync_pol = dssdev->panel.dsi_vm_data.vp_vsync_pol;
-	bool vsync_end = dssdev->panel.dsi_vm_data.vp_vsync_end;
-	bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
-	u32 r;
-
-	r = dsi_read_reg(dsidev, DSI_CTRL);
-	r = FLD_MOD(r, de_pol, 9, 9);		/* VP_DE_POL */
-	r = FLD_MOD(r, hsync_pol, 10, 10);	/* VP_HSYNC_POL */
-	r = FLD_MOD(r, vsync_pol, 11, 11);	/* VP_VSYNC_POL */
-	r = FLD_MOD(r, 1, 15, 15);		/* VP_VSYNC_START */
-	r = FLD_MOD(r, vsync_end, 16, 16);	/* VP_VSYNC_END */
-	r = FLD_MOD(r, 1, 17, 17);		/* VP_HSYNC_START */
-	r = FLD_MOD(r, hsync_end, 18, 18);	/* VP_HSYNC_END */
-	dsi_write_reg(dsidev, DSI_CTRL, r);
-}
-
-static void dsi_config_blanking_modes(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int blanking_mode = dssdev->panel.dsi_vm_data.blanking_mode;
-	int hfp_blanking_mode = dssdev->panel.dsi_vm_data.hfp_blanking_mode;
-	int hbp_blanking_mode = dssdev->panel.dsi_vm_data.hbp_blanking_mode;
-	int hsa_blanking_mode = dssdev->panel.dsi_vm_data.hsa_blanking_mode;
-	u32 r;
-
-	/*
-	 * 0 = TX FIFO packets sent or LPS in corresponding blanking periods
-	 * 1 = Long blanking packets are sent in corresponding blanking periods
-	 */
-	r = dsi_read_reg(dsidev, DSI_CTRL);
-	r = FLD_MOD(r, blanking_mode, 20, 20);		/* BLANKING_MODE */
-	r = FLD_MOD(r, hfp_blanking_mode, 21, 21);	/* HFP_BLANKING */
-	r = FLD_MOD(r, hbp_blanking_mode, 22, 22);	/* HBP_BLANKING */
-	r = FLD_MOD(r, hsa_blanking_mode, 23, 23);	/* HSA_BLANKING */
-	dsi_write_reg(dsidev, DSI_CTRL, r);
-}
-
-/*
- * According to section 'HS Command Mode Interleaving' in OMAP TRM, Scenario 3
- * results in maximum transition time for data and clock lanes to enter and
- * exit HS mode. Hence, this is the scenario where the least amount of command
- * mode data can be interleaved. We program the minimum amount of TXBYTECLKHS
- * clock cycles that can be used to interleave command mode data in HS so that
- * all scenarios are satisfied.
- */
-static int dsi_compute_interleave_hs(int blank, bool ddr_alwon, int enter_hs,
-		int exit_hs, int exiths_clk, int ddr_pre, int ddr_post)
-{
-	int transition;
-
-	/*
-	 * If DDR_CLK_ALWAYS_ON is set, we need to consider HS mode transition
-	 * time of data lanes only, if it isn't set, we need to consider HS
-	 * transition time of both data and clock lanes. HS transition time
-	 * of Scenario 3 is considered.
-	 */
-	if (ddr_alwon) {
-		transition = enter_hs + exit_hs + max(enter_hs, 2) + 1;
-	} else {
-		int trans1, trans2;
-		trans1 = ddr_pre + enter_hs + exit_hs + max(enter_hs, 2) + 1;
-		trans2 = ddr_pre + enter_hs + exiths_clk + ddr_post + ddr_pre +
-				enter_hs + 1;
-		transition = max(trans1, trans2);
-	}
-
-	return blank > transition ? blank - transition : 0;
-}
-
-/*
- * According to section 'LP Command Mode Interleaving' in OMAP TRM, Scenario 1
- * results in maximum transition time for data lanes to enter and exit LP mode.
- * Hence, this is the scenario where the least amount of command mode data can
- * be interleaved. We program the minimum amount of bytes that can be
- * interleaved in LP so that all scenarios are satisfied.
- */
-static int dsi_compute_interleave_lp(int blank, int enter_hs, int exit_hs,
-		int lp_clk_div, int tdsi_fclk)
-{
-	int trans_lp;	/* time required for a LP transition, in TXBYTECLKHS */
-	int tlp_avail;	/* time left for interleaving commands, in CLKIN4DDR */
-	int ttxclkesc;	/* period of LP transmit escape clock, in CLKIN4DDR */
-	int thsbyte_clk = 16;	/* Period of TXBYTECLKHS clock, in CLKIN4DDR */
-	int lp_inter;	/* cmd mode data that can be interleaved, in bytes */
-
-	/* maximum LP transition time according to Scenario 1 */
-	trans_lp = exit_hs + max(enter_hs, 2) + 1;
-
-	/* CLKIN4DDR = 16 * TXBYTECLKHS */
-	tlp_avail = thsbyte_clk * (blank - trans_lp);
-
-	ttxclkesc = tdsi_fclk * lp_clk_div;
-
-	lp_inter = ((tlp_avail - 8 * thsbyte_clk - 5 * tdsi_fclk) / ttxclkesc -
-			26) / 16;
-
-	return max(lp_inter, 0);
-}
-
-static void dsi_config_cmd_mode_interleaving(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int blanking_mode;
-	int hfp_blanking_mode, hbp_blanking_mode, hsa_blanking_mode;
-	int hsa, hfp, hbp, width_bytes, bllp, lp_clk_div;
-	int ddr_clk_pre, ddr_clk_post, enter_hs_mode_lat, exit_hs_mode_lat;
-	int tclk_trail, ths_exit, exiths_clk;
-	bool ddr_alwon;
-	struct omap_video_timings *timings = &dssdev->panel.timings;
-	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
-	int ndl = dsi->num_lanes_used - 1;
-	int dsi_fclk_hsdiv = dssdev->clocks.dsi.regm_dsi + 1;
-	int hsa_interleave_hs = 0, hsa_interleave_lp = 0;
-	int hfp_interleave_hs = 0, hfp_interleave_lp = 0;
-	int hbp_interleave_hs = 0, hbp_interleave_lp = 0;
-	int bl_interleave_hs = 0, bl_interleave_lp = 0;
-	u32 r;
-
-	r = dsi_read_reg(dsidev, DSI_CTRL);
-	blanking_mode = FLD_GET(r, 20, 20);
-	hfp_blanking_mode = FLD_GET(r, 21, 21);
-	hbp_blanking_mode = FLD_GET(r, 22, 22);
-	hsa_blanking_mode = FLD_GET(r, 23, 23);
-
-	r = dsi_read_reg(dsidev, DSI_VM_TIMING1);
-	hbp = FLD_GET(r, 11, 0);
-	hfp = FLD_GET(r, 23, 12);
-	hsa = FLD_GET(r, 31, 24);
-
-	r = dsi_read_reg(dsidev, DSI_CLK_TIMING);
-	ddr_clk_post = FLD_GET(r, 7, 0);
-	ddr_clk_pre = FLD_GET(r, 15, 8);
-
-	r = dsi_read_reg(dsidev, DSI_VM_TIMING7);
-	exit_hs_mode_lat = FLD_GET(r, 15, 0);
-	enter_hs_mode_lat = FLD_GET(r, 31, 16);
-
-	r = dsi_read_reg(dsidev, DSI_CLK_CTRL);
-	lp_clk_div = FLD_GET(r, 12, 0);
-	ddr_alwon = FLD_GET(r, 13, 13);
-
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG0);
-	ths_exit = FLD_GET(r, 7, 0);
-
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG1);
-	tclk_trail = FLD_GET(r, 15, 8);
-
-	exiths_clk = ths_exit + tclk_trail;
-
-	width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
-	bllp = hbp + hfp + hsa + DIV_ROUND_UP(width_bytes + 6, ndl);
-
-	if (!hsa_blanking_mode) {
-		hsa_interleave_hs = dsi_compute_interleave_hs(hsa, ddr_alwon,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					exiths_clk, ddr_clk_pre, ddr_clk_post);
-		hsa_interleave_lp = dsi_compute_interleave_lp(hsa,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					lp_clk_div, dsi_fclk_hsdiv);
-	}
-
-	if (!hfp_blanking_mode) {
-		hfp_interleave_hs = dsi_compute_interleave_hs(hfp, ddr_alwon,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					exiths_clk, ddr_clk_pre, ddr_clk_post);
-		hfp_interleave_lp = dsi_compute_interleave_lp(hfp,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					lp_clk_div, dsi_fclk_hsdiv);
-	}
-
-	if (!hbp_blanking_mode) {
-		hbp_interleave_hs = dsi_compute_interleave_hs(hbp, ddr_alwon,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					exiths_clk, ddr_clk_pre, ddr_clk_post);
-
-		hbp_interleave_lp = dsi_compute_interleave_lp(hbp,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					lp_clk_div, dsi_fclk_hsdiv);
-	}
-
-	if (!blanking_mode) {
-		bl_interleave_hs = dsi_compute_interleave_hs(bllp, ddr_alwon,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					exiths_clk, ddr_clk_pre, ddr_clk_post);
-
-		bl_interleave_lp = dsi_compute_interleave_lp(bllp,
-					enter_hs_mode_lat, exit_hs_mode_lat,
-					lp_clk_div, dsi_fclk_hsdiv);
-	}
-
-	DSSDBG("DSI HS interleaving(TXBYTECLKHS) HSA %d, HFP %d, HBP %d, BLLP %d\n",
-		hsa_interleave_hs, hfp_interleave_hs, hbp_interleave_hs,
-		bl_interleave_hs);
-
-	DSSDBG("DSI LP interleaving(bytes) HSA %d, HFP %d, HBP %d, BLLP %d\n",
-		hsa_interleave_lp, hfp_interleave_lp, hbp_interleave_lp,
-		bl_interleave_lp);
-
-	r = dsi_read_reg(dsidev, DSI_VM_TIMING4);
-	r = FLD_MOD(r, hsa_interleave_hs, 23, 16);
-	r = FLD_MOD(r, hfp_interleave_hs, 15, 8);
-	r = FLD_MOD(r, hbp_interleave_hs, 7, 0);
-	dsi_write_reg(dsidev, DSI_VM_TIMING4, r);
-
-	r = dsi_read_reg(dsidev, DSI_VM_TIMING5);
-	r = FLD_MOD(r, hsa_interleave_lp, 23, 16);
-	r = FLD_MOD(r, hfp_interleave_lp, 15, 8);
-	r = FLD_MOD(r, hbp_interleave_lp, 7, 0);
-	dsi_write_reg(dsidev, DSI_VM_TIMING5, r);
-
-	r = dsi_read_reg(dsidev, DSI_VM_TIMING6);
-	r = FLD_MOD(r, bl_interleave_hs, 31, 15);
-	r = FLD_MOD(r, bl_interleave_lp, 16, 0);
-	dsi_write_reg(dsidev, DSI_VM_TIMING6, r);
-}
-
 static int dsi_proto_config(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	u32 r;
 	int buswidth = 0;
 
-	dsi_config_tx_fifo(dsidev, DSI_FIFO_SIZE_32,
+	dsi_config_tx_fifo(DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32);
 
-	dsi_config_rx_fifo(dsidev, DSI_FIFO_SIZE_32,
+	dsi_config_rx_fifo(DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32,
 			DSI_FIFO_SIZE_32);
 
 	/* XXX what values for the timeouts? */
-	dsi_set_stop_state_counter(dsidev, 0x1000, false, false);
-	dsi_set_ta_timeout(dsidev, 0x1fff, true, true);
-	dsi_set_lp_rx_timeout(dsidev, 0x1fff, true, true);
-	dsi_set_hs_tx_timeout(dsidev, 0x1fff, true, true);
+	dsi_set_stop_state_counter(0x1000, false, false);
+	dsi_set_ta_timeout(0x1fff, true, true);
+	dsi_set_lp_rx_timeout(0x1fff, true, true);
+	dsi_set_hs_tx_timeout(0x1fff, true, true);
 
-	switch (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt)) {
+	switch (dssdev->ctrl.pixel_size) {
 	case 16:
 		buswidth = 0;
 		break;
@@ -3884,46 +3034,33 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 		break;
 	default:
 		BUG();
-		return -EINVAL;
 	}
 
-	r = dsi_read_reg(dsidev, DSI_CTRL);
+	r = dsi_read_reg(DSI_CTRL);
 	r = FLD_MOD(r, 1, 1, 1);	/* CS_RX_EN */
 	r = FLD_MOD(r, 1, 2, 2);	/* ECC_RX_EN */
 	r = FLD_MOD(r, 1, 3, 3);	/* TX_FIFO_ARBITRATION */
 	r = FLD_MOD(r, 1, 4, 4);	/* VP_CLK_RATIO, always 1, see errata*/
 	r = FLD_MOD(r, buswidth, 7, 6); /* VP_DATA_BUS_WIDTH */
 	r = FLD_MOD(r, 0, 8, 8);	/* VP_CLK_POL */
+	r = FLD_MOD(r, 2, 13, 12);	/* LINE_BUFFER, 2 lines */
 	r = FLD_MOD(r, 1, 14, 14);	/* TRIGGER_RESET_MODE */
 	r = FLD_MOD(r, 1, 19, 19);	/* EOT_ENABLE */
-	if (!dss_has_feature(FEAT_DSI_DCS_CMD_CONFIG_VC)) {
-		r = FLD_MOD(r, 1, 24, 24);	/* DCS_CMD_ENABLE */
-		/* DCS_CMD_CODE, 1=start, 0=continue */
-		r = FLD_MOD(r, 0, 25, 25);
-	}
+	r = FLD_MOD(r, 1, 24, 24);	/* DCS_CMD_ENABLE */
+	r = FLD_MOD(r, 0, 25, 25);	/* DCS_CMD_CODE, 1=start, 0=continue */
 
-	dsi_write_reg(dsidev, DSI_CTRL, r);
+	dsi_write_reg(DSI_CTRL, r);
 
-	dsi_config_vp_num_line_buffers(dssdev);
-
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		dsi_config_vp_sync_events(dssdev);
-		dsi_config_blanking_modes(dssdev);
-		dsi_config_cmd_mode_interleaving(dssdev);
-	}
-
-	dsi_vc_initial_config(dsidev, 0);
-	dsi_vc_initial_config(dsidev, 1);
-	dsi_vc_initial_config(dsidev, 2);
-	dsi_vc_initial_config(dsidev, 3);
+	dsi_vc_initial_config(0);
+	dsi_vc_initial_config(1);
+	dsi_vc_initial_config(2);
+	dsi_vc_initial_config(3);
 
 	return 0;
 }
 
 static void dsi_proto_timings(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned tlpx, tclk_zero, tclk_prepare, tclk_trail;
 	unsigned tclk_pre, tclk_post;
 	unsigned ths_prepare, ths_prepare_ths_zero, ths_zero;
@@ -3931,30 +3068,34 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 	unsigned ddr_clk_pre, ddr_clk_post;
 	unsigned enter_hs_mode_lat, exit_hs_mode_lat;
 	unsigned ths_eot;
-	int ndl = dsi->num_lanes_used - 1;
 	u32 r;
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG0);
+	r = dsi_read_reg(DSI_DSIPHY_CFG0);
 	ths_prepare = FLD_GET(r, 31, 24);
 	ths_prepare_ths_zero = FLD_GET(r, 23, 16);
 	ths_zero = ths_prepare_ths_zero - ths_prepare;
 	ths_trail = FLD_GET(r, 15, 8);
 	ths_exit = FLD_GET(r, 7, 0);
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG1);
+	r = dsi_read_reg(DSI_DSIPHY_CFG1);
 	tlpx = FLD_GET(r, 22, 16) * 2;
 	tclk_trail = FLD_GET(r, 15, 8);
 	tclk_zero = FLD_GET(r, 7, 0);
 
-	r = dsi_read_reg(dsidev, DSI_DSIPHY_CFG2);
+	r = dsi_read_reg(DSI_DSIPHY_CFG2);
 	tclk_prepare = FLD_GET(r, 7, 0);
 
 	/* min 8*UI */
 	tclk_pre = 20;
 	/* min 60ns + 52*UI */
-	tclk_post = ns2ddr(dsidev, 60) + 26;
+	tclk_post = ns2ddr(60) + 26;
 
-	ths_eot = DIV_ROUND_UP(4, ndl);
+	/* ths_eot is 2 for 2 datalanes and 4 for 1 datalane */
+	if (dssdev->phy.dsi.data1_lane != 0 &&
+			dssdev->phy.dsi.data2_lane != 0)
+		ths_eot = 2;
+	else
+		ths_eot = 4;
 
 	ddr_clk_pre = DIV_ROUND_UP(tclk_pre + tlpx + tclk_zero + tclk_prepare,
 			4);
@@ -3963,10 +3104,10 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 	BUG_ON(ddr_clk_pre == 0 || ddr_clk_pre > 255);
 	BUG_ON(ddr_clk_post == 0 || ddr_clk_post > 255);
 
-	r = dsi_read_reg(dsidev, DSI_CLK_TIMING);
+	r = dsi_read_reg(DSI_CLK_TIMING);
 	r = FLD_MOD(r, ddr_clk_pre, 15, 8);
 	r = FLD_MOD(r, ddr_clk_post, 7, 0);
-	dsi_write_reg(dsidev, DSI_CLK_TIMING, r);
+	dsi_write_reg(DSI_CLK_TIMING, r);
 
 	DSSDBG("ddr_clk_pre %u, ddr_clk_post %u\n",
 			ddr_clk_pre,
@@ -3980,207 +3121,167 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 
 	r = FLD_VAL(enter_hs_mode_lat, 31, 16) |
 		FLD_VAL(exit_hs_mode_lat, 15, 0);
-	dsi_write_reg(dsidev, DSI_VM_TIMING7, r);
+	dsi_write_reg(DSI_VM_TIMING7, r);
 
 	DSSDBG("enter_hs_mode_lat %u, exit_hs_mode_lat %u\n",
 			enter_hs_mode_lat, exit_hs_mode_lat);
-
-	 if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		/* TODO: Implement a video mode check_timings function */
-		int hsa = dssdev->panel.dsi_vm_data.hsa;
-		int hfp = dssdev->panel.dsi_vm_data.hfp;
-		int hbp = dssdev->panel.dsi_vm_data.hbp;
-		int vsa = dssdev->panel.dsi_vm_data.vsa;
-		int vfp = dssdev->panel.dsi_vm_data.vfp;
-		int vbp = dssdev->panel.dsi_vm_data.vbp;
-		int window_sync = dssdev->panel.dsi_vm_data.window_sync;
-		bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
-		struct omap_video_timings *timings = &dssdev->panel.timings;
-		int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
-		int tl, t_he, width_bytes;
-
-		t_he = hsync_end ?
-			((hsa == 0 && ndl == 3) ? 1 : DIV_ROUND_UP(4, ndl)) : 0;
-
-		width_bytes = DIV_ROUND_UP(timings->x_res * bpp, 8);
-
-		/* TL = t_HS + HSA + t_HE + HFP + ceil((WC + 6) / NDL) + HBP */
-		tl = DIV_ROUND_UP(4, ndl) + (hsync_end ? hsa : 0) + t_he + hfp +
-			DIV_ROUND_UP(width_bytes + 6, ndl) + hbp;
-
-		DSSDBG("HBP: %d, HFP: %d, HSA: %d, TL: %d TXBYTECLKHS\n", hbp,
-			hfp, hsync_end ? hsa : 0, tl);
-		DSSDBG("VBP: %d, VFP: %d, VSA: %d, VACT: %d lines\n", vbp, vfp,
-			vsa, timings->y_res);
-
-		r = dsi_read_reg(dsidev, DSI_VM_TIMING1);
-		r = FLD_MOD(r, hbp, 11, 0);	/* HBP */
-		r = FLD_MOD(r, hfp, 23, 12);	/* HFP */
-		r = FLD_MOD(r, hsync_end ? hsa : 0, 31, 24);	/* HSA */
-		dsi_write_reg(dsidev, DSI_VM_TIMING1, r);
-
-		r = dsi_read_reg(dsidev, DSI_VM_TIMING2);
-		r = FLD_MOD(r, vbp, 7, 0);	/* VBP */
-		r = FLD_MOD(r, vfp, 15, 8);	/* VFP */
-		r = FLD_MOD(r, vsa, 23, 16);	/* VSA */
-		r = FLD_MOD(r, window_sync, 27, 24);	/* WINDOW_SYNC */
-		dsi_write_reg(dsidev, DSI_VM_TIMING2, r);
-
-		r = dsi_read_reg(dsidev, DSI_VM_TIMING3);
-		r = FLD_MOD(r, timings->y_res, 14, 0);	/* VACT */
-		r = FLD_MOD(r, tl, 31, 16);		/* TL */
-		dsi_write_reg(dsidev, DSI_VM_TIMING3, r);
-	}
 }
 
-int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
-		const struct omap_dsi_pin_config *pin_cfg)
+
+#define DSI_DECL_VARS \
+	int __dsi_cb = 0; u32 __dsi_cv = 0;
+
+#define DSI_FLUSH(ch) \
+	if (__dsi_cb > 0) { \
+		/*DSSDBG("sending long packet %#010x\n", __dsi_cv);*/ \
+		dsi_write_reg(DSI_VC_LONG_PACKET_PAYLOAD(ch), __dsi_cv); \
+		__dsi_cb = __dsi_cv = 0; \
+	}
+
+#define DSI_PUSH(ch, data) \
+	do { \
+		__dsi_cv |= (data) << (__dsi_cb * 8); \
+		/*DSSDBG("cv = %#010x, cb = %d\n", __dsi_cv, __dsi_cb);*/ \
+		if (++__dsi_cb > 3) \
+			DSI_FLUSH(ch); \
+	} while (0)
+
+static int dsi_update_screen_l4(struct omap_dss_device *dssdev,
+			int x, int y, int w, int h)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int num_pins;
-	const int *pins;
-	struct dsi_lane_config lanes[DSI_MAX_NR_LANES];
-	int num_lanes;
-	int i;
+	/* Note: supports only 24bit colors in 32bit container */
+	int first = 1;
+	int fifo_stalls = 0;
+	int max_dsi_packet_size;
+	int max_data_per_packet;
+	int max_pixels_per_packet;
+	int pixels_left;
+	int bytespp = dssdev->ctrl.pixel_size / 8;
+	int scr_width;
+	u32 __iomem *data;
+	int start_offset;
+	int horiz_inc;
+	int current_x;
+	struct omap_overlay *ovl;
 
-	static const enum dsi_lane_function functions[] = {
-		DSI_LANE_CLK,
-		DSI_LANE_DATA1,
-		DSI_LANE_DATA2,
-		DSI_LANE_DATA3,
-		DSI_LANE_DATA4,
-	};
+	debug_irq = 0;
 
-	num_pins = pin_cfg->num_pins;
-	pins = pin_cfg->pins;
+	DSSDBG("dsi_update_screen_l4 (%d,%d %dx%d)\n",
+			x, y, w, h);
 
-	if (num_pins < 4 || num_pins > dsi->num_lanes_supported * 2
-			|| num_pins % 2 != 0)
+	ovl = dssdev->manager->overlays[0];
+
+	if (ovl->info.color_mode != OMAP_DSS_COLOR_RGB24U)
 		return -EINVAL;
 
-	for (i = 0; i < DSI_MAX_NR_LANES; ++i)
-		lanes[i].function = DSI_LANE_UNUSED;
+	if (dssdev->ctrl.pixel_size != 24)
+		return -EINVAL;
 
-	num_lanes = 0;
+	scr_width = ovl->info.screen_width;
+	data = ovl->info.vaddr;
 
-	for (i = 0; i < num_pins; i += 2) {
-		u8 lane, pol;
-		int dx, dy;
+	start_offset = scr_width * y + x;
+	horiz_inc = scr_width - w;
+	current_x = x;
 
-		dx = pins[i];
-		dy = pins[i + 1];
+	/* We need header(4) + DCSCMD(1) + pixels(numpix*bytespp) bytes
+	 * in fifo */
 
-		if (dx < 0 || dx >= dsi->num_lanes_supported * 2)
-			return -EINVAL;
+	/* When using CPU, max long packet size is TX buffer size */
+	max_dsi_packet_size = dsi.vc[0].fifo_size * 32 * 4;
 
-		if (dy < 0 || dy >= dsi->num_lanes_supported * 2)
-			return -EINVAL;
+	/* we seem to get better perf if we divide the tx fifo to half,
+	   and while the other half is being sent, we fill the other half
+	   max_dsi_packet_size /= 2; */
 
-		if (dx & 1) {
-			if (dy != dx - 1)
-				return -EINVAL;
-			pol = 1;
-		} else {
-			if (dy != dx + 1)
-				return -EINVAL;
-			pol = 0;
+	max_data_per_packet = max_dsi_packet_size - 4 - 1;
+
+	max_pixels_per_packet = max_data_per_packet / bytespp;
+
+	DSSDBG("max_pixels_per_packet %d\n", max_pixels_per_packet);
+
+	pixels_left = w * h;
+
+	DSSDBG("total pixels %d\n", pixels_left);
+
+	data += start_offset;
+
+	while (pixels_left > 0) {
+		/* 0x2c = write_memory_start */
+		/* 0x3c = write_memory_continue */
+		u8 dcs_cmd = first ? 0x2c : 0x3c;
+		int pixels;
+		DSI_DECL_VARS;
+		first = 0;
+
+#if 1
+		/* using fifo not empty */
+		/* TX_FIFO_NOT_EMPTY */
+		while (FLD_GET(dsi_read_reg(DSI_VC_CTRL(0)), 5, 5)) {
+			fifo_stalls++;
+			if (fifo_stalls > 0xfffff) {
+				DSSERR("fifo stalls overflow, pixels left %d\n",
+						pixels_left);
+				dsi_if_enable(0);
+				return -EIO;
+			}
+			udelay(1);
+		}
+#elif 1
+		/* using fifo emptiness */
+		while ((REG_GET(DSI_TX_FIFO_VC_EMPTINESS, 7, 0)+1)*4 <
+				max_dsi_packet_size) {
+			fifo_stalls++;
+			if (fifo_stalls > 0xfffff) {
+				DSSERR("fifo stalls overflow, pixels left %d\n",
+					       pixels_left);
+				dsi_if_enable(0);
+				return -EIO;
+			}
+		}
+#else
+		while ((REG_GET(DSI_TX_FIFO_VC_EMPTINESS, 7, 0)+1)*4 == 0) {
+			fifo_stalls++;
+			if (fifo_stalls > 0xfffff) {
+				DSSERR("fifo stalls overflow, pixels left %d\n",
+					       pixels_left);
+				dsi_if_enable(0);
+				return -EIO;
+			}
+		}
+#endif
+		pixels = min(max_pixels_per_packet, pixels_left);
+
+		pixels_left -= pixels;
+
+		dsi_vc_write_long_header(0, DSI_DT_DCS_LONG_WRITE,
+				1 + pixels * bytespp, 0);
+
+		DSI_PUSH(0, dcs_cmd);
+
+		while (pixels-- > 0) {
+			u32 pix = __raw_readl(data++);
+
+			DSI_PUSH(0, (pix >> 16) & 0xff);
+			DSI_PUSH(0, (pix >> 8) & 0xff);
+			DSI_PUSH(0, (pix >> 0) & 0xff);
+
+			current_x++;
+			if (current_x == x+w) {
+				current_x = x;
+				data += horiz_inc;
+			}
 		}
 
-		lane = dx / 2;
-
-		lanes[lane].function = functions[i / 2];
-		lanes[lane].polarity = pol;
-		num_lanes++;
+		DSI_FLUSH(0);
 	}
-
-	memcpy(dsi->lanes, lanes, sizeof(dsi->lanes));
-	dsi->num_lanes_used = num_lanes;
 
 	return 0;
 }
-EXPORT_SYMBOL(omapdss_dsi_configure_pins);
-
-int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
-	u8 data_type;
-	u16 word_count;
-	int r;
-
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		switch (dssdev->panel.dsi_pix_fmt) {
-		case OMAP_DSS_DSI_FMT_RGB888:
-			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
-			break;
-		case OMAP_DSS_DSI_FMT_RGB666:
-			data_type = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
-			break;
-		case OMAP_DSS_DSI_FMT_RGB666_PACKED:
-			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_18;
-			break;
-		case OMAP_DSS_DSI_FMT_RGB565:
-			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_16;
-			break;
-		default:
-			BUG();
-			return -EINVAL;
-		};
-
-		dsi_if_enable(dsidev, false);
-		dsi_vc_enable(dsidev, channel, false);
-
-		/* MODE, 1 = video mode */
-		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 1, 4, 4);
-
-		word_count = DIV_ROUND_UP(dssdev->panel.timings.x_res * bpp, 8);
-
-		dsi_vc_write_long_header(dsidev, channel, data_type,
-				word_count, 0);
-
-		dsi_vc_enable(dsidev, channel, true);
-		dsi_if_enable(dsidev, true);
-	}
-
-	r = dss_mgr_enable(dssdev->manager);
-	if (r) {
-		if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-			dsi_if_enable(dsidev, false);
-			dsi_vc_enable(dsidev, channel, false);
-		}
-
-		return r;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(dsi_enable_video_output);
-
-void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		dsi_if_enable(dsidev, false);
-		dsi_vc_enable(dsidev, channel, false);
-
-		/* MODE, 0 = command mode */
-		REG_FLD_MOD(dsidev, DSI_VC_CTRL(channel), 0, 4, 4);
-
-		dsi_vc_enable(dsidev, channel, true);
-		dsi_if_enable(dsidev, true);
-	}
-
-	dss_mgr_disable(dssdev->manager);
-}
-EXPORT_SYMBOL(dsi_disable_video_output);
 
 static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
-		u16 w, u16 h)
+		u16 x, u16 y, u16 w, u16 h)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	unsigned bytespp;
 	unsigned bytespl;
 	unsigned bytespf;
@@ -4189,14 +3290,18 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	unsigned packet_len;
 	u32 l;
 	int r;
-	const unsigned channel = dsi->update_channel;
-	const unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
+	const unsigned channel = dsi.update_channel;
+	/* line buffer is 1024 x 24bits */
+	/* XXX: for some reason using full buffer size causes considerable TX
+	 * slowdown with update sizes that fill the whole buffer */
+	const unsigned line_buf_size = 1023 * 3;
 
-	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
+	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
+			x, y, w, h);
 
-	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_VP);
+	dsi_vc_config_vp(channel);
 
-	bytespp	= dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
+	bytespp	= dssdev->ctrl.pixel_size / 8;
 	bytespl = w * bytespp;
 	bytespf = bytespl * h;
 
@@ -4215,16 +3320,15 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 		total_len += (bytespf % packet_payload) + 1;
 
 	l = FLD_VAL(total_len, 23, 0); /* TE_SIZE */
-	dsi_write_reg(dsidev, DSI_VC_TE(channel), l);
+	dsi_write_reg(DSI_VC_TE(channel), l);
 
-	dsi_vc_write_long_header(dsidev, channel, MIPI_DSI_DCS_LONG_WRITE,
-		packet_len, 0);
+	dsi_vc_write_long_header(channel, DSI_DT_DCS_LONG_WRITE, packet_len, 0);
 
-	if (dsi->te_enabled)
+	if (dsi.te_enabled)
 		l = FLD_MOD(l, 1, 30, 30); /* TE_EN */
 	else
 		l = FLD_MOD(l, 1, 31, 31); /* TE_START */
-	dsi_write_reg(dsidev, DSI_VC_TE(channel), l);
+	dsi_write_reg(DSI_VC_TE(channel), l);
 
 	/* We put SIDLEMODE to no-idle for the duration of the transfer,
 	 * because DSS interrupts are not capable of waking up the CPU and the
@@ -4234,23 +3338,23 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	 */
 	dispc_disable_sidle();
 
-	dsi_perf_mark_start(dsidev);
+	dsi_perf_mark_start();
 
-	r = schedule_delayed_work(&dsi->framedone_timeout_work,
-		msecs_to_jiffies(250));
+	r = queue_delayed_work(dsi.workqueue, &dsi.framedone_timeout_work,
+			msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_mgr_start_update(dssdev->manager);
+	dss_start_update(dssdev);
 
-	if (dsi->te_enabled) {
+	if (dsi.te_enabled) {
 		/* disable LP_RX_TO, so that we can receive TE.  Time to wait
 		 * for TE is longer than the timer allows */
-		REG_FLD_MOD(dsidev, DSI_TIMING2, 0, 15, 15); /* LP_RX_TO */
+		REG_FLD_MOD(DSI_TIMING2, 0, 15, 15); /* LP_RX_TO */
 
-		dsi_vc_send_bta(dsidev, channel);
+		dsi_vc_send_bta(channel);
 
 #ifdef DSI_CATCH_MISSING_TE
-		mod_timer(&dsi->te_timer, jiffies + msecs_to_jiffies(250));
+		mod_timer(&dsi.te_timer, jiffies + msecs_to_jiffies(250));
 #endif
 	}
 }
@@ -4262,28 +3366,36 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
-static void dsi_handle_framedone(struct platform_device *dsidev, int error)
+static void dsi_framedone_bta_callback(void *data, u32 mask);
+
+static void dsi_handle_framedone(int error)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	const int channel = dsi.update_channel;
+
+	dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
+			NULL, DSI_VC_IRQ_BTA);
+
+	cancel_delayed_work(&dsi.framedone_timeout_work);
 
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
 
-	if (dsi->te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(dsidev, DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	/* RX_FIFO_NOT_EMPTY */
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
+		DSSERR("Received error during frame transfer:\n");
+		dsi_vc_flush_receive_data(channel);
+		if (!error)
+			error = -EIO;
 	}
 
-	dsi->framedone_callback(error, dsi->framedone_data);
+	dsi.framedone_callback(error, dsi.framedone_data);
 
 	if (!error)
-		dsi_perf_show(dsidev, "DISPC");
+		dsi_perf_show("DISPC");
 }
 
 static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 {
-	struct dsi_data *dsi = container_of(work, struct dsi_data,
-			framedone_timeout_work.work);
 	/* XXX While extremely unlikely, we could get FRAMEDONE interrupt after
 	 * 250ms which would conflict with this timeout work. What should be
 	 * done is first cancel the transfer on the HW, and then cancel the
@@ -4293,50 +3405,170 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 
 	DSSERR("Framedone not received for 250ms!\n");
 
-	dsi_handle_framedone(dsi->pdev, -ETIMEDOUT);
+	dsi_handle_framedone(-ETIMEDOUT);
+}
+
+static void dsi_framedone_bta_callback(void *data, u32 mask)
+{
+	dsi_handle_framedone(0);
+
+#ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
+	dispc_fake_vsync_irq();
+#endif
 }
 
 static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
-	struct omap_dss_device *dssdev = (struct omap_dss_device *) data;
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	const int channel = dsi.update_channel;
+	int r;
 
 	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
 	 * turns itself off. However, DSI still has the pixels in its buffers,
 	 * and is sending the data.
 	 */
 
-	__cancel_delayed_work(&dsi->framedone_timeout_work);
+	if (dsi.te_enabled) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
 
-	dsi_handle_framedone(dsidev, 0);
+	/* Send BTA after the frame. We need this for the TE to work, as TE
+	 * trigger is only sent for BTAs without preceding packet. Thus we need
+	 * to BTA after the pixel packets so that next BTA will cause TE
+	 * trigger.
+	 *
+	 * This is not needed when TE is not in use, but we do it anyway to
+	 * make sure that the transfer has been completed. It would be more
+	 * optimal, but more complex, to wait only just before starting next
+	 * transfer.
+	 *
+	 * Also, as there's no interrupt telling when the transfer has been
+	 * done and the channel could be reconfigured, the only way is to
+	 * busyloop until TE_SIZE is zero. With BTA we can do this
+	 * asynchronously.
+	 * */
+
+	r = dsi_register_isr_vc(channel, dsi_framedone_bta_callback,
+			NULL, DSI_VC_IRQ_BTA);
+	if (r) {
+		DSSERR("Failed to register BTA ISR\n");
+		dsi_handle_framedone(-EIO);
+		return;
+	}
+
+	r = dsi_vc_send_bta(channel);
+	if (r) {
+		DSSERR("BTA after framedone failed\n");
+		dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
+				NULL, DSI_VC_IRQ_BTA);
+		dsi_handle_framedone(-EIO);
+	}
 }
 
-int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
-		void (*callback)(int, void *), void *data)
+int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u16 dw, dh;
-
-	dsi_perf_mark_setup(dsidev);
-
-	dsi->update_channel = channel;
-
-	dsi->framedone_callback = callback;
-	dsi->framedone_data = data;
 
 	dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
-#ifdef DEBUG
-	dsi->update_bytes = dw * dh *
-		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
-#endif
-	dsi_update_screen_dispc(dssdev, dw, dh);
+	if  (*x > dw || *y > dh)
+		return -EINVAL;
+
+	if (*x + *w > dw)
+		return -EINVAL;
+
+	if (*y + *h > dh)
+		return -EINVAL;
+
+	if (*w == 0 || *h == 0)
+		return -EINVAL;
+
+	/*
+	 * HACK: Updates of two pixels wide or less break and hang the DISPC if
+	 * Color Phase Rotation (CPR) is enabled. Wider updates are okay, so
+	 * just increase the width in these rare cases.
+	 *
+	 * The same could also be done in the overlay manager, depending on
+	 * whether CPR is enabled or not, but this is possibly the simplest and
+	 * least intrusive place of handling this corner case.
+	 */
+	if (*w <= 2) {
+		*w += 2;
+		if (*x + *w > dw)
+			*x -= 2;
+	}
+
+	dsi_perf_mark_setup();
+
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		dss_setup_partial_planes(dssdev, x, y, w, h,
+				enlarge_update_area);
+		dispc_set_lcd_size(*w, *h);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(omap_dsi_prepare_update);
+
+int omap_dsi_update(struct omap_dss_device *dssdev,
+		int channel,
+		u16 x, u16 y, u16 w, u16 h,
+		void (*callback)(int, void *), void *data)
+{
+	dsi.update_channel = channel;
+
+	/* OMAP DSS cannot send updates of odd widths.
+	 * omap_dsi_prepare_update() makes the widths even, but add a BUG_ON
+	 * here to make sure we catch erroneous updates. Otherwise we'll only
+	 * see rather obscure HW error happening, as DSS halts. */
+	BUG_ON(x % 2 == 1);
+
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		dsi.framedone_callback = callback;
+		dsi.framedone_data = data;
+
+		dsi.update_region.x = x;
+		dsi.update_region.y = y;
+		dsi.update_region.w = w;
+		dsi.update_region.h = h;
+		dsi.update_region.device = dssdev;
+
+		dsi_update_screen_dispc(dssdev, x, y, w, h);
+	} else {
+		int r;
+
+		r = dsi_update_screen_l4(dssdev, x, y, w, h);
+		if (r)
+			return r;
+
+		dsi_perf_show("L4");
+		callback(0, data);
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL(omap_dsi_update);
+
+/**
+ * omap_dsi_cancel_update_sync - synchronously cancel ongoing update, if any
+ * @dssdev: dss device pointer
+ *
+ * Synchronously cancel an ongoing update, if any. Initially, the only thing
+ * this does is synchronously cancel the DSI framedone timeout work. Drivers can
+ * use this to ensure the timeout handler won't mess up the next update.
+ *
+ * The framedone callback may still be called during this call. HW transfer is
+ * not cancelled, and framedone could still be called after this. See comments
+ * in dsi_framedone_timeout_work_callback().
+ */
+void omap_dsi_cancel_update_sync(struct omap_dss_device *dssdev)
+{
+	cancel_delayed_work_sync(&dsi.framedone_timeout_work);
+}
+EXPORT_SYMBOL(omap_dsi_cancel_update_sync);
+
 
 /* Display funcs */
 
@@ -4344,9 +3576,21 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
-		u16 dw, dh;
-		u32 irq;
+	r = omap_dispc_register_isr(dsi_framedone_irq_callback, NULL,
+			DISPC_IRQ_FRAMEDONE);
+	if (r) {
+		DSSERR("can't get FRAMEDONE irq\n");
+		return r;
+	}
+
+	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
+
+	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_DSI);
+	dispc_enable_fifohandcheck(1);
+
+	dispc_set_tft_data_lines(dssdev->ctrl.pixel_size);
+
+	{
 		struct omap_video_timings timings = {
 			.hsw		= 1,
 			.hfp		= 1,
@@ -4356,70 +3600,69 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 			.vbp		= 0,
 		};
 
-		dssdev->driver->get_resolution(dssdev, &dw, &dh);
-		timings.x_res = dw;
-		timings.y_res = dh;
-
-		irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
-			DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
-
-		r = omap_dispc_register_isr(dsi_framedone_irq_callback,
-			(void *) dssdev, irq);
-		if (r) {
-			DSSERR("can't get FRAMEDONE irq\n");
-			return r;
-		}
-
-		dispc_mgr_enable_stallmode(dssdev->manager->id, true);
-		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 1);
-
-		dss_mgr_set_timings(dssdev->manager, &timings);
-	} else {
-		dispc_mgr_enable_stallmode(dssdev->manager->id, false);
-		dispc_mgr_enable_fifohandcheck(dssdev->manager->id, 0);
-
-		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+		dispc_set_lcd_timings(&timings);
 	}
 
-		dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
-		dispc_mgr_set_tft_data_lines(dssdev->manager->id,
-			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt));
 	return 0;
 }
 
 static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 {
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
-		u32 irq;
-
-		irq = dssdev->manager->id == OMAP_DSS_CHANNEL_LCD ?
-			DISPC_IRQ_FRAMEDONE : DISPC_IRQ_FRAMEDONE2;
-
-		omap_dispc_unregister_isr(dsi_framedone_irq_callback,
-			(void *) dssdev, irq);
-	}
+	omap_dispc_unregister_isr(dsi_framedone_irq_callback, NULL,
+			DISPC_IRQ_FRAMEDONE);
 }
 
 static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_clock_info cinfo;
 	int r;
 
+	/* we always use DSS2_FCK as input clock */
+	cinfo.use_dss2_fck = true;
 	cinfo.regn  = dssdev->clocks.dsi.regn;
 	cinfo.regm  = dssdev->clocks.dsi.regm;
-	cinfo.regm_dispc = dssdev->clocks.dsi.regm_dispc;
-	cinfo.regm_dsi = dssdev->clocks.dsi.regm_dsi;
-	r = dsi_calc_clock_rates(dsidev, &cinfo);
+	cinfo.regm3 = dssdev->clocks.dsi.regm3;
+	cinfo.regm4 = dssdev->clocks.dsi.regm4;
+	r = dsi_calc_clock_rates(&cinfo);
 	if (r) {
-		DSSERR("Failed to calc dsi clocks\n");
+		DSSERR("Failed to calc DSI clocks\n");
 		return r;
 	}
 
-	r = dsi_pll_set_clock_div(dsidev, &cinfo);
+	r = dsi_pll_set_clock_div(&cinfo);
 	if (r) {
-		DSSERR("Failed to set dsi clocks\n");
+		DSSERR("Failed to set DSI clocks\n");
+		return r;
+	}
+
+	if (dssdev->clocks.dsi.fclk_from_dsi_pll)
+		dss_select_dsi_clk_source(DSS_SRC_DSI2_PLL_FCLK);
+	else
+		dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+
+	return 0;
+}
+
+static int dsi_configure_dss_clocks(struct omap_dss_device *dssdev)
+{
+	struct dss_clock_info dss_cinfo;
+	int r;
+
+	if (dssdev->clocks.dispc.fclk_from_dsi_pll &&
+			dssdev->clocks.dsi.fclk_from_dsi_pll)
+		return 0;
+
+	dss_cinfo.fck_div = dssdev->clocks.dss.fck_div;
+
+	r = dss_calc_clock_rates(&dss_cinfo);
+	if (r) {
+		DSSERR("failed to calc DSS clocks\n");
+		return r;
+	}
+
+	r = dss_set_clock_div(&dss_cinfo);
+	if (r) {
+		DSSERR("failed to set DSS clocks\n");
 		return r;
 	}
 
@@ -4428,90 +3671,121 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 
 static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dispc_clock_info dispc_cinfo;
-	int r;
 	unsigned long long fck;
+	int r;
 
-	fck = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+	if (dssdev->clocks.dispc.fclk_from_dsi_pll)
+		fck = dsi_get_dsi1_pll_rate();
+	else
+		fck = dss_clk_get_rate(DSS_CLK_FCK1);
 
-	dispc_cinfo.lck_div = dssdev->clocks.dispc.channel.lck_div;
-	dispc_cinfo.pck_div = dssdev->clocks.dispc.channel.pck_div;
+	dispc_cinfo.lck_div = dssdev->clocks.dispc.lck_div;
+	dispc_cinfo.pck_div = dssdev->clocks.dispc.pck_div;
 
 	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
 	if (r) {
-		DSSERR("Failed to calc dispc clocks\n");
+		DSSERR("Failed to calc DISPC clocks\n");
 		return r;
 	}
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	r = dispc_set_clock_div(&dispc_cinfo);
 	if (r) {
-		DSSERR("Failed to set dispc clocks\n");
+		DSSERR("Failed to set DISPC clocks\n");
 		return r;
 	}
+
+	if (dssdev->clocks.dispc.fclk_from_dsi_pll)
+		dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
+	else
+		dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 
 	return 0;
 }
 
-static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
+static int dsi_configure_clocks(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r;
 
-	r = dsi_pll_init(dsidev, true, true);
+	r = dsi_configure_dss_clocks(dssdev);
 	if (r)
-		goto err0;
+		goto err;
 
 	r = dsi_configure_dsi_clocks(dssdev);
 	if (r)
-		goto err1;
-
-	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
-	dss_select_dsi_clk_source(dsi->module_id, dssdev->clocks.dsi.dsi_fclk_src);
-	dss_select_lcd_clk_source(dssdev->manager->id,
-			dssdev->clocks.dispc.channel.lcd_clk_src);
-
-	DSSDBG("PLL OK\n");
+		goto err;
 
 	r = dsi_configure_dispc_clocks(dssdev);
 	if (r)
-		goto err2;
+		goto err;
+
+	return 0;
+
+err:
+	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	return r;
+}
+
+static void dsi_unconfigure_clocks(void)
+{
+	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+}
+
+static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
+{
+	int r;
+	bool enable_hsdiv;
+
+	_dsi_print_reset_status();
+
+	enable_hsdiv = dssdev->clocks.dispc.fclk_from_dsi_pll ||
+		dssdev->clocks.dsi.fclk_from_dsi_pll;
+
+	r = dsi_cio_scp_init(dssdev);
+	if (r)
+		goto err0;
+
+	r = dsi_pll_init(dssdev, true, enable_hsdiv);
+	if (r)
+		goto err0;
+
+	r = dsi_configure_clocks(dssdev);
+	if (r)
+		goto err1;
 
 	r = dsi_cio_init(dssdev);
 	if (r)
 		goto err2;
 
-	_dsi_print_reset_status(dsidev);
+	_dsi_print_reset_status();
 
 	dsi_proto_timings(dssdev);
 	dsi_set_lp_clk_divisor(dssdev);
 
 	if (1)
-		_dsi_print_reset_status(dsidev);
+		_dsi_print_reset_status();
 
 	r = dsi_proto_config(dssdev);
 	if (r)
 		goto err3;
 
 	/* enable interface */
-	dsi_vc_enable(dsidev, 0, 1);
-	dsi_vc_enable(dsidev, 1, 1);
-	dsi_vc_enable(dsidev, 2, 1);
-	dsi_vc_enable(dsidev, 3, 1);
-	dsi_if_enable(dsidev, 1);
-	dsi_force_tx_stop_mode_io(dsidev);
+	dsi_vc_enable(0, 1);
+	dsi_vc_enable(1, 1);
+	dsi_vc_enable(2, 1);
+	dsi_vc_enable(3, 1);
+	dsi_if_enable(1);
+	dsi_force_tx_stop_mode_io();
 
 	return 0;
 err3:
-	dsi_cio_uninit(dssdev);
+	dsi_cio_uninit();
 err2:
-	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
-	dss_select_lcd_clk_source(dssdev->manager->id, OMAP_DSS_CLK_SRC_FCK);
-
+	dsi_unconfigure_clocks();
 err1:
-	dsi_pll_uninit(dsidev, true);
+	dsi_pll_uninit(true);
 err0:
 	return r;
 }
@@ -4519,79 +3793,82 @@ err0:
 static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 		bool disconnect_lanes, bool enter_ulps)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (enter_ulps && !dsi->ulps_enabled)
-		dsi_enter_ulps(dsidev);
+	if (enter_ulps && !dsi.ulps_enabled)
+		dsi_enter_ulps();
 
 	/* disable interface */
-	dsi_if_enable(dsidev, 0);
-	dsi_vc_enable(dsidev, 0, 0);
-	dsi_vc_enable(dsidev, 1, 0);
-	dsi_vc_enable(dsidev, 2, 0);
-	dsi_vc_enable(dsidev, 3, 0);
+	dsi_if_enable(0);
+	dsi_vc_enable(0, 0);
+	dsi_vc_enable(1, 0);
+	dsi_vc_enable(2, 0);
+	dsi_vc_enable(3, 0);
 
-	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
-	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
-	dss_select_lcd_clk_source(dssdev->manager->id, OMAP_DSS_CLK_SRC_FCK);
-	dsi_cio_uninit(dssdev);
-	dsi_pll_uninit(dsidev, disconnect_lanes);
+	dsi_unconfigure_clocks();
+	dsi_cio_uninit();
+	dsi_pll_uninit(disconnect_lanes);
+}
+
+static int dsi_core_init(void)
+{
+	/* Autoidle */
+	REG_FLD_MOD(DSI_SYSCONFIG, 1, 0, 0);
+
+	/* ENWAKEUP */
+	REG_FLD_MOD(DSI_SYSCONFIG, 1, 2, 2);
+
+	/* SIDLEMODE smart-idle */
+	REG_FLD_MOD(DSI_SYSCONFIG, 2, 4, 3);
+
+	_dsi_initialize_irq();
+
+	return 0;
 }
 
 int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	int r = 0;
 
 	DSSDBG("dsi_display_enable\n");
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	mutex_lock(&dsi->lock);
-
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
-		r = -ENODEV;
-		goto err_start_dev;
-	}
+	mutex_lock(&dsi.lock);
 
 	r = omap_dss_start_device(dssdev);
 	if (r) {
 		DSSERR("failed to start device\n");
-		goto err_start_dev;
+		goto err0;
 	}
 
-	r = dsi_runtime_get(dsidev);
+	enable_clocks(1);
+	dsi_enable_pll_clock(1);
+
+	r = _dsi_reset();
 	if (r)
-		goto err_get_dsi;
+		goto err1;
 
-	dsi_enable_pll_clock(dsidev, 1);
-
-	_dsi_initialize_irq(dsidev);
+	dsi_core_init();
 
 	r = dsi_display_init_dispc(dssdev);
 	if (r)
-		goto err_init_dispc;
+		goto err1;
 
 	r = dsi_display_init_dsi(dssdev);
 	if (r)
-		goto err_init_dsi;
+		goto err2;
 
-	mutex_unlock(&dsi->lock);
+	mutex_unlock(&dsi.lock);
 
 	return 0;
 
-err_init_dsi:
+err2:
 	dsi_display_uninit_dispc(dssdev);
-err_init_dispc:
-	dsi_enable_pll_clock(dsidev, 0);
-	dsi_runtime_put(dsidev);
-err_get_dsi:
+err1:
+	enable_clocks(0);
+	dsi_enable_pll_clock(0);
 	omap_dss_stop_device(dssdev);
-err_start_dev:
-	mutex_unlock(&dsi->lock);
+err0:
+	mutex_unlock(&dsi.lock);
 	DSSDBG("dsi_display_enable FAILED\n");
 	return r;
 }
@@ -4600,404 +3877,149 @@ EXPORT_SYMBOL(omapdss_dsi_display_enable);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 		bool disconnect_lanes, bool enter_ulps)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
 	DSSDBG("dsi_display_disable\n");
 
-	WARN_ON(!dsi_bus_is_locked(dsidev));
+	WARN_ON(!dsi_bus_is_locked());
 
-	mutex_lock(&dsi->lock);
-
-	dsi_sync_vc(dsidev, 0);
-	dsi_sync_vc(dsidev, 1);
-	dsi_sync_vc(dsidev, 2);
-	dsi_sync_vc(dsidev, 3);
+	mutex_lock(&dsi.lock);
 
 	dsi_display_uninit_dispc(dssdev);
 
 	dsi_display_uninit_dsi(dssdev, disconnect_lanes, enter_ulps);
 
-	dsi_runtime_put(dsidev);
-	dsi_enable_pll_clock(dsidev, 0);
+	enable_clocks(0);
+	dsi_enable_pll_clock(0);
 
 	omap_dss_stop_device(dssdev);
 
-	mutex_unlock(&dsi->lock);
+	/* Disable skip_first_init so that we will start the device properly
+	 * next time it's powered up */
+	dssdev->skip_first_init = false;
+
+	mutex_unlock(&dsi.lock);
 }
 EXPORT_SYMBOL(omapdss_dsi_display_disable);
 
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	dsi->te_enabled = enable;
+	dsi.te_enabled = enable;
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
-static int __init dsi_init_display(struct omap_dss_device *dssdev)
+void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
+		u32 fifo_size, enum omap_burst_size *burst_size,
+		u32 *fifo_low, u32 *fifo_high)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	unsigned burst_size_bytes;
 
+	*burst_size = OMAP_DSS_BURST_16x32;
+	burst_size_bytes = 16 * 32 / 8;
+
+	*fifo_high = fifo_size - burst_size_bytes;
+	*fifo_low = fifo_size - burst_size_bytes * 2;
+}
+
+int dsi_init_display(struct omap_dss_device *dssdev)
+{
 	DSSDBG("DSI init\n");
 
-	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
-		dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
-			OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
-	}
+	/* XXX these should be figured out dynamically */
+	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
+		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
 
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
+	dsi.vc[0].dssdev = dssdev;
+	dsi.vc[1].dssdev = dssdev;
 
 	return 0;
 }
 
-int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
+void dsi_wait_dsi1_pll_active(void)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
-		if (!dsi->vc[i].dssdev) {
-			dsi->vc[i].dssdev = dssdev;
-			*channel = i;
-			return 0;
-		}
-	}
-
-	DSSERR("cannot get VC for display %s", dssdev->name);
-	return -ENOSPC;
-}
-EXPORT_SYMBOL(omap_dsi_request_vc);
-
-int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (vc_id < 0 || vc_id > 3) {
-		DSSERR("VC ID out of range\n");
-		return -EINVAL;
-	}
-
-	if (channel < 0 || channel > 3) {
-		DSSERR("Virtual Channel out of range\n");
-		return -EINVAL;
-	}
-
-	if (dsi->vc[channel].dssdev != dssdev) {
-		DSSERR("Virtual Channel not allocated to display %s\n",
-			dssdev->name);
-		return -EINVAL;
-	}
-
-	dsi->vc[channel].vc_id = vc_id;
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_dsi_set_vc_id);
-
-void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel)
-{
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if ((channel >= 0 && channel <= 3) &&
-		dsi->vc[channel].dssdev == dssdev) {
-		dsi->vc[channel].dssdev = NULL;
-		dsi->vc[channel].vc_id = 0;
-	}
-}
-EXPORT_SYMBOL(omap_dsi_release_vc);
-
-void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev)
-{
-	if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 7, 1) != 1)
-		DSSERR("%s (%s) not active\n",
-			dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC),
-			dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC));
+	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
+		DSSERR("DSI1 PLL clock not active\n");
 }
 
-void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev)
+void dsi_wait_dsi2_pll_active(void)
 {
-	if (wait_for_bit_change(dsidev, DSI_PLL_STATUS, 8, 1) != 1)
-		DSSERR("%s (%s) not active\n",
-			dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
-			dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI));
+	if (wait_for_bit_change(DSI_PLL_STATUS, 8, 1) != 1)
+		DSSERR("DSI2 PLL clock not active\n");
 }
 
-static void dsi_calc_clock_param_ranges(struct platform_device *dsidev)
+int dsi_init(struct platform_device *pdev)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	dsi->regn_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGN);
-	dsi->regm_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM);
-	dsi->regm_dispc_max =
-		dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DISPC);
-	dsi->regm_dsi_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DSI);
-	dsi->fint_min = dss_feat_get_param_min(FEAT_PARAM_DSIPLL_FINT);
-	dsi->fint_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_FINT);
-	dsi->lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
-}
-
-static int dsi_get_clocks(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct clk *clk;
-
-	clk = clk_get(&dsidev->dev, "fck");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get fck\n");
-		return PTR_ERR(clk);
-	}
-
-	dsi->dss_clk = clk;
-
-	clk = clk_get(&dsidev->dev, "sys_clk");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get sys_clk\n");
-		clk_put(dsi->dss_clk);
-		dsi->dss_clk = NULL;
-		return PTR_ERR(clk);
-	}
-
-	dsi->sys_clk = clk;
-
-	return 0;
-}
-
-static void dsi_put_clocks(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->dss_clk)
-		clk_put(dsi->dss_clk);
-	if (dsi->sys_clk)
-		clk_put(dsi->sys_clk);
-}
-
-static void __init dsi_probe_pdata(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_board_info *pdata = dsidev->dev.platform_data;
-	int i, r;
-
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_DSI)
-			continue;
-
-		if (dssdev->phy.dsi.module != dsi->module_id)
-			continue;
-
-		r = dsi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
-
-		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
-	}
-}
-
-/* DSI1 HW IP initialisation */
-static int __init omap_dsihw_probe(struct platform_device *dsidev)
-{
+	struct omap_dss_board_info *board_info;
 	u32 rev;
-	int r, i;
-	struct resource *dsi_mem;
-	struct dsi_data *dsi;
+	int r;
 
-	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
-		return -ENOMEM;
+	board_info = pdev->dev.platform_data;
+	dsi.dsi_mux_pads = board_info->dsi_mux_pads;
 
-	dsi->module_id = dsidev->id;
-	dsi->pdev = dsidev;
-	dsi_pdev_map[dsi->module_id] = dsidev;
-	dev_set_drvdata(&dsidev->dev, dsi);
-
-	spin_lock_init(&dsi->irq_lock);
-	spin_lock_init(&dsi->errors_lock);
-	dsi->errors = 0;
+	spin_lock_init(&dsi.irq_lock);
+	spin_lock_init(&dsi.errors_lock);
+	dsi.errors = 0;
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spin_lock_init(&dsi->irq_stats_lock);
-	dsi->irq_stats.last_reset = jiffies;
+	spin_lock_init(&dsi.irq_stats_lock);
+	dsi.irq_stats.last_reset = jiffies;
 #endif
 
-	mutex_init(&dsi->lock);
-	sema_init(&dsi->bus_lock, 1);
+	mutex_init(&dsi.lock);
+	sema_init(&dsi.bus_lock, 1);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&dsi->framedone_timeout_work,
+	dsi.workqueue = create_singlethread_workqueue("dsi");
+	if (dsi.workqueue == NULL)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK_DEFERRABLE(&dsi.framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
-	init_timer(&dsi->te_timer);
-	dsi->te_timer.function = dsi_te_timeout;
-	dsi->te_timer.data = 0;
+	init_timer(&dsi.te_timer);
+	dsi.te_timer.function = dsi_te_timeout;
+	dsi.te_timer.data = 0;
 #endif
-	dsi_mem = platform_get_resource(dsi->pdev, IORESOURCE_MEM, 0);
-	if (!dsi_mem) {
-		DSSERR("can't get IORESOURCE_MEM DSI\n");
-		return -EINVAL;
-	}
-
-	dsi->base = devm_ioremap(&dsidev->dev, dsi_mem->start,
-				 resource_size(dsi_mem));
-	if (!dsi->base) {
+	dsi.base = ioremap(DSI_BASE, DSI_SZ_REGS);
+	if (!dsi.base) {
 		DSSERR("can't ioremap DSI\n");
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto err1;
 	}
 
-	dsi->irq = platform_get_irq(dsi->pdev, 0);
-	if (dsi->irq < 0) {
-		DSSERR("platform_get_irq failed\n");
-		return -ENODEV;
+	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
+	if (IS_ERR(dsi.vdds_dsi_reg)) {
+		DSSERR("can't get VDDS_DSI regulator\n");
+		r = PTR_ERR(dsi.vdds_dsi_reg);
+		goto err2;
 	}
 
-	r = devm_request_irq(&dsidev->dev, dsi->irq, omap_dsi_irq_handler,
-			     IRQF_SHARED, dev_name(&dsidev->dev), dsi->pdev);
-	if (r < 0) {
-		DSSERR("request_irq failed\n");
-		return r;
-	}
+	enable_clocks(1);
 
-	/* DSI VCs initialization */
-	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
-		dsi->vc[i].source = DSI_VC_SOURCE_L4;
-		dsi->vc[i].dssdev = NULL;
-		dsi->vc[i].vc_id = 0;
-	}
-
-	dsi_calc_clock_param_ranges(dsidev);
-
-	r = dsi_get_clocks(dsidev);
-	if (r)
-		return r;
-
-	pm_runtime_enable(&dsidev->dev);
-
-	r = dsi_runtime_get(dsidev);
-	if (r)
-		goto err_runtime_get;
-
-	rev = dsi_read_reg(dsidev, DSI_REVISION);
-	dev_dbg(&dsidev->dev, "OMAP DSI rev %d.%d\n",
+	rev = dsi_read_reg(DSI_REVISION);
+	printk(KERN_INFO "OMAP DSI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
-	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
-	 * of data to 3 by default */
-	if (dss_has_feature(FEAT_DSI_GNQ))
-		/* NB_DATA_LANES */
-		dsi->num_lanes_supported = 1 + REG_GET(dsidev, DSI_GNQ, 11, 9);
-	else
-		dsi->num_lanes_supported = 3;
+	enable_clocks(0);
 
-	dsi_probe_pdata(dsidev);
-
-	dsi_runtime_put(dsidev);
-
-	if (dsi->module_id == 0)
-		dss_debugfs_create_file("dsi1_regs", dsi1_dump_regs);
-	else if (dsi->module_id == 1)
-		dss_debugfs_create_file("dsi2_regs", dsi2_dump_regs);
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	if (dsi->module_id == 0)
-		dss_debugfs_create_file("dsi1_irqs", dsi1_dump_irqs);
-	else if (dsi->module_id == 1)
-		dss_debugfs_create_file("dsi2_irqs", dsi2_dump_irqs);
-#endif
 	return 0;
-
-err_runtime_get:
-	pm_runtime_disable(&dsidev->dev);
-	dsi_put_clocks(dsidev);
+err2:
+	iounmap(dsi.base);
+err1:
+	destroy_workqueue(dsi.workqueue);
 	return r;
 }
 
-static int __exit omap_dsihw_remove(struct platform_device *dsidev)
+void dsi_exit(void)
 {
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	WARN_ON(dsi->scp_clk_refcount > 0);
-
-	omap_dss_unregister_child_devices(&dsidev->dev);
-
-	pm_runtime_disable(&dsidev->dev);
-
-	dsi_put_clocks(dsidev);
-
-	if (dsi->vdds_dsi_reg != NULL) {
-		if (dsi->vdds_dsi_enabled) {
-			regulator_disable(dsi->vdds_dsi_reg);
-			dsi->vdds_dsi_enabled = false;
-		}
-
-		regulator_put(dsi->vdds_dsi_reg);
-		dsi->vdds_dsi_reg = NULL;
+	if (dsi.vdds_dsi_enabled) {
+		regulator_disable(dsi.vdds_dsi_reg);
+		dsi.vdds_dsi_enabled = false;
 	}
 
-	return 0;
+	iounmap(dsi.base);
+
+	destroy_workqueue(dsi.workqueue);
+
+	DSSDBG("omap_dsi_exit\n");
 }
 
-static int dsi_runtime_suspend(struct device *dev)
-{
-	dispc_runtime_put();
-
-	return 0;
-}
-
-static int dsi_runtime_resume(struct device *dev)
-{
-	int r;
-
-	r = dispc_runtime_get();
-	if (r)
-		return r;
-
-	return 0;
-}
-
-static const struct dev_pm_ops dsi_pm_ops = {
-	.runtime_suspend = dsi_runtime_suspend,
-	.runtime_resume = dsi_runtime_resume,
-};
-
-static struct platform_driver omap_dsihw_driver = {
-	.remove         = __exit_p(omap_dsihw_remove),
-	.driver         = {
-		.name   = "omapdss_dsi",
-		.owner  = THIS_MODULE,
-		.pm	= &dsi_pm_ops,
-	},
-};
-
-int __init dsi_init_platform_driver(void)
-{
-	return platform_driver_probe(&omap_dsihw_driver, omap_dsihw_probe);
-}
-
-void __exit dsi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dsihw_driver);
-}

@@ -29,15 +29,13 @@
 
 #include <linux/rwsem.h>
 
-#include <video/omapdss.h>
+#include <plat/display.h>
 
 #ifdef DEBUG
-extern bool omapfb_debug;
+extern unsigned int omapfb_debug;
 #define DBG(format, ...) \
-	do { \
-		if (omapfb_debug) \
-			printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__); \
-	} while (0)
+	if (omapfb_debug) \
+		printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__)
 #else
 #define DBG(format, ...)
 #endif
@@ -59,6 +57,7 @@ struct omapfb2_mem_region {
 	atomic_t	map_count;
 	struct rw_semaphore lock;
 	atomic_t	lock_count;
+	enum omap_dss_rotation_type rotation_type;
 };
 
 /* appended to fb_info */
@@ -68,18 +67,8 @@ struct omapfb_info {
 	int num_overlays;
 	struct omap_overlay *overlays[OMAPFB_MAX_OVL_PER_FB];
 	struct omapfb2_device *fbdev;
-	enum omap_dss_rotation_type rotation_type;
 	u8 rotation[OMAPFB_MAX_OVL_PER_FB];
 	bool mirror;
-};
-
-struct omapfb_display_data {
-	struct omapfb2_device *fbdev;
-	struct omap_dss_device *dssdev;
-	u8 bpp_override;
-	enum omapfb_update_mode update_mode;
-	bool auto_update_work_enabled;
-	struct delayed_work auto_update_work;
 };
 
 struct omapfb2_device {
@@ -95,13 +84,17 @@ struct omapfb2_device {
 	struct omapfb2_mem_region regions[10];
 
 	unsigned num_displays;
-	struct omapfb_display_data displays[10];
+	struct omap_dss_device *displays[10];
 	unsigned num_overlays;
 	struct omap_overlay *overlays[10];
 	unsigned num_managers;
 	struct omap_overlay_manager *managers[10];
 
-	struct workqueue_struct *auto_update_wq;
+	unsigned num_bpp_overrides;
+	struct {
+		struct omap_dss_device *dssdev;
+		u8 bpp;
+	} bpp_overrides[10];
 };
 
 struct omapfb_colormode {
@@ -133,13 +126,6 @@ int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		u16 posx, u16 posy, u16 outw, u16 outh);
 
-void omapfb_start_auto_update(struct omapfb2_device *fbdev,
-		struct omap_dss_device *display);
-void omapfb_stop_auto_update(struct omapfb2_device *fbdev,
-		struct omap_dss_device *display);
-int omapfb_get_update_mode(struct fb_info *fbi, enum omapfb_update_mode *mode);
-int omapfb_set_update_mode(struct fb_info *fbi, enum omapfb_update_mode mode);
-
 /* find the display connected to this fb, if any */
 static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 {
@@ -152,20 +138,6 @@ static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 			return ofbi->overlays[i]->manager->device;
 	}
 
-	return NULL;
-}
-
-static inline struct omapfb_display_data *get_display_data(
-		struct omapfb2_device *fbdev, struct omap_dss_device *dssdev)
-{
-	int i;
-
-	for (i = 0; i < fbdev->num_displays; ++i)
-		if (fbdev->displays[i].dssdev == dssdev)
-			return &fbdev->displays[i];
-
-	/* This should never happen */
-	BUG();
 	return NULL;
 }
 
@@ -182,10 +154,13 @@ static inline void omapfb_unlock(struct omapfb2_device *fbdev)
 static inline int omapfb_overlay_enable(struct omap_overlay *ovl,
 		int enable)
 {
-	if (enable)
-		return ovl->enable(ovl);
-	else
-		return ovl->disable(ovl);
+	struct omap_overlay_info info;
+
+	ovl->get_overlay_info(ovl, &info);
+	if (info.enabled == enable)
+		return 0;
+	info.enabled = enable;
+	return ovl->set_overlay_info(ovl, &info);
 }
 
 static inline struct omapfb2_mem_region *
