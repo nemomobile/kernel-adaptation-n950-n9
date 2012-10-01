@@ -939,9 +939,6 @@ static int _pnd_enable_lpm(struct omap_dss_device *dssdev, bool enable)
 	else
 		r = pnd_dcs_write_0(DCS_IDLE_MODE_OFF);
 
-	if (!r)
-		pm_optimizer_enable_dss_lpm(enable);
-
 	return r;
 }
 
