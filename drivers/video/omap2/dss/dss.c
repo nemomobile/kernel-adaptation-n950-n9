@@ -32,6 +32,7 @@
 
 #include <plat/display.h>
 #include "dss.h"
+#include "../../../../arch/arm/mach-omap2/iomap.h"
 
 #define DSS_BASE			0x48050000
 
@@ -565,7 +566,8 @@ int dss_init(bool skip_init)
 		/* disable LCD and DIGIT output. This seems to fix the synclost
 		 * problem that we get, if the bootloader starts the DSS and
 		 * the kernel resets it */
-		omap_writel(omap_readl(0x48050440) & ~0x3, 0x48050440);
+		__raw_writel(__raw_readl(OMAP2_L4_IO_ADDRESS(0x48050440)) &
+			     ~0x3, OMAP2_L4_IO_ADDRESS(0x48050440));
 
 #ifdef CONFIG_OMAP2_DSS_SLEEP_BEFORE_RESET
 		/* We need to wait here a bit, otherwise we sometimes start to
