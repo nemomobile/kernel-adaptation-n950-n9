@@ -34,6 +34,8 @@ struct evdev {
 	struct list_head client_list;
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
+	struct wakeup_source *event_ws;
+	int event_count; /* number of unhandled events for all clients */
 	struct device dev;
 	bool exist;
 };
@@ -67,12 +69,18 @@ static void evdev_pass_event(struct evdev_client *client,
 	client->buffer[client->head++] = *event;
 	client->head &= client->bufsize - 1;
 
+	if (!client->evdev->event_count)
+		__pm_stay_awake(client->evdev->event_ws);
+
+	client->evdev->event_count++;
+
 	if (unlikely(client->head == client->tail)) {
 		/*
 		 * This effectively "drops" all unconsumed events, leaving
 		 * EV_SYN/SYN_DROPPED plus the newest event in the queue.
 		 */
 		client->tail = (client->head - 2) & (client->bufsize - 1);
+		client->evdev->event_count -= client->bufsize - 2;
 
 		client->buffer[client->tail].time = event->time;
 		client->buffer[client->tail].type = EV_SYN;
@@ -385,6 +393,9 @@ static int evdev_fetch_next_event(struct evdev_client *client,
 	if (have_event) {
 		*event = client->buffer[client->tail++];
 		client->tail &= client->bufsize - 1;
+		client->evdev->event_count--;
+		if (!client->evdev->event_count)
+			__pm_relax(client->evdev->event_ws);
 	}
 
 	spin_unlock_irq(&client->buffer_lock);
@@ -960,6 +971,8 @@ static void evdev_cleanup(struct evdev *evdev)
 		input_flush_device(handle, NULL);
 		input_close_device(handle);
 	}
+
+	wakeup_source_remove(evdev->event_ws);
 }
 
 /*
@@ -1004,6 +1017,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->dev.class = &input_class;
 	evdev->dev.parent = &dev->dev;
 	evdev->dev.release = evdev_free;
+	evdev->event_ws = wakeup_source_register("evdev_ws");
 	device_initialize(&evdev->dev);
 
 	error = input_register_handle(&evdev->handle);
