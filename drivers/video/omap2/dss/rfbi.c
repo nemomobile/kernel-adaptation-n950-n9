@@ -24,7 +24,6 @@
 
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
-#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -33,12 +32,11 @@
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
 #include <linux/seq_file.h>
-#include <linux/semaphore.h>
-#include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 
-#include <video/omapdss.h>
+#include <plat/display.h>
 #include "dss.h"
+
+#define RFBI_BASE               0x48050800
 
 struct rfbi_reg { u16 idx; };
 
@@ -69,6 +67,9 @@ struct rfbi_reg { u16 idx; };
 #define REG_FLD_MOD(idx, val, start, end) \
 	rfbi_write_reg(idx, FLD_MOD(rfbi_read_reg(idx), val, start, end))
 
+/* To work around an RFBI transfer rate limitation */
+#define OMAP_RFBI_RATE_LIMIT    1
+
 enum omap_rfbi_cycleformat {
 	OMAP_DSS_RFBI_CYCLEFORMAT_1_1 = 0,
 	OMAP_DSS_RFBI_CYCLEFORMAT_2_1 = 1,
@@ -90,11 +91,15 @@ enum omap_rfbi_parallelmode {
 	OMAP_DSS_RFBI_PARALLELMODE_16 = 3,
 };
 
+enum update_cmd {
+	RFBI_CMD_UPDATE = 0,
+	RFBI_CMD_SYNC   = 1,
+};
+
 static int rfbi_convert_timings(struct rfbi_timings *t);
 static void rfbi_get_clk_info(u32 *clk_period, u32 *max_clk_div);
 
 static struct {
-	struct platform_device *pdev;
 	void __iomem	*base;
 
 	unsigned long	l4_khz;
@@ -110,8 +115,19 @@ static struct {
 
 	struct omap_dss_device *dssdev[2];
 
-	struct semaphore bus_lock;
+	struct kfifo      cmd_fifo;
+	spinlock_t        cmd_lock;
+	struct completion cmd_done;
+	atomic_t          cmd_fifo_full;
+	atomic_t          cmd_pending;
 } rfbi;
+
+struct update_region {
+	u16	x;
+	u16     y;
+	u16     w;
+	u16     h;
+};
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
 {
@@ -123,41 +139,17 @@ static inline u32 rfbi_read_reg(const struct rfbi_reg idx)
 	return __raw_readl(rfbi.base + idx.idx);
 }
 
-static int rfbi_runtime_get(void)
+static void rfbi_enable_clocks(bool enable)
 {
-	int r;
-
-	DSSDBG("rfbi_runtime_get\n");
-
-	r = pm_runtime_get_sync(&rfbi.pdev->dev);
-	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
+	if (enable)
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	else
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 }
-
-static void rfbi_runtime_put(void)
-{
-	int r;
-
-	DSSDBG("rfbi_runtime_put\n");
-
-	r = pm_runtime_put_sync(&rfbi.pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
-}
-
-void rfbi_bus_lock(void)
-{
-	down(&rfbi.bus_lock);
-}
-EXPORT_SYMBOL(rfbi_bus_lock);
-
-void rfbi_bus_unlock(void)
-{
-	up(&rfbi.bus_lock);
-}
-EXPORT_SYMBOL(rfbi_bus_unlock);
 
 void omap_rfbi_write_command(const void *buf, u32 len)
 {
+	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -181,11 +173,13 @@ void omap_rfbi_write_command(const void *buf, u32 len)
 	default:
 		BUG();
 	}
+	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_command);
 
 void omap_rfbi_read_data(void *buf, u32 len)
 {
+	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -213,11 +207,13 @@ void omap_rfbi_read_data(void *buf, u32 len)
 	default:
 		BUG();
 	}
+	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_read_data);
 
 void omap_rfbi_write_data(const void *buf, u32 len)
 {
+	rfbi_enable_clocks(1);
 	switch (rfbi.parallelmode) {
 	case OMAP_DSS_RFBI_PARALLELMODE_8:
 	{
@@ -242,6 +238,7 @@ void omap_rfbi_write_data(const void *buf, u32 len)
 		BUG();
 
 	}
+	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_data);
 
@@ -252,6 +249,8 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 	int start_offset = scr_width * y + x;
 	int horiz_offset = scr_width - w;
 	int i;
+
+	rfbi_enable_clocks(1);
 
 	if (rfbi.datatype == OMAP_DSS_RFBI_DATATYPE_16 &&
 	   rfbi.parallelmode == OMAP_DSS_RFBI_PARALLELMODE_8) {
@@ -297,35 +296,29 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 	} else {
 		BUG();
 	}
+
+	rfbi_enable_clocks(0);
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-static void rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
-		u16 height, void (*callback)(void *data), void *data)
+void rfbi_transfer_area(u16 width, u16 height,
+			     void (callback)(void *data), void *data)
 {
 	u32 l;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= width,
-		.y_res		= height,
-	};
 
 	/*BUG_ON(callback == 0);*/
 	BUG_ON(rfbi.framedone_callback != NULL);
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dss_mgr_set_timings(dssdev->manager, &timings);
+	dispc_set_lcd_size(width, height);
 
-	dispc_mgr_enable(dssdev->manager->id, true);
+	dispc_enable_channel(OMAP_DSS_CHANNEL_LCD, true);
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;
+
+	rfbi_enable_clocks(1);
 
 	rfbi_write_reg(RFBI_PIXEL_CNT, width * height);
 
@@ -345,11 +338,15 @@ static void framedone_callback(void *data, u32 mask)
 
 	REG_FLD_MOD(RFBI_CONTROL, 0, 0, 0);
 
+	rfbi_enable_clocks(0);
+
 	callback = rfbi.framedone_callback;
 	rfbi.framedone_callback = NULL;
 
 	if (callback != NULL)
 		callback(rfbi.framedone_callback_data);
+
+	atomic_set(&rfbi.cmd_pending, 0);
 }
 
 #if 1 /* VERBOSE */
@@ -439,7 +436,7 @@ static int calc_extif_timings(struct rfbi_timings *t)
 }
 
 
-static void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
+void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 {
 	int r;
 
@@ -451,6 +448,7 @@ static void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 
 	BUG_ON(!t->converted);
 
+	rfbi_enable_clocks(1);
 	rfbi_write_reg(RFBI_ONOFF_TIME(rfbi_module), t->tim[0]);
 	rfbi_write_reg(RFBI_CYCLE_TIME(rfbi_module), t->tim[1]);
 
@@ -459,6 +457,7 @@ static void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t)
 		    (t->tim[2] ? 1 : 0), 4, 4);
 
 	rfbi_print_timings();
+	rfbi_enable_clocks(0);
 }
 
 static int ps_to_rfbi_ticks(int time, int div)
@@ -473,6 +472,59 @@ static int ps_to_rfbi_ticks(int time, int div)
 
 	return ret;
 }
+
+#ifdef OMAP_RFBI_RATE_LIMIT
+unsigned long rfbi_get_max_tx_rate(void)
+{
+	unsigned long   l4_rate, dss1_rate;
+	int             min_l4_ticks = 0;
+	int             i;
+
+	/* According to TI this can't be calculated so make the
+	 * adjustments for a couple of known frequencies and warn for
+	 * others.
+	 */
+	static const struct {
+		unsigned long l4_clk;           /* HZ */
+		unsigned long dss1_clk;         /* HZ */
+		unsigned long min_l4_ticks;
+	} ftab[] = {
+		{ 55,   132,    7, },           /* 7.86 MPix/s */
+		{ 110,  110,    12, },          /* 9.16 MPix/s */
+		{ 110,  132,    10, },          /* 11   Mpix/s */
+		{ 120,  120,    10, },          /* 12   Mpix/s */
+		{ 133,  133,    10, },          /* 13.3 Mpix/s */
+	};
+
+	l4_rate = rfbi.l4_khz / 1000;
+	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK1) / 1000000;
+
+	for (i = 0; i < ARRAY_SIZE(ftab); i++) {
+		/* Use a window instead of an exact match, to account
+		 * for different DPLL multiplier / divider pairs.
+		 */
+		if (abs(ftab[i].l4_clk - l4_rate) < 3 &&
+		    abs(ftab[i].dss1_clk - dss1_rate) < 3) {
+			min_l4_ticks = ftab[i].min_l4_ticks;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(ftab)) {
+		/* Can't be sure, return anyway the maximum not
+		 * rate-limited. This might cause a problem only for the
+		 * tearing synchronisation.
+		 */
+		DSSERR("can't determine maximum RFBI transfer rate\n");
+		return rfbi.l4_khz * 1000;
+	}
+	return rfbi.l4_khz * 1000 / min_l4_ticks;
+}
+#else
+int rfbi_get_max_tx_rate(void)
+{
+	return rfbi.l4_khz * 1000;
+}
+#endif
 
 static void rfbi_get_clk_info(u32 *clk_period, u32 *max_clk_div)
 {
@@ -593,6 +645,7 @@ int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
 	DSSDBG("setup_te: mode %d hs %d vs %d hs_inv %d vs_inv %d\n",
 		mode, hs, vs, hs_pol_inv, vs_pol_inv);
 
+	rfbi_enable_clocks(1);
 	rfbi_write_reg(RFBI_HSYNC_WIDTH, hs);
 	rfbi_write_reg(RFBI_VSYNC_WIDTH, vs);
 
@@ -605,6 +658,7 @@ int omap_rfbi_setup_te(enum omap_rfbi_te_mode mode,
 		l &= ~(1 << 20);
 	else
 		l |= 1 << 20;
+	rfbi_enable_clocks(0);
 
 	return 0;
 }
@@ -619,6 +673,7 @@ int omap_rfbi_enable_te(bool enable, unsigned line)
 	if (line > (1 << 11) - 1)
 		return -EINVAL;
 
+	rfbi_enable_clocks(1);
 	l = rfbi_read_reg(RFBI_CONFIG(0));
 	l &= ~(0x3 << 2);
 	if (enable) {
@@ -628,12 +683,50 @@ int omap_rfbi_enable_te(bool enable, unsigned line)
 		rfbi.te_enabled = 0;
 	rfbi_write_reg(RFBI_CONFIG(0), l);
 	rfbi_write_reg(RFBI_LINE_NUMBER, line);
+	rfbi_enable_clocks(0);
 
 	return 0;
 }
 EXPORT_SYMBOL(omap_rfbi_enable_te);
 
-static int rfbi_configure(int rfbi_module, int bpp, int lines)
+#if 0
+static void rfbi_enable_config(int enable1, int enable2)
+{
+	u32 l;
+	int cs = 0;
+
+	if (enable1)
+		cs |= 1<<0;
+	if (enable2)
+		cs |= 1<<1;
+
+	rfbi_enable_clocks(1);
+
+	l = rfbi_read_reg(RFBI_CONTROL);
+
+	l = FLD_MOD(l, cs, 3, 2);
+	l = FLD_MOD(l, 0, 1, 1);
+
+	rfbi_write_reg(RFBI_CONTROL, l);
+
+
+	l = rfbi_read_reg(RFBI_CONFIG(0));
+	l = FLD_MOD(l, 0, 3, 2); /* TRIGGERMODE: ITE */
+	/*l |= FLD_VAL(2, 8, 7); */ /* L4FORMAT, 2pix/L4 */
+	/*l |= FLD_VAL(0, 8, 7); */ /* L4FORMAT, 1pix/L4 */
+
+	l = FLD_MOD(l, 0, 16, 16); /* A0POLARITY */
+	l = FLD_MOD(l, 1, 20, 20); /* TE_VSYNC_POLARITY */
+	l = FLD_MOD(l, 1, 21, 21); /* HSYNCPOLARITY */
+
+	l = FLD_MOD(l, OMAP_DSS_RFBI_PARALLELMODE_8, 1, 0);
+	rfbi_write_reg(RFBI_CONFIG(0), l);
+
+	rfbi_enable_clocks(0);
+}
+#endif
+
+int rfbi_configure(int rfbi_module, int bpp, int lines)
 {
 	u32 l;
 	int cycle1 = 0, cycle2 = 0, cycle3 = 0;
@@ -729,6 +822,8 @@ static int rfbi_configure(int rfbi_module, int bpp, int lines)
 		break;
 	}
 
+	rfbi_enable_clocks(1);
+
 	REG_FLD_MOD(RFBI_CONTROL, 0, 3, 2); /* clear CS */
 
 	l = 0;
@@ -762,30 +857,16 @@ static int rfbi_configure(int rfbi_module, int bpp, int lines)
 	DSSDBG("RFBI config: bpp %d, lines %d, cycles: 0x%x 0x%x 0x%x\n",
 	       bpp, lines, cycle1, cycle2, cycle3);
 
+	rfbi_enable_clocks(0);
+
 	return 0;
 }
-
-int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
-		int data_lines)
-{
-	return rfbi_configure(dssdev->phy.rfbi.channel, pixel_size, data_lines);
-}
-EXPORT_SYMBOL(omap_rfbi_configure);
+EXPORT_SYMBOL(rfbi_configure);
 
 int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 		u16 *x, u16 *y, u16 *w, u16 *h)
 {
 	u16 dw, dh;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= *w,
-		.y_res		= *h,
-	};
 
 	dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
@@ -804,7 +885,10 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 	if (*w == 0 || *h == 0)
 		return -EINVAL;
 
-	dss_mgr_set_timings(dssdev->manager, &timings);
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		dss_setup_partial_planes(dssdev, x, y, w, h, true);
+		dispc_set_lcd_size(*w, *h);
+	}
 
 	return 0;
 }
@@ -814,17 +898,31 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(void *), void *data)
 {
-	rfbi_transfer_area(dssdev, w, h, callback, data);
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		rfbi_transfer_area(w, h, callback, data);
+	} else {
+		struct omap_overlay *ovl;
+		void __iomem *addr;
+		int scr_width;
+
+		ovl = dssdev->manager->overlays[0];
+		scr_width = ovl->info.screen_width;
+		addr = ovl->info.vaddr;
+
+		omap_rfbi_write_pixels(addr, scr_width, x, y, w, h);
+
+		callback(data);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 
-static void rfbi_dump_regs(struct seq_file *s)
+void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
-	if (rfbi_runtime_get())
-		return;
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	DUMPREG(RFBI_REVISION);
 	DUMPREG(RFBI_SYSCONFIG);
@@ -855,22 +953,57 @@ static void rfbi_dump_regs(struct seq_file *s)
 	DUMPREG(RFBI_VSYNC_WIDTH);
 	DUMPREG(RFBI_HSYNC_WIDTH);
 
-	rfbi_runtime_put();
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 #undef DUMPREG
+}
+
+int rfbi_init(void)
+{
+	u32 rev;
+	u32 l;
+
+	spin_lock_init(&rfbi.cmd_lock);
+
+	init_completion(&rfbi.cmd_done);
+	atomic_set(&rfbi.cmd_fifo_full, 0);
+	atomic_set(&rfbi.cmd_pending, 0);
+
+	rfbi.base = ioremap(RFBI_BASE, SZ_256);
+	if (!rfbi.base) {
+		DSSERR("can't ioremap RFBI\n");
+		return -ENOMEM;
+	}
+
+	rfbi_enable_clocks(1);
+
+	msleep(10);
+
+	rfbi.l4_khz = dss_clk_get_rate(DSS_CLK_ICK) / 1000;
+
+	/* Enable autoidle and smart-idle */
+	l = rfbi_read_reg(RFBI_SYSCONFIG);
+	l |= (1 << 0) | (2 << 3);
+	rfbi_write_reg(RFBI_SYSCONFIG, l);
+
+	rev = rfbi_read_reg(RFBI_REVISION);
+	printk(KERN_INFO "OMAP RFBI rev %d.%d\n",
+	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	rfbi_enable_clocks(0);
+
+	return 0;
+}
+
+void rfbi_exit(void)
+{
+	DSSDBG("rfbi_exit\n");
+
+	iounmap(rfbi.base);
 }
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
-
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
-		return -ENODEV;
-	}
-
-	r = rfbi_runtime_get();
-	if (r)
-		return r;
 
 	r = omap_dss_start_device(dssdev);
 	if (r) {
@@ -885,13 +1018,11 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id,
-			OMAP_DSS_LCD_DISPLAY_TFT);
+	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
 
-	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_RFBI);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, true);
+	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_RFBI);
 
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id, dssdev->ctrl.pixel_size);
+	dispc_set_tft_data_lines(dssdev->ctrl.pixel_size);
 
 	rfbi_configure(dssdev->phy.rfbi.channel,
 			       dssdev->ctrl.pixel_size,
@@ -905,7 +1036,6 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 err1:
 	omap_dss_stop_device(dssdev);
 err0:
-	rfbi_runtime_put();
 	return r;
 }
 EXPORT_SYMBOL(omapdss_rfbi_display_enable);
@@ -915,147 +1045,12 @@ void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 	omap_dispc_unregister_isr(framedone_callback, NULL,
 			DISPC_IRQ_FRAMEDONE);
 	omap_dss_stop_device(dssdev);
-
-	rfbi_runtime_put();
 }
 EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 
-static int __init rfbi_init_display(struct omap_dss_device *dssdev)
+int rfbi_init_display(struct omap_dss_device *dssdev)
 {
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	return 0;
-}
-
-static void __init rfbi_probe_pdata(struct platform_device *pdev)
-{
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int i, r;
-
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_DBI)
-			continue;
-
-		r = rfbi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
-
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-				dssdev->name, r);
-	}
-}
-
-/* RFBI HW IP initialisation */
-static int __init omap_rfbihw_probe(struct platform_device *pdev)
-{
-	u32 rev;
-	struct resource *rfbi_mem;
-	struct clk *clk;
-	int r;
-
-	rfbi.pdev = pdev;
-
-	sema_init(&rfbi.bus_lock, 1);
-
-	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
-	if (!rfbi_mem) {
-		DSSERR("can't get IORESOURCE_MEM RFBI\n");
-		return -EINVAL;
-	}
-
-	rfbi.base = devm_ioremap(&pdev->dev, rfbi_mem->start,
-				 resource_size(rfbi_mem));
-	if (!rfbi.base) {
-		DSSERR("can't ioremap RFBI\n");
-		return -ENOMEM;
-	}
-
-	clk = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get ick\n");
-		return PTR_ERR(clk);
-	}
-
-	rfbi.l4_khz = clk_get_rate(clk) / 1000;
-
-	clk_put(clk);
-
-	pm_runtime_enable(&pdev->dev);
-
-	r = rfbi_runtime_get();
-	if (r)
-		goto err_runtime_get;
-
-	msleep(10);
-
-	rev = rfbi_read_reg(RFBI_REVISION);
-	dev_dbg(&pdev->dev, "OMAP RFBI rev %d.%d\n",
-	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	rfbi_runtime_put();
-
-	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
-
-	rfbi_probe_pdata(pdev);
-
-	return 0;
-
-err_runtime_get:
-	pm_runtime_disable(&pdev->dev);
-	return r;
-}
-
-static int __exit omap_rfbihw_remove(struct platform_device *pdev)
-{
-	omap_dss_unregister_child_devices(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-	return 0;
-}
-
-static int rfbi_runtime_suspend(struct device *dev)
-{
-	dispc_runtime_put();
-
-	return 0;
-}
-
-static int rfbi_runtime_resume(struct device *dev)
-{
-	int r;
-
-	r = dispc_runtime_get();
-	if (r < 0)
-		return r;
-
-	return 0;
-}
-
-static const struct dev_pm_ops rfbi_pm_ops = {
-	.runtime_suspend = rfbi_runtime_suspend,
-	.runtime_resume = rfbi_runtime_resume,
-};
-
-static struct platform_driver omap_rfbihw_driver = {
-	.remove         = __exit_p(omap_rfbihw_remove),
-	.driver         = {
-		.name   = "omapdss_rfbi",
-		.owner  = THIS_MODULE,
-		.pm	= &rfbi_pm_ops,
-	},
-};
-
-int __init rfbi_init_platform_driver(void)
-{
-	return platform_driver_probe(&omap_rfbihw_driver, omap_rfbihw_probe);
-}
-
-void __exit rfbi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_rfbihw_driver);
 }

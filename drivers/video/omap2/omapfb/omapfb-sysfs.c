@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/omapfb.h>
 
-#include <video/omapdss.h>
+#include <plat/display.h>
 #include <plat/vrfb.h>
 
 #include "omapfb.h"
@@ -40,7 +40,7 @@ static ssize_t show_rotate_type(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", ofbi->rotation_type);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ofbi->region->rotation_type);
 }
 
 static ssize_t store_rotate_type(struct device *dev,
@@ -50,12 +50,10 @@ static ssize_t store_rotate_type(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_mem_region *rg;
-	int rot_type;
-	int r;
+	enum omap_dss_rotation_type rot_type;
+	int r = 0;
 
-	r = kstrtoint(buf, 0, &rot_type);
-	if (r)
-		return r;
+	rot_type = simple_strtoul(buf, NULL, 0);
 
 	if (rot_type != OMAP_DSS_ROT_DMA && rot_type != OMAP_DSS_ROT_VRFB)
 		return -EINVAL;
@@ -63,18 +61,17 @@ static ssize_t store_rotate_type(struct device *dev,
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
 
-	r = 0;
-	if (rot_type == ofbi->rotation_type)
-		goto out;
-
 	rg = omapfb_get_mem_region(ofbi->region);
+
+	if (rot_type == rg->rotation_type)
+		goto put_region;
 
 	if (rg->size) {
 		r = -EBUSY;
 		goto put_region;
 	}
 
-	ofbi->rotation_type = rot_type;
+	rg->rotation_type = rot_type;
 
 	/*
 	 * Since the VRAM for this FB is not allocated at the moment we don't
@@ -82,7 +79,6 @@ static ssize_t store_rotate_type(struct device *dev,
 	 */
 put_region:
 	omapfb_put_mem_region(rg);
-out:
 	unlock_fb_info(fbi);
 
 	return r ? r : count;
@@ -104,13 +100,14 @@ static ssize_t store_mirror(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	bool mirror;
+	unsigned long mirror;
 	int r;
 	struct fb_var_screeninfo new_var;
 
-	r = strtobool(buf, &mirror);
-	if (r)
-		return r;
+	mirror = simple_strtoul(buf, NULL, 0);
+
+	if (mirror != 0 && mirror != 1)
+		return -EINVAL;
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
@@ -446,11 +443,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 	int r;
 	int i;
 
-	r = kstrtoul(buf, 0, &size);
-	if (r)
-		return r;
-
-	size = PAGE_ALIGN(size);
+	size = PAGE_ALIGN(simple_strtoul(buf, NULL, 0));
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
@@ -473,9 +466,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 			continue;
 
 		for (j = 0; j < ofbi2->num_overlays; j++) {
-			struct omap_overlay *ovl;
-			ovl = ofbi2->overlays[j];
-			if (ovl->is_enabled(ovl)) {
+			if (ofbi2->overlays[j]->info.enabled) {
 				r = -EBUSY;
 				goto out;
 			}
@@ -518,39 +509,6 @@ static ssize_t show_virt(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%p\n", ofbi->region->vaddr);
 }
 
-static ssize_t show_upd_mode(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	enum omapfb_update_mode mode;
-	int r;
-
-	r = omapfb_get_update_mode(fbi, &mode);
-
-	if (r)
-		return r;
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned)mode);
-}
-
-static ssize_t store_upd_mode(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	unsigned mode;
-	int r;
-
-	r = kstrtouint(buf, 0, &mode);
-	if (r)
-		return r;
-
-	r = omapfb_set_update_mode(fbi, mode);
-	if (r)
-		return r;
-
-	return count;
-}
-
 static struct device_attribute omapfb_attrs[] = {
 	__ATTR(rotate_type, S_IRUGO | S_IWUSR, show_rotate_type,
 			store_rotate_type),
@@ -561,7 +519,6 @@ static struct device_attribute omapfb_attrs[] = {
 			store_overlays_rotate),
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
-	__ATTR(update_mode, S_IRUGO | S_IWUSR, show_upd_mode, store_upd_mode),
 };
 
 int omapfb_create_sysfs(struct omapfb2_device *fbdev)
