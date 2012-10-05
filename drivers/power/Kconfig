@@ -249,6 +249,16 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
+config TWL5031_BCC
+        tristate "TWL5031 BCC Driver"
+        depends on TWL4030_CORE
+        help
+        The TWL5031 BCC driver enables VAC/USB chargers detection.
+
+        Say 'y' here to statically link this module into the kernel or 'm'
+        to build it as a dynamically loadable module. The module will be
+        called twl5031-bcc.ko
+
 config CHARGER_LP8727
 	tristate "TI/National Semiconductor LP8727 charger driver"
 	depends on I2C
