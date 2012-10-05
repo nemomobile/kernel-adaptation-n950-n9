@@ -62,15 +62,16 @@
 #define TWL4030_MODULE_PWMB		0x0F
 
 #define TWL5031_MODULE_ACCESSORY	0x10
-#define TWL5031_MODULE_INTERRUPTS	0x11
+#define TWL5031_MODULE_BCC		0x11
+#define TWL5031_MODULE_INTERRUPTS	0x12
 
 /* Slave 3 (i2c address 0x4b) */
-#define TWL4030_MODULE_BACKUP		0x12
-#define TWL4030_MODULE_INT		0x13
-#define TWL4030_MODULE_PM_MASTER	0x14
-#define TWL4030_MODULE_PM_RECEIVER	0x15
-#define TWL4030_MODULE_RTC		0x16
-#define TWL4030_MODULE_SECURED_REG	0x17
+#define TWL4030_MODULE_BACKUP		0x13
+#define TWL4030_MODULE_INT		0x14
+#define TWL4030_MODULE_PM_MASTER	0x15
+#define TWL4030_MODULE_PM_RECEIVER	0x16
+#define TWL4030_MODULE_RTC		0x17
+#define TWL4030_MODULE_SECURED_REG	0x18
 
 #define TWL_MODULE_USB		TWL4030_MODULE_USB
 #define TWL_MODULE_AUDIO_VOICE	TWL4030_MODULE_AUDIO_VOICE
@@ -771,6 +772,12 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 #define TWL4030_VAUX3_DEDICATED		0x22
 
 static inline int twl4030charger_usb_en(int enable) { return 0; }
+
+#ifdef CONFIG_TWL5031_BCC
+extern int twl5031_bcc_usb_charger_detect(void);
+#else
+static inline int twl5031_bcc_usb_charger_detect(void) { return 0; }
+#endif
 
 /*----------------------------------------------------------------------*/
 
