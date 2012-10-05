@@ -80,11 +80,7 @@ static inline void restore_hw_context(int ctx)
 
 static u32 get_image_width_roundup(u16 width, u8 bytespp)
 {
-	unsigned long stride = width * bytespp;
-	unsigned long ceil_pages_per_stride = (stride / VRFB_PAGE_WIDTH) +
-		(stride % VRFB_PAGE_WIDTH != 0);
-
-	return ceil_pages_per_stride * VRFB_PAGE_WIDTH / bytespp;
+	return ALIGN(width * bytespp, VRFB_PAGE_WIDTH) / bytespp;
 }
 
 /*
@@ -119,35 +115,62 @@ void omap_vrfb_adjust_size(u16 *width, u16 *height,
 }
 EXPORT_SYMBOL(omap_vrfb_adjust_size);
 
-u32 omap_vrfb_min_phys_size(u16 width, u16 height, u8 bytespp)
+u32 omap_vrfb_min_phys_size(u16 width, u16 height, u8 bytespp, bool yuv_mode)
 {
-	unsigned long image_width_roundup = get_image_width_roundup(width,
-		bytespp);
+	/* For YUV2 and UYVY modes VRFB needs to handle pixels a bit
+	 * differently. See TRM. */
+	if (yuv_mode) {
+		bytespp *= 2;
+		width /= 2;
+	}
 
-	if (image_width_roundup > OMAP_VRFB_LINE_LEN)
+	/* mmap() is page aligned */
+	height = ALIGN(OMAP_VRFB_LINE_LEN * bytespp * height, PAGE_SIZE) /
+		(OMAP_VRFB_LINE_LEN * bytespp);
+
+	omap_vrfb_adjust_size(&width, &height, bytespp);
+
+	if (width > OMAP_VRFB_LINE_LEN)
 		return 0;
 
-	return (width * height * bytespp) + get_extra_physical_size(
-		image_width_roundup, bytespp);
+	if (height > 2048)
+		return 0;
+
+	return width * height * bytespp +
+		get_extra_physical_size(width, bytespp);
 }
 EXPORT_SYMBOL(omap_vrfb_min_phys_size);
 
-u16 omap_vrfb_max_height(u32 phys_size, u16 width, u8 bytespp)
+u16 omap_vrfb_max_height(u32 phys_size, u16 width, u8 bytespp, bool yuv_mode)
 {
-	unsigned long image_width_roundup = get_image_width_roundup(width,
-		bytespp);
 	unsigned long height;
 	unsigned long extra;
 
-	if (image_width_roundup > OMAP_VRFB_LINE_LEN)
+	/* For YUV2 and UYVY modes VRFB needs to handle pixels a bit
+	 * differently. See TRM. */
+	if (yuv_mode) {
+		bytespp *= 2;
+		width /= 2;
+	}
+
+	width = get_image_width_roundup(width, bytespp);
+
+	if (width > OMAP_VRFB_LINE_LEN)
 		return 0;
 
-	extra = get_extra_physical_size(image_width_roundup, bytespp);
+	extra = get_extra_physical_size(width, bytespp);
 
 	if (phys_size < extra)
 		return 0;
 
 	height = (phys_size - extra) / (width * bytespp);
+
+	/* mmap() is page aligned */
+	height = (OMAP_VRFB_LINE_LEN * bytespp * height & ~PAGE_MASK) /
+		(OMAP_VRFB_LINE_LEN * bytespp);
+
+	/* Report only full tiles */
+	height &= ~(VRFB_PAGE_HEIGHT - 1);
 
 	/* Virtual views provided by VRFB are limited to 2048x2048. */
 	return min_t(unsigned long, height, 2048);
@@ -179,13 +202,12 @@ void omap_vrfb_setup(struct vrfb *vrfb, unsigned long paddr,
 		pixel_size_exp = 2;
 	else if (bytespp == 2)
 		pixel_size_exp = 1;
-	else {
+	else
 		BUG();
-		return;
-	}
 
-	vrfb_width = ALIGN(width * bytespp, VRFB_PAGE_WIDTH) / bytespp;
-	vrfb_height = ALIGN(height, VRFB_PAGE_HEIGHT);
+	vrfb_width = width;
+	vrfb_height = height;
+	omap_vrfb_adjust_size(&vrfb_width, &vrfb_height, bytespp);
 
 	DBG("vrfb w %u, h %u bytespp %d\n", vrfb_width, vrfb_height, bytespp);
 

@@ -32,30 +32,364 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/suspend.h>
 
-#include <video/omapdss.h>
+#include <plat/display.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 #include "dss.h"
-#include "dss_features.h"
 
 static struct {
 	struct platform_device *pdev;
+	int		ctx_id;
+
+	struct clk      *dss_ick;
+	struct clk	*dss1_fck;
+	struct clk	*dss2_fck;
+	struct clk      *dss_54m_fck;
+	struct clk	*dss_96m_fck;
+	unsigned	num_clks_enabled;
 
 	struct regulator *vdds_dsi_reg;
 	struct regulator *vdds_sdi_reg;
-
-	const char *default_display_name;
+	struct regulator *vdda_dac_reg;
 } core;
+
+static void dss_clk_enable_all_no_ctx(void);
+static void dss_clk_disable_all_no_ctx(void);
+static void dss_clk_enable_no_ctx(enum dss_clock clks);
+static void dss_clk_disable_no_ctx(enum dss_clock clks);
 
 static char *def_disp_name;
 module_param_named(def_disp, def_disp_name, charp, 0);
-MODULE_PARM_DESC(def_disp, "default display name");
+MODULE_PARM_DESC(def_disp_name, "default display name");
+
+/*
+ * Kernel parameter for giving information is display powered before kernel
+ * boot up, by bootloader.
+ * Parameter full name is omapdss.def_disp_enabled.
+ */
+static unsigned int def_disp_enabled;
+module_param(def_disp_enabled, bool, 0);
+MODULE_PARM_DESC(def_disp_enabled, "default display is enabled");
 
 #ifdef DEBUG
-bool dss_debug;
+unsigned int dss_debug;
 module_param_named(debug, dss_debug, bool, 0644);
 #endif
+
+struct platform_device *dss_get_pdev(void)
+{
+	return core.pdev;
+}
+
+struct omap_dss_board_info *dss_get_board_info(void)
+{
+	return core.pdev->dev.platform_data;
+}
+
+/* CONTEXT */
+static int dss_get_ctx_id(void)
+{
+	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
+	int r;
+
+	if (!pdata->get_last_off_on_transaction_id)
+		return 0;
+	r = pdata->get_last_off_on_transaction_id(&core.pdev->dev);
+	if (r < 0) {
+		dev_err(&core.pdev->dev, "getting transaction ID failed, "
+				"will force context restore\n");
+		r = -1;
+	}
+	return r;
+}
+
+int dss_need_ctx_restore(void)
+{
+	int id = dss_get_ctx_id();
+
+	if (id < 0 || id != core.ctx_id) {
+		DSSDBG("ctx id %d -> id %d\n",
+				core.ctx_id, id);
+		core.ctx_id = id;
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+static void save_all_ctx(void)
+{
+	DSSDBG("save context\n");
+
+	dss_clk_enable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK1);
+
+	dss_save_context();
+	dispc_save_context();
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_save_context();
+#endif
+
+	dss_clk_disable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK1);
+}
+
+static void restore_all_ctx(void)
+{
+	DSSDBG("restore context\n");
+
+	dss_clk_enable_all_no_ctx();
+
+	dss_restore_context();
+	dispc_restore_context();
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_restore_context();
+#endif
+
+	dss_clk_disable_all_no_ctx();
+}
+
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+/* CLOCKS */
+static void core_dump_clocks(struct seq_file *s)
+{
+	int i;
+	struct clk *clocks[5] = {
+		core.dss_ick,
+		core.dss1_fck,
+		core.dss2_fck,
+		core.dss_54m_fck,
+		core.dss_96m_fck
+	};
+
+	seq_printf(s, "- CORE -\n");
+
+	seq_printf(s, "internal clk count\t\t%u\n", core.num_clks_enabled);
+
+	for (i = 0; i < 5; i++) {
+		if (!clocks[i])
+			continue;
+		seq_printf(s, "%-15s\t%lu\t%d\n",
+				clocks[i]->name,
+				clk_get_rate(clocks[i]),
+				clocks[i]->usecount);
+	}
+}
+#endif /* defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT) */
+
+static int dss_get_clock(struct clk **clock, const char *clk_name)
+{
+	struct clk *clk;
+
+	clk = clk_get(&core.pdev->dev, clk_name);
+
+	if (IS_ERR(clk)) {
+		DSSERR("can't get clock %s", clk_name);
+		return PTR_ERR(clk);
+	}
+
+	*clock = clk;
+
+	DSSDBG("clk %s, rate %ld\n", clk_name, clk_get_rate(clk));
+
+	return 0;
+}
+
+static int dss_get_clocks(void)
+{
+	int r;
+
+	core.dss_ick = NULL;
+	core.dss1_fck = NULL;
+	core.dss2_fck = NULL;
+	core.dss_54m_fck = NULL;
+	core.dss_96m_fck = NULL;
+
+	r = dss_get_clock(&core.dss_ick, "ick");
+	if (r)
+		goto err;
+
+	r = dss_get_clock(&core.dss1_fck, "dss1_fck");
+	if (r)
+		goto err;
+
+	r = dss_get_clock(&core.dss2_fck, "dss2_fck");
+	if (r)
+		goto err;
+
+	r = dss_get_clock(&core.dss_54m_fck, "tv_fck");
+	if (r)
+		goto err;
+
+	r = dss_get_clock(&core.dss_96m_fck, "video_fck");
+	if (r)
+		goto err;
+
+	return 0;
+
+err:
+	if (core.dss_ick)
+		clk_put(core.dss_ick);
+	if (core.dss1_fck)
+		clk_put(core.dss1_fck);
+	if (core.dss2_fck)
+		clk_put(core.dss2_fck);
+	if (core.dss_54m_fck)
+		clk_put(core.dss_54m_fck);
+	if (core.dss_96m_fck)
+		clk_put(core.dss_96m_fck);
+
+	return r;
+}
+
+static void dss_put_clocks(void)
+{
+	if (core.dss_96m_fck)
+		clk_put(core.dss_96m_fck);
+	clk_put(core.dss_54m_fck);
+	clk_put(core.dss1_fck);
+	clk_put(core.dss2_fck);
+	clk_put(core.dss_ick);
+}
+
+unsigned long dss_clk_get_rate(enum dss_clock clk)
+{
+	switch (clk) {
+	case DSS_CLK_ICK:
+		return clk_get_rate(core.dss_ick);
+	case DSS_CLK_FCK1:
+		return clk_get_rate(core.dss1_fck);
+	case DSS_CLK_FCK2:
+		return clk_get_rate(core.dss2_fck);
+	case DSS_CLK_54M:
+		return clk_get_rate(core.dss_54m_fck);
+	case DSS_CLK_96M:
+		return clk_get_rate(core.dss_96m_fck);
+	}
+
+	BUG();
+	return 0;
+}
+
+static unsigned count_clk_bits(enum dss_clock clks)
+{
+	unsigned num_clks = 0;
+
+	if (clks & DSS_CLK_ICK)
+		++num_clks;
+	if (clks & DSS_CLK_FCK1)
+		++num_clks;
+	if (clks & DSS_CLK_FCK2)
+		++num_clks;
+	if (clks & DSS_CLK_54M)
+		++num_clks;
+	if (clks & DSS_CLK_96M)
+		++num_clks;
+
+	return num_clks;
+}
+
+static void dss_clk_enable_no_ctx(enum dss_clock clks)
+{
+	unsigned num_clks = count_clk_bits(clks);
+
+	if (clks & DSS_CLK_ICK)
+		clk_enable(core.dss_ick);
+	if (clks & DSS_CLK_FCK1)
+		clk_enable(core.dss1_fck);
+	if (clks & DSS_CLK_FCK2)
+		clk_enable(core.dss2_fck);
+	if (clks & DSS_CLK_54M)
+		clk_enable(core.dss_54m_fck);
+	if (clks & DSS_CLK_96M)
+		clk_enable(core.dss_96m_fck);
+
+	core.num_clks_enabled += num_clks;
+}
+
+void dss_clk_enable(enum dss_clock clks)
+{
+	bool check_ctx = core.num_clks_enabled == 0;
+
+	dss_clk_enable_no_ctx(clks);
+
+	if (check_ctx && cpu_is_omap34xx()) {
+		if (!dss_need_ctx_restore()) {
+			/*
+			 * All clocks have been off, but dss_need_ctx_restore()
+			 * indicates the device has not entered off mode. Reset
+			 * DSS and restore context to clear failure modes, if
+			 * any.
+			 */
+			dss_clk_enable_all_no_ctx();
+			dss_reset();
+			dss_clk_disable_all_no_ctx();
+		}
+		restore_all_ctx();
+	}
+}
+
+static void dss_clk_disable_no_ctx(enum dss_clock clks)
+{
+	unsigned num_clks = count_clk_bits(clks);
+
+	if (clks & DSS_CLK_ICK)
+		clk_disable(core.dss_ick);
+	if (clks & DSS_CLK_FCK1)
+		clk_disable(core.dss1_fck);
+	if (clks & DSS_CLK_FCK2)
+		clk_disable(core.dss2_fck);
+	if (clks & DSS_CLK_54M)
+		clk_disable(core.dss_54m_fck);
+	if (clks & DSS_CLK_96M)
+		clk_disable(core.dss_96m_fck);
+
+	core.num_clks_enabled -= num_clks;
+}
+
+void dss_clk_disable(enum dss_clock clks)
+{
+	if (cpu_is_omap34xx()) {
+		unsigned num_clks = count_clk_bits(clks);
+
+		BUG_ON(core.num_clks_enabled < num_clks);
+
+		if (core.num_clks_enabled == num_clks)
+			save_all_ctx();
+	}
+
+	dss_clk_disable_no_ctx(clks);
+}
+
+static void dss_clk_enable_all_no_ctx(void)
+{
+	enum dss_clock clks;
+
+	clks = DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_FCK2 | DSS_CLK_54M;
+	if (cpu_is_omap34xx())
+		clks |= DSS_CLK_96M;
+	dss_clk_enable_no_ctx(clks);
+}
+
+static void dss_clk_disable_all_no_ctx(void)
+{
+	enum dss_clock clks;
+
+	clks = DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_FCK2 | DSS_CLK_54M;
+	if (cpu_is_omap34xx())
+		clks |= DSS_CLK_96M;
+	dss_clk_disable_no_ctx(clks);
+}
+
+static void dss_clk_disable_all(void)
+{
+	enum dss_clock clks;
+
+	clks = DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_FCK2 | DSS_CLK_54M;
+	if (cpu_is_omap34xx())
+		clks |= DSS_CLK_96M;
+	dss_clk_disable(clks);
+}
 
 /* REGULATORS */
 
@@ -87,52 +421,32 @@ struct regulator *dss_get_vdds_sdi(void)
 	return reg;
 }
 
-int dss_get_ctx_loss_count(struct device *dev)
+struct regulator *dss_get_vdda_dac(void)
 {
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-	int cnt;
+	struct regulator *reg;
 
-	if (!board_data->get_context_loss_count)
-		return -ENOENT;
+	if (core.vdda_dac_reg != NULL)
+		return core.vdda_dac_reg;
 
-	cnt = board_data->get_context_loss_count(dev);
+	reg = regulator_get(&core.pdev->dev, "vdda_dac");
+	if (!IS_ERR(reg))
+		core.vdda_dac_reg = reg;
 
-	WARN_ONCE(cnt < 0, "get_context_loss_count failed: %d\n", cnt);
-
-	return cnt;
+	return reg;
 }
 
-int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
-{
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-
-	if (!board_data->dsi_enable_pads)
-		return -ENOENT;
-
-	return board_data->dsi_enable_pads(dsi_id, lane_mask);
-}
-
-void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask)
-{
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-
-	if (!board_data->dsi_enable_pads)
-		return;
-
-	return board_data->dsi_disable_pads(dsi_id, lane_mask);
-}
-
-int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
-{
-	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
-
-	if (pdata->set_min_bus_tput)
-		return pdata->set_min_bus_tput(dev, tput);
-	else
-		return 0;
-}
-
+/* DEBUGFS */
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+static void dss_debug_dump_clocks(struct seq_file *s)
+{
+	core_dump_clocks(s);
+	dss_dump_clocks(s);
+	dispc_dump_clocks(s);
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_dump_clocks(s);
+#endif
+}
+
 static int dss_debug_show(struct seq_file *s, void *unused)
 {
 	void (*func)(struct seq_file *) = s->private;
@@ -166,6 +480,32 @@ static int dss_initialize_debugfs(void)
 	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
 			&dss_debug_dump_clocks, &dss_debug_fops);
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	debugfs_create_file("dispc_irq", S_IRUGO, dss_debugfs_dir,
+			&dispc_dump_irqs, &dss_debug_fops);
+#endif
+
+#if defined(CONFIG_OMAP2_DSS_DSI) && defined(CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS)
+	debugfs_create_file("dsi_irq", S_IRUGO, dss_debugfs_dir,
+			&dsi_dump_irqs, &dss_debug_fops);
+#endif
+
+	debugfs_create_file("dss", S_IRUGO, dss_debugfs_dir,
+			&dss_dump_regs, &dss_debug_fops);
+	debugfs_create_file("dispc", S_IRUGO, dss_debugfs_dir,
+			&dispc_dump_regs, &dss_debug_fops);
+#ifdef CONFIG_OMAP2_DSS_RFBI
+	debugfs_create_file("rfbi", S_IRUGO, dss_debugfs_dir,
+			&rfbi_dump_regs, &dss_debug_fops);
+#endif
+#ifdef CONFIG_OMAP2_DSS_DSI
+	debugfs_create_file("dsi", S_IRUGO, dss_debugfs_dir,
+			&dsi_dump_regs, &dss_debug_fops);
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+	debugfs_create_file("venc", S_IRUGO, dss_debugfs_dir,
+			&venc_dump_regs, &dss_debug_fops);
+#endif
 	return 0;
 }
 
@@ -173,19 +513,6 @@ static void dss_uninitialize_debugfs(void)
 {
 	if (dss_debugfs_dir)
 		debugfs_remove_recursive(dss_debugfs_dir);
-}
-
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
-{
-	struct dentry *d;
-
-	d = debugfs_create_file(name, S_IRUGO, dss_debugfs_dir,
-			write, &dss_debug_fops);
-
-	if (IS_ERR(d))
-		return PTR_ERR(d);
-
-	return 0;
 }
 #else /* CONFIG_DEBUG_FS && CONFIG_OMAP2_DSS_DEBUG_SUPPORT */
 static inline int dss_initialize_debugfs(void)
@@ -195,75 +522,197 @@ static inline int dss_initialize_debugfs(void)
 static inline void dss_uninitialize_debugfs(void)
 {
 }
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
-{
-	return 0;
-}
 #endif /* CONFIG_DEBUG_FS && CONFIG_OMAP2_DSS_DEBUG_SUPPORT */
 
 /* PLATFORM DEVICE */
-static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
-{
-	DSSDBG("pm notif %lu\n", v);
-
-	switch (v) {
-	case PM_SUSPEND_PREPARE:
-		DSSDBG("suspending displays\n");
-		return dss_suspend_all_devices();
-
-	case PM_POST_SUSPEND:
-		DSSDBG("resuming displays\n");
-		return dss_resume_all_devices();
-
-	default:
-		return 0;
-	}
-}
-
-static struct notifier_block omap_dss_pm_notif_block = {
-	.notifier_call = omap_dss_pm_notif,
-};
-
-static int __init omap_dss_probe(struct platform_device *pdev)
+static int omap_dss_probe(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int skip_init = 0;
 	int r;
+	int i;
 
 	core.pdev = pdev;
 
-	dss_features_init();
-
-	dss_apply_init();
-
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);
+
+	r = dss_get_clocks();
+	if (r)
+		goto err_clocks;
+
+	dss_clk_enable_all_no_ctx();
+
+	core.ctx_id = dss_get_ctx_id();
+	DSSDBG("initial ctx id %u\n", core.ctx_id);
+
+#ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
+	/* DISPC_CONTROL */
+	if (omap_readl(0x48050440) & 1)	/* LCD enabled? */
+		skip_init = 1;
+#endif
+
+	r = dss_init(skip_init);
+	if (r) {
+		DSSERR("Failed to initialize DSS\n");
+		goto err_dss;
+	}
+
+	r = rfbi_init();
+	if (r) {
+		DSSERR("Failed to initialize rfbi\n");
+		goto err_rfbi;
+	}
+
+	r = dpi_init(pdev);
+	if (r) {
+		DSSERR("Failed to initialize dpi\n");
+		goto err_dpi;
+	}
+
+	r = dispc_init();
+	if (r) {
+		DSSERR("Failed to initialize dispc\n");
+		goto err_dispc;
+	}
+
+	r = venc_init(pdev);
+	if (r) {
+		DSSERR("Failed to initialize venc\n");
+		goto err_venc;
+	}
+
+	if (cpu_is_omap34xx()) {
+		r = sdi_init(skip_init);
+		if (r) {
+			DSSERR("Failed to initialize SDI\n");
+			goto err_sdi;
+		}
+
+		r = dsi_init(pdev);
+		if (r) {
+			DSSERR("Failed to initialize DSI\n");
+			goto err_dsi;
+		}
+	}
 
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
 
-	if (def_disp_name)
-		core.default_display_name = def_disp_name;
-	else if (pdata->default_device)
-		core.default_display_name = pdata->default_device->name;
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
 
-	register_pm_notifier(&omap_dss_pm_notif_block);
+		r = omap_dss_register_device(dssdev);
+		if (r) {
+			DSSERR("device %d %s register failed %d\n", i,
+				dssdev->name ?: "unnamed", r);
+
+			while (--i >= 0)
+				omap_dss_unregister_device(pdata->devices[i]);
+
+			goto err_register;
+		}
+
+		if (def_disp_name && strcmp(def_disp_name, dssdev->name) == 0)
+			pdata->default_device = dssdev;
+	}
+
+	dss_clk_disable_all();
 
 	return 0;
 
+err_register:
+	dss_uninitialize_debugfs();
 err_debugfs:
+	if (cpu_is_omap34xx())
+		dsi_exit();
+err_dsi:
+	if (cpu_is_omap34xx())
+		sdi_exit();
+err_sdi:
+	venc_exit();
+err_venc:
+	dispc_exit();
+err_dispc:
+	dpi_exit();
+err_dpi:
+	rfbi_exit();
+err_rfbi:
+	dss_exit();
+err_dss:
+	dss_clk_disable_all_no_ctx();
+	dss_put_clocks();
+err_clocks:
 
 	return r;
 }
 
 static int omap_dss_remove(struct platform_device *pdev)
 {
-	unregister_pm_notifier(&omap_dss_pm_notif_block);
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int i;
+	int c;
 
 	dss_uninitialize_debugfs();
 
+	venc_exit();
+	dispc_exit();
+	dpi_exit();
+	rfbi_exit();
+	if (cpu_is_omap34xx()) {
+		dsi_exit();
+		sdi_exit();
+	}
+
+	dss_exit();
+
+	/* these should be removed at some point */
+	c = core.dss_ick->usecount;
+	if (c > 0) {
+		DSSERR("warning: dss_ick usecount %d, disabling\n", c);
+		while (c-- > 0)
+			clk_disable(core.dss_ick);
+	}
+
+	c = core.dss1_fck->usecount;
+	if (c > 0) {
+		DSSERR("warning: dss1_fck usecount %d, disabling\n", c);
+		while (c-- > 0)
+			clk_disable(core.dss1_fck);
+	}
+
+	c = core.dss2_fck->usecount;
+	if (c > 0) {
+		DSSERR("warning: dss2_fck usecount %d, disabling\n", c);
+		while (c-- > 0)
+			clk_disable(core.dss2_fck);
+	}
+
+	c = core.dss_54m_fck->usecount;
+	if (c > 0) {
+		DSSERR("warning: dss_54m_fck usecount %d, disabling\n", c);
+		while (c-- > 0)
+			clk_disable(core.dss_54m_fck);
+	}
+
+	if (core.dss_96m_fck) {
+		c = core.dss_96m_fck->usecount;
+		if (c > 0) {
+			DSSERR("warning: dss_96m_fck usecount %d, disabling\n",
+					c);
+			while (c-- > 0)
+				clk_disable(core.dss_96m_fck);
+		}
+	}
+
+	dss_put_clocks();
+
 	dss_uninit_overlays(pdev);
 	dss_uninit_overlay_managers(pdev);
+
+	for (i = 0; i < pdata->num_devices; ++i)
+		omap_dss_unregister_device(pdata->devices[i]);
 
 	return 0;
 }
@@ -274,9 +723,26 @@ static void omap_dss_shutdown(struct platform_device *pdev)
 	dss_disable_all_devices();
 }
 
+static int omap_dss_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	DSSDBG("suspend %d\n", state.event);
+
+	return dss_suspend_all_devices();
+}
+
+static int omap_dss_resume(struct platform_device *pdev)
+{
+	DSSDBG("resume\n");
+
+	return dss_resume_all_devices();
+}
+
 static struct platform_driver omap_dss_driver = {
+	.probe          = omap_dss_probe,
 	.remove         = omap_dss_remove,
 	.shutdown	= omap_dss_shutdown,
+	.suspend	= omap_dss_suspend,
+	.resume		= omap_dss_resume,
 	.driver         = {
 		.name   = "omapdss",
 		.owner  = THIS_MODULE,
@@ -347,16 +813,24 @@ static int dss_driver_probe(struct device *dev)
 	int r;
 	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
 	struct omap_dss_device *dssdev = to_dss_device(dev);
+	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
 	bool force;
 
 	DSSDBG("driver_probe: dev %s/%s, drv %s\n",
 				dev_name(dev), dssdev->driver_name,
 				dssdrv->driver.name);
 
+	if (dssdev == pdata->default_device) {
+		/*
+		 * Primary display found, use the kernel parameter
+		 * and overwrite skip_first_init.
+		 */
+		dssdev->skip_first_init = def_disp_enabled;
+	}
+
 	dss_init_device(core.pdev, dssdev);
 
-	force = core.default_display_name &&
-		strcmp(core.default_display_name, dssdev->name) == 0;
+	force = pdata->default_device == dssdev;
 	dss_recheck_connections(dssdev, force);
 
 	r = dssdrv->probe(dssdev);
@@ -402,8 +876,6 @@ int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
 	if (dssdriver->get_recommended_bpp == NULL)
 		dssdriver->get_recommended_bpp =
 			omapdss_default_get_recommended_bpp;
-	if (dssdriver->get_timings == NULL)
-		dssdriver->get_timings = omapdss_default_get_timings;
 
 	return driver_register(&dssdriver->driver);
 }
@@ -450,16 +922,17 @@ static void omap_dss_dev_release(struct device *dev)
 	reset_device(dev, 0);
 }
 
-int omap_dss_register_device(struct omap_dss_device *dssdev,
-		struct device *parent, int disp_num)
+int omap_dss_register_device(struct omap_dss_device *dssdev)
 {
+	static int dev_num;
+
 	WARN_ON(!dssdev->driver_name);
 
 	reset_device(&dssdev->dev, 1);
 	dssdev->dev.bus = &dss_bus_type;
-	dssdev->dev.parent = parent;
+	dssdev->dev.parent = &dss_bus;
 	dssdev->dev.release = omap_dss_dev_release;
-	dev_set_name(&dssdev->dev, "display%d", disp_num);
+	dev_set_name(&dssdev->dev, "display%d", dev_num++);
 	return device_register(&dssdev->dev);
 }
 
@@ -468,20 +941,8 @@ void omap_dss_unregister_device(struct omap_dss_device *dssdev)
 	device_unregister(&dssdev->dev);
 }
 
-static int dss_unregister_dss_dev(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	omap_dss_unregister_device(dssdev);
-	return 0;
-}
-
-void omap_dss_unregister_child_devices(struct device *parent)
-{
-	device_for_each_child(parent, NULL, dss_unregister_dss_dev);
-}
-
 /* BUS */
-static int __init omap_dss_bus_register(void)
+static int omap_dss_bus_register(void)
 {
 	int r;
 
@@ -503,105 +964,6 @@ static int __init omap_dss_bus_register(void)
 }
 
 /* INIT */
-static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	venc_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP4_DSS_HDMI
-	hdmi_init_platform_driver,
-#endif
-};
-
-static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	venc_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP4_DSS_HDMI
-	hdmi_uninit_platform_driver,
-#endif
-};
-
-static bool dss_output_drv_loaded[ARRAY_SIZE(dss_output_drv_reg_funcs)];
-
-static int __init omap_dss_register_drivers(void)
-{
-	int r;
-	int i;
-
-	r = platform_driver_probe(&omap_dss_driver, omap_dss_probe);
-	if (r)
-		return r;
-
-	r = dss_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize DSS platform driver\n");
-		goto err_dss;
-	}
-
-	r = dispc_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize dispc platform driver\n");
-		goto err_dispc;
-	}
-
-	/*
-	 * It's ok if the output-driver register fails. It happens, for example,
-	 * when there is no output-device (e.g. SDI for OMAP4).
-	 */
-	for (i = 0; i < ARRAY_SIZE(dss_output_drv_reg_funcs); ++i) {
-		r = dss_output_drv_reg_funcs[i]();
-		if (r == 0)
-			dss_output_drv_loaded[i] = true;
-	}
-
-	return 0;
-
-err_dispc:
-	dss_uninit_platform_driver();
-err_dss:
-	platform_driver_unregister(&omap_dss_driver);
-
-	return r;
-}
-
-static void __exit omap_dss_unregister_drivers(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i) {
-		if (dss_output_drv_loaded[i])
-			dss_output_drv_unreg_funcs[i]();
-	}
-
-	dispc_uninit_platform_driver();
-	dss_uninit_platform_driver();
-
-	platform_driver_unregister(&omap_dss_driver);
-}
 
 #ifdef CONFIG_OMAP2_DSS_MODULE
 static void omap_dss_bus_unregister(void)
@@ -619,7 +981,7 @@ static int __init omap_dss_init(void)
 	if (r)
 		return r;
 
-	r = omap_dss_register_drivers();
+	r = platform_driver_register(&omap_dss_driver);
 	if (r) {
 		omap_dss_bus_unregister();
 		return r;
@@ -640,7 +1002,12 @@ static void __exit omap_dss_exit(void)
 		core.vdds_sdi_reg = NULL;
 	}
 
-	omap_dss_unregister_drivers();
+	if (core.vdda_dac_reg != NULL) {
+		regulator_put(core.vdda_dac_reg);
+		core.vdda_dac_reg = NULL;
+	}
+
+	platform_driver_unregister(&omap_dss_driver);
 
 	omap_dss_bus_unregister();
 }
@@ -655,7 +1022,7 @@ static int __init omap_dss_init(void)
 
 static int __init omap_dss_init2(void)
 {
-	return omap_dss_register_drivers();
+	return platform_driver_register(&omap_dss_driver);
 }
 
 core_initcall(omap_dss_init);
