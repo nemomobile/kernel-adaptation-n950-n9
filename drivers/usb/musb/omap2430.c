@@ -280,6 +280,26 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 	}
 }
 
+static irqreturn_t omap2430_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long   flags;
+	irqreturn_t     retval = IRQ_NONE;
+	struct musb     *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
+}
+
 static int omap2430_musb_init(struct musb *musb)
 {
 	u32 l;
@@ -299,6 +319,8 @@ static int omap2430_musb_init(struct musb *musb)
 	}
 
 	INIT_WORK(&musb->otg_notifier_work, musb_otg_notifier_work);
+
+	musb->isr = omap2430_musb_interrupt;
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
