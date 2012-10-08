@@ -100,6 +100,12 @@
 #define twl_has_rtc()	false
 #endif
 
+#if defined(CONFIG_TWL5031_BCC) || defined(CONFIG_TWL5031_BCC_MODULE)
+#define twl_has_bcc()           true
+#else
+#define twl_has_bcc()           false
+#endif
+
 #if defined(CONFIG_TWL4030_USB) || defined(CONFIG_TWL4030_USB_MODULE) ||\
 	defined(CONFIG_TWL6030_USB) || defined(CONFIG_TWL6030_USB_MODULE)
 #define twl_has_usb()	true
@@ -174,6 +180,7 @@
 #define TWL4030_BASEADD_KEYPAD		0x00D2
 
 #define TWL5031_BASEADD_ACCESSORY	0x0074 /* Replaces Main Charge */
+#define TWL5031_BASEADD_BCC             0x00AA /* Changed from TWL4030 */
 #define TWL5031_BASEADD_INTERRUPTS	0x00B9 /* Different than TWL4030's
 						  one */
 
@@ -286,6 +293,7 @@ static struct twl_mapping twl4030_map[TWL4030_MODULE_LAST + 1] = {
 	{ 2, TWL4030_BASEADD_PWMA },
 	{ 2, TWL4030_BASEADD_PWMB },
 	{ 2, TWL5031_BASEADD_ACCESSORY },
+	{ 2, TWL5031_BASEADD_BCC },
 	{ 2, TWL5031_BASEADD_INTERRUPTS },
 
 	{ 3, TWL4030_BASEADD_BACKUP },
@@ -668,6 +676,15 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 	struct device	*child;
 	unsigned sub_chip_id;
 
+	if (twl_has_bcc()) {
+		child = add_child(2, "twl5031_bcc",
+				NULL, 0, false,
+				/* irq0 = CHG_PRES, irq1 = BCI */
+				irq_base + 8 + 1, irq_base + 2);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
 	if (twl_has_gpio() && pdata->gpio) {
 		child = add_child(SUB_CHIP_ID1, "twl4030_gpio",
 				pdata->gpio, sizeof(*pdata->gpio),
@@ -708,7 +725,10 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_usb() && pdata->usb && twl_class_is_4030()) {
+
+
+	if (twl_has_usb() && pdata->usb
+		&& (twl_class_is_4030() | twl_has_bcc())) {
 
 		static struct regulator_consumer_supply usb1v5 = {
 			.supply =	"usb1v5",
