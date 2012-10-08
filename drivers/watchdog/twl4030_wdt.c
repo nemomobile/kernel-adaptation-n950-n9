@@ -34,6 +34,8 @@
 #define TWL4030_WDT_STATE_OPEN		0x1
 #define TWL4030_WDT_STATE_ACTIVE	0x8
 
+extern u32 wakeup_timer_seconds;
+
 static struct platform_device *twl4030_wdt_dev;
 
 struct twl4030_wdt {
@@ -226,6 +228,15 @@ static int __devexit twl4030_wdt_remove(struct platform_device *pdev)
 static int twl4030_wdt_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct twl4030_wdt *wdt = platform_get_drvdata(pdev);
+
+	/* reset wd timer, just in case it cannot be stopped */
+	twl4030_wdt_enable(wdt);
+
+	/* HACK: cannot stop the wd in N9, so set up a wakeup before we reset */
+	if (wakeup_timer_seconds > wdt->timer_margin - 1 ||
+						!wakeup_timer_seconds)
+		wakeup_timer_seconds = wdt->timer_margin - 1;
+
 	if (wdt->state & TWL4030_WDT_STATE_ACTIVE)
 		return twl4030_wdt_disable(wdt);
 
@@ -235,6 +246,8 @@ static int twl4030_wdt_suspend(struct platform_device *pdev, pm_message_t state)
 static int twl4030_wdt_resume(struct platform_device *pdev)
 {
 	struct twl4030_wdt *wdt = platform_get_drvdata(pdev);
+
+	wakeup_timer_seconds = 0;
 	if (wdt->state & TWL4030_WDT_STATE_ACTIVE)
 		return twl4030_wdt_enable(wdt);
 

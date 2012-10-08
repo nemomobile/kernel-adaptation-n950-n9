@@ -50,6 +50,8 @@
 
 #include "omap_wdt.h"
 
+extern u32 wakeup_timer_seconds;
+
 static struct platform_device *omap_wdt_dev;
 
 static unsigned timer_margin;
@@ -404,6 +406,15 @@ static int omap_wdt_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (wdev->omap_wdt_users) {
 		pm_runtime_get_sync(wdev->dev);
+		/*
+		 * HACK: cannot stop the wd in N9, so set up a wakeup before
+		 * we reset. Checking here also if twl4030 has already set a
+		 * suitable wake up so we don't screw it up.
+		 */
+		if (wakeup_timer_seconds > timer_margin - 1 ||
+							!wakeup_timer_seconds)
+			wakeup_timer_seconds = timer_margin - 1;
+		omap_wdt_ping(wdev);
 		omap_wdt_disable(wdev);
 		pm_runtime_put_sync(wdev->dev);
 	}
@@ -417,6 +428,7 @@ static int omap_wdt_resume(struct platform_device *pdev)
 
 	if (wdev->omap_wdt_users) {
 		pm_runtime_get_sync(wdev->dev);
+		wakeup_timer_seconds = 0;
 		omap_wdt_enable(wdev);
 		omap_wdt_ping(wdev);
 		pm_runtime_put_sync(wdev->dev);
