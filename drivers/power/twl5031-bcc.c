@@ -144,7 +144,7 @@ static int twl5031_bcc_usb_charger_type(struct twl5031_bcc_data *bcc)
 	u8 func_ctrl, otg_ctrl;
 
 	/* The transceiver must be resumed before this operation */
-	//otg_set_suspend(bcc->otg, 0);
+	usb_phy_set_suspend(bcc->otg, 0);
 
 	func_ctrl = twl5031_usb_read(ULPI_FUNC_CTRL);
 	otg_ctrl = twl5031_usb_read(ULPI_OTG_CTRL);
@@ -171,7 +171,7 @@ static int twl5031_bcc_usb_charger_type(struct twl5031_bcc_data *bcc)
 		type = POWER_SUPPLY_TYPE_USB_CDP;
 	} else {
 		type = POWER_SUPPLY_TYPE_USB_DCP;
-		//otg_set_suspend(bcc->otg, 1);
+		usb_phy_set_suspend(bcc->otg, 1);
 	}
 
 	return type;
@@ -211,6 +211,7 @@ static inline bool twl5031_bcc_psy_dcd_detect(struct twl5031_bcc_data *bcc)
 			goto out;
 
 		if (!(res & TWL5031_CHGD_SERX_DP_LOWV)) {
+			printk(KERN_ERR "DCD succeeded\n");
 			online = true;
 			break;
 		}
@@ -239,7 +240,6 @@ static void twl5031_bcc_psy_fsm_detect(struct twl5031_bcc_data *bcc)
 	unsigned long timeout;
 	int res = 0;
 	int ctl;
-
 
 	/* this particular regulator is required for DCD */
 	if (!regulator_is_enabled(bcc->usb3v1))
@@ -286,7 +286,7 @@ static void twl5031_bcc_psy_fsm_detect(struct twl5031_bcc_data *bcc)
 
 		/* USB charger and battery presence bits should be high */
 		if (!(res & TWL5031_USB_P_STS)) {
-			dev_err(bcc->dev, "no usb charger present\n");
+			printk(KERN_ERR "no usb charger present\n");
 			continue;
 		}
 
@@ -328,7 +328,7 @@ static void twl5031_bcc_psy_fsm_detect(struct twl5031_bcc_data *bcc)
 static void twl5031_bcc_psy_usb_detect(struct twl5031_bcc_data *bcc)
 {
 	/* disable all regulators + put the transceiver into nondriving mode */
-	//otg_set_suspend(bcc->otg, 1);
+	usb_phy_set_suspend(bcc->otg, 1);
 
 	twl5031_bcc_psy_fsm_detect(bcc); /* detect charger */
 
@@ -402,8 +402,36 @@ static void twl5031_bcc_event_work(struct work_struct *work)
 		}
 
 		break;
+#ifdef OLD
+	case USB_EVENT_SUSPENDED:
+		bcc->usb_present = 1;
+
+		switch (bcc->usb.type) {
+		case POWER_SUPPLY_TYPE_USB_CDP:
+			bcc->usb_current = 500;
+			break;
+		case POWER_SUPPLY_TYPE_USB: /* FALLTHROUGH */
+		default:
+			bcc->usb_current = 2;
+			break;
+		}
+		break;
+	case USB_EVENT_RESUMED:
+		bcc->usb_present = 1;
+
+		switch (bcc->usb.type) {
+		case POWER_SUPPLY_TYPE_USB_CDP:
+			bcc->usb_current = 500;
+			break;
+		case POWER_SUPPLY_TYPE_USB: /* FALLTHROUGH */
+		default:
+			bcc->usb_current = mA;
+			break;
+		}
+		break;
+#endif /* OLD */
 	default:
-		dev_err(bcc->dev, "unsupported event %lu\n", event);
+		dev_dbg(bcc->dev, "unsupported event %lu\n", event);
 	}
 
 	power_supply_changed(&bcc->usb);
@@ -535,10 +563,7 @@ static int __devinit twl5031_bcc_probe(struct platform_device *pdev)
 
 	bcc->usb3v1 = regulator_get(bcc->dev, "usb3v1");
 	if (IS_ERR(bcc->usb3v1))
-	{
-		dev_err(bcc->dev, "get_regulator_failed\n");
 		goto get_regulator_failed;
-	}
 
 	/* initialize power supplies */
 	bcc->usb_present = 0;
@@ -551,10 +576,8 @@ static int __devinit twl5031_bcc_probe(struct platform_device *pdev)
 
 	ret = power_supply_register(bcc->dev, &bcc->usb);
 	if (ret)
-	{
-		dev_err(bcc->dev, "power_supply_register failed\n");
 		goto psy_usb_register_failed;
-	}
+
 	bcc->vac_present = 0;
 	bcc->vac_current = 0;
 	bcc->vac.name = "vac";
@@ -565,10 +588,8 @@ static int __devinit twl5031_bcc_probe(struct platform_device *pdev)
 
 	ret = power_supply_register(bcc->dev, &bcc->vac);
 	if (ret)
-	{
-		dev_err(bcc->dev, "power_supply_register 2nd failed\n");
 		goto psy_vac_register_failed;
-	}
+
 	twl5031_bcc_psy_vac_detect(bcc);	/* probe vac charger */
 
 	/* request charger detection interrupt */
