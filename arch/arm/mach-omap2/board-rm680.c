@@ -138,6 +138,7 @@ static struct twl4030_platform_data rm680_twl_data = {
 static void __init rm680_i2c_init(void)
 {
 	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB,
+			      TWL_COMMON_REGULATOR_VDAC |
 			      TWL_COMMON_REGULATOR_VPLL2);
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
@@ -228,8 +229,34 @@ static struct omap_dss_device rm696_dsi_display_data = {
 	.data = &rm696_panel_data,
 };
 
+static int rm696_tv_enable(struct omap_dss_device *dssdev)
+{
+	if (dssdev->reset_gpio != -1)
+		gpio_set_value(dssdev->reset_gpio, 1);
+
+	return 0;
+}
+
+static void rm696_tv_disable(struct omap_dss_device *dssdev)
+{
+	if (dssdev->reset_gpio != -1)
+		gpio_set_value(dssdev->reset_gpio, 0);
+}
+
+static struct omap_dss_device rm696_tv_display_data = {
+	.type = OMAP_DISPLAY_TYPE_VENC,
+	.name = "tv",
+	.driver_name = "venc",
+	/* was 40, handled by twl5031-aci */
+	.reset_gpio = -1,
+	.phy.venc.type = OMAP_DSS_VENC_TYPE_COMPOSITE,
+	.platform_enable = rm696_tv_enable,
+	.platform_disable = rm696_tv_disable,
+};
+
 static struct omap_dss_device *rm696_dss_devices[] = {
 	&rm696_dsi_display_data,
+	&rm696_tv_display_data,
 };
 
 static struct omap_dss_board_info rm696_dss_data = {
@@ -275,14 +302,31 @@ static int __init rm696_video_init(void)
 
 	rm696_dss_data.default_device = rm696_dss_devices[0];
 
+	/* TV */
+	if (rm696_tv_display_data.reset_gpio != -1) {
+		r = gpio_request(rm696_tv_display_data.reset_gpio,
+				 "TV-out enable");
+		if (r < 0)
+			goto err1;
+
+		r = gpio_direction_output(rm696_tv_display_data.reset_gpio, 0);
+		if (r < 0)
+			goto err2;
+	}
+
 	r = platform_device_register(&rm696_dss_device);
 	if (r < 0)
-		goto err1;
+		goto err2;
 
 	omapfb_set_platform_data(&rm696_omapfb_data);
 
 	return 0;
 
+err2:
+	if (rm696_tv_display_data.reset_gpio != -1) {
+		gpio_free(rm696_tv_display_data.reset_gpio);
+		rm696_tv_display_data.reset_gpio = -1;
+	}
 err1:
 	gpio_free(rm696_panel_data.reset_gpio);
 	rm696_panel_data.reset_gpio = -1;
