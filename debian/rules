@@ -1,0 +1,392 @@
+#!/usr/bin/make -f
+#
+
+export SBOX_USE_CCACHE=no
+
+WEEK := $(shell date +%Y%W)
+RELEASE := $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }')
+#REVISION := $(shell echo "$(RELEASE)" | sed 's/\(.*\)-\(.*\)/\2/')
+#no need to update modules so often, api is quite stable between weekly releases
+REVISION := maemo2
+#EXTRAVERSION := EXTRAVERSION-$(REVISION)
+
+PACKAGE := kernel
+SOURCE_PACKAGE := $(PACKAGE)-source
+KERNEL_PACKAGE := $(PACKAGE)
+FLASHER_PACKAGE := $(PACKAGE)-flasher
+MODULES_PACKAGE := $(PACKAGE)-modules
+TEST_MODULES_PACKAGE := $(PACKAGE)-modules-test
+HEADERS_PACKAGE := $(PACKAGE)-headers
+KBUILD_PACKAGE := $(PACKAGE)-kbuild
+DEBUG_PACKAGE := $(PACKAGE)-debug
+DEBUG_MODULES_PACKAGE := $(PACKAGE)-modules-debug
+LIBC_PACKAGE := linux-kernel-headers
+
+BUILDTMP := $(CURDIR)/debian/build
+KSRC := $(BUILDTMP)/$(PACKAGE)
+
+DEFCONFIG := rm581_defconfig
+KVER = $(shell cat $(KSRC)/include/config/kernel.release 2> /dev/null)
+ARCH = $(shell dpkg-architecture -qDEB_HOST_ARCH_CPU)
+INCLUDE_HEADERS = acpi asm-generic asm-$(ARCH) config crypto drm Kbuild keys linux math-emu media mtd net pcmcia rdma rxrpc scsi sound trace video xen
+RM_SCRIPTS = bloat-o-meter show_delta
+DEBUG_MODULES = oprofile.ko
+MAKE += $(MAKEFLAGS)
+
+ifneq (,$(findstring parallel,$(DEB_BUILD_OPTIONS)))
+    PARALLEL_JOBS := $(shell echo $(DEB_BUILD_OPTIONS) | \
+        sed -e 's/.*parallel=\([0-9]\+\).*/\1/')
+    ifeq ($(DEB_BUILD_OPTIONS),$(PARALLEL_JOBS))
+        PARALLEL_JOBS := $(shell if [ -f /proc/cpuinfo ]; \
+            then echo `cat /proc/cpuinfo | grep 'processor' | wc -l`; \
+            else echo 1; fi)
+    endif
+    NJOBS := -j$(PARALLEL_JOBS)
+endif
+
+source-copy-stamp:
+	dh_testdir
+	$(MAKE) clean
+
+	mkdir -p $(BUILDTMP)/$(SOURCE_PACKAGE)
+	tar cf - `echo * | sed -e 's/ debian//g' -e 's/\.deb//g' ` \
+	| (cd $(BUILDTMP)/$(SOURCE_PACKAGE) ; umask 000; tar xspf -)
+	touch $@
+
+source-stamp: source-copy-stamp
+	cd $(BUILDTMP) && cp -a  $(SOURCE_PACKAGE) $(KSRC)
+	touch $@
+
+configure-stamp: source-stamp
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(EXTRAVERSION) $(DEFCONFIG)
+	touch $@
+
+kernel-stamp: configure-stamp
+	echo "compile $(PRODUCT) kernel"
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(NJOBS) $(EXTRAVERSION) zImage
+	touch $@
+
+modules-stamp: configure-stamp
+	echo "compile $(PRODUCT) kernel modules"
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(NJOBS) $(EXTRAVERSION) modules
+	touch $@
+
+modules-extra: configure-stamp
+	echo "compile $(PRODUCT) kernel EXTRA modules"
+	cd $(KSRC) && \
+	patch -p1 < $(CURDIR)/debian/modules-extra_config.patch && \
+	$(MAKE) ARCH=$(ARCH) $(EXTRAVERSION) oldconfig modules && \
+	patch -p1 -R < $(CURDIR)/debian/modules-extra_config.patch && \
+	$(MAKE) ARCH=$(ARCH) $(EXTRAVERSION) oldconfig
+
+headers: kernel-stamp modules-stamp
+
+kernel-source-stamp: source-copy-stamp
+	dh_testdir
+
+	cd $(BUILDTMP) && \
+	tar --bzip2 -cf $(SOURCE_PACKAGE).tar.bz2 $(SOURCE_PACKAGE)
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+
+	$(MAKE) clean
+	rm -f modules/modversions.h modules/ksyms.ver debian/files conf.vars scripts/cramfs/cramfsck \
+		scripts/cramfs/mkcramfs applied_patches debian/buildinfo stamp-* .config* \
+		debian/kernel-flasher.postinst debian/ape-algo-pr.postinst
+	rm -rf debian/tmp-*
+	rm -rf debian/build
+	rm -f *-stamp
+
+	dh_clean
+
+install-kernel:
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	install -d -m 755 $(CURDIR)/debian/$(PACKAGE)/boot
+	install -m 644 $(KSRC)/arch/arm/boot/zImage \
+                $(CURDIR)/debian/$(PACKAGE)/boot/zImage-$(KVER)
+	install -m 644 $(KSRC)/System.map \
+                $(CURDIR)/debian/$(PACKAGE)/boot/System.map-$(KVER)
+	install -m 644 $(KSRC)/.config \
+                $(CURDIR)/debian/$(PACKAGE)/boot/config-$(KVER)
+#	installing kernel fiasco into kernel-flasher package
+	mkdir -p $(CURDIR)/debian/$(FLASHER_PACKAGE)/usr/share/osso/
+	fiasco-gen -o $(CURDIR)/debian/$(FLASHER_PACKAGE)/usr/share/osso/kernel-$(KVER).fiasco -g \
+			-k $(CURDIR)/debian/$(PACKAGE)/boot/zImage-$(KVER) -v $(RELEASE)
+
+
+install-debug: install-modules
+	install -d -m 755 $(CURDIR)/debian/$(DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)
+	install $(KSRC)/vmlinux \
+		$(CURDIR)/debian/$(DEBUG_PACKAGE)/usr/lib/debug/vmlinux-$(KVER)
+	chmod a-x $(CURDIR)/debian/$(DEBUG_PACKAGE)/usr/lib/debug/vmlinux-*
+	mkdir -p $(CURDIR)/debian/$(DEBUG_PACKAGE)/lib/modules/$(KVER)
+	ln -sf /usr/lib/debug/vmlinux-$(KVER) $(CURDIR)/debian/$(DEBUG_PACKAGE)/lib/modules/$(KVER)/vmlinux
+
+	for f in $$(find $(CURDIR)/debian/$(MODULES_PACKAGE) -name "*.ko"); do \
+		objcopy --only-keep-debug $$f $(CURDIR)/debian/$(DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)/$$(basename $$f); \
+		strip --remove-section=.comment --remove-section=.note --strip-unneeded  $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+		objcopy --add-gnu-debuglink $(CURDIR)/debian/$(DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)/$$(basename $$f) $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+	done
+
+install-modules-debug: install-debug
+	install -d -m 755 $(CURDIR)/debian/$(DEBUG_MODULES_PACKAGE)/lib/modules/$(KVER)
+	-for f in $(DEBUG_MODULES); do \
+		mv $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/$(KVER)/$$f  \
+		   $(CURDIR)/debian/$(DEBUG_MODULES_PACKAGE)/lib/modules/$(KVER)/$$f; \
+	done
+
+install-modules:
+	dh_testdir
+	dh_testroot
+
+	mkdir -p $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/$(KVER)
+	# will install test modules to separate package
+	mkdir -p $(CURDIR)/debian/$(TEST_MODULES_PACKAGE)/lib/modules/$(KVER)
+	for f in $$(find $(KSRC) -name "*.ko"); do \
+		install -c -m 644 $$f $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+	done
+	find $(CURDIR)/debian/$(MODULES_PACKAGE) -name "*test*" -exec mv {} $(CURDIR)/debian/$(TEST_MODULES_PACKAGE)/lib/modules/$(KVER) \;
+	ln -sf $(KVER) $(CURDIR)/debian/$(MODULES_PACKAGE)/lib/modules/current
+
+install-headers:
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	install -d -m755 $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/
+	install -p -o root -g root -m 644 $(KSRC)/.config  $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/
+	install -p -o root -g root -m 644 $(KSRC)/Makefile $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/
+	install -p -o root -g root -m 644 $(KSRC)/Module.symvers $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/
+	cd $(KSRC) && install -p -o root -g root -m 644 -D include/config/auto.conf \
+		$(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/include/config/auto.conf
+	cd $(KSRC) && \
+		find arch/$(ARCH) $(foreach dir,$(INCLUDE_HEADERS),include/$(dir)) -name '*.h' \
+			-exec install -D -m644 {} $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/{} \;
+	cd $(KSRC) && \
+		find ./ \( -name Makefile -or -name Kbuild -or -name Kconfig\* \) \
+			-exec install -D -m644 {} $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/{} \;
+
+	ln -sf asm-$(ARCH) $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/include/asm
+
+	rm -rf $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/scripts
+	ln -sf ../$(KBUILD_PACKAGE)/scripts $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)
+
+#	cp -a $(KSRC)/include/asm-$(ARCH)/arch \
+#		$(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/include/asm-$(ARCH)
+
+	cp $(KSRC)/arch/$(ARCH)/kernel/asm-offsets.s \
+		$(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(HEADERS_PACKAGE)/arch/$(ARCH)/kernel
+#install /lib/modules symlink
+	install -d -m 755 $(CURDIR)/debian/$(HEADERS_PACKAGE)/lib/modules/$(KVER)/
+	ln -sf /usr/src/$(HEADERS_PACKAGE) $(CURDIR)/debian/$(HEADERS_PACKAGE)/lib/modules/$(KVER)/build
+#install kbuild
+	install -d $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(KBUILD_PACKAGE)
+	cp -a $(KSRC)/scripts $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(KBUILD_PACKAGE)
+#kbuild fixes
+	cd $(CURDIR)/debian/$(HEADERS_PACKAGE)/usr/src/$(KBUILD_PACKAGE)/scripts && \
+		( rm -f $(RM_SCRIPTS); chmod a-x mkcompile_h )
+
+install-libc-headers: source-stamp
+	dh_testdir
+	dh_testroot
+
+	cd $(KSRC) && \
+	$(MAKE) headers_check ARCH=$(ARCH) && \
+	$(MAKE) headers_install ARCH=$(ARCH) INSTALL_HDR_PATH=$(CURDIR)/debian/$(LIBC_PACKAGE)/usr
+	rm -rf $(CURDIR)/debian/$(LIBC_PACKAGE)/usr/include/scsi
+
+install-modules-extra:
+	dh_testdir
+	dh_testroot
+
+	mkdir -p $(CURDIR)/debian/kernel-modules-extra/lib/modules/$(KVER)/extra
+	for f in $(MODULES_EXTRA); do \
+		install -c -m 644 $(KSRC)/$$f \
+			$(CURDIR)/debian/kernel-modules-extra/lib/modules/$(KVER)/extra/$$(basename $$f); \
+	done
+
+install-indep:
+	dh_testdir
+	dh_testroot
+
+	install -p -d -o root -g root -m 755 debian/$(SOURCE_PACKAGE)/usr/src
+	install -m 644 $(BUILDTMP)/$(SOURCE_PACKAGE).tar.bz2 debian/$(SOURCE_PACKAGE)/usr/src
+
+install-extra: install-modules-extra
+
+
+install-arch: build-arch install-kernel install-modules install-debug install-modules-debug install-headers install-libc-headers
+
+ifeq ($(ARCH),arm)
+build-arch: kernel-stamp modules-stamp headers
+else
+build-arch:
+endif
+
+build-indep: kernel-source-stamp
+
+build: build-arch build-indep
+
+binary-indep: install-indep
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -i
+	dh_installdocs -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+#
+# Crashkernel rules. This results kernel which can be used as a dump capture
+# kernel after the primary kernel OOPSes.
+#
+# We place the kernel in /boot/zImage-crash-<version> and update symlink
+# /boot/zImage-crash-current to point to that kernel.
+#
+# Note that we want this to be independent set so that we can build it from
+# the same source tree but start clean.
+#
+ifeq ($(ARCH),arm)
+CRASHKERNEL_PACKAGE := crashkernel
+CRASHKERNEL_DEFCONFIG := rm581_crashkernel_defconfig
+
+crashkernel-configure-stamp: source-stamp
+	# make sure that the tree is clean before doing anything
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) mrproper
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(EXTRAVERSION) $(CRASHKERNEL_DEFCONFIG)
+	touch $@
+
+crashkernel-stamp: crashkernel-configure-stamp
+	echo "compile $(PRODUCT) crashkernel"
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(NJOBS) $(EXTRAVERSION) zImage
+	touch $@
+
+install-crashkernel:
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	install -d -m 755 $(CURDIR)/debian/$(CRASHKERNEL_PACKAGE)/boot
+	install -m 644 $(KSRC)/arch/arm/boot/zImage \
+                $(CURDIR)/debian/$(CRASHKERNEL_PACKAGE)/boot/zImage-crash-$(KVER)
+
+	ln -sf zImage-crash-$(KVER) $(CURDIR)/debian/$(CRASHKERNEL_PACKAGE)/boot/zImage-crash-current
+
+binary-crashkernel: crashkernel-stamp install-crashkernel
+else
+binary-crashkernel:
+endif
+
+#
+# Debug kernel rules. This produces a kernel with a lot more debug options
+# enabled than the regular kernel.
+#
+# We place the kernel in /boot/zImage-d-<version>.
+#
+# Note that we want this to be independent set so that we can build it from
+# the same source tree but start clean.
+#
+ifeq ($(ARCH),arm)
+DEBUGKERNEL_PACKAGE := kernel-d
+DEBUGKERNEL_MODULES_PACKAGE := $(DEBUGKERNEL_PACKAGE)-modules
+DEBUGKERNEL_DEBUG_PACKAGE := $(DEBUGKERNEL_PACKAGE)-debug
+DEBUGKERNEL_DEBUG_MODULES_PACKAGE := $(DEBUGKERNEL_PACKAGE)-modules-debug
+DEBUGKERNEL_DEFCONFIG := rm581_debug_defconfig
+
+debugkernel-configure-stamp: source-stamp
+# make sure that the tree is clean before doing anything
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) mrproper
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(EXTRAVERSION) $(DEBUGKERNEL_DEFCONFIG)
+	touch $@
+
+debugkernel-stamp: debugkernel-configure-stamp
+	echo "compile $(PRODUCT) debugkernel"
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(NJOBS) $(EXTRAVERSION) zImage
+	touch $@
+
+debugkernel-modules-stamp: debugkernel-configure-stamp
+	echo "compile $(PRODUCT) debugkernel modules"
+	cd $(KSRC) && $(MAKE) ARCH=$(ARCH) $(NJOBS) $(EXTRAVERSION) modules
+	touch $@
+
+install-debugkernel:
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	install -d -m 755 $(CURDIR)/debian/$(DEBUGKERNEL_PACKAGE)/boot
+	install -m 644 $(KSRC)/arch/arm/boot/zImage \
+                $(CURDIR)/debian/$(DEBUGKERNEL_PACKAGE)/boot/zImage-d-$(KVER)
+
+install-debugkernel-debug: install-debugkernel-modules
+	install -d -m 755 $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)
+	install $(KSRC)/vmlinux \
+		$(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/usr/lib/debug/vmlinux-$(KVER)
+	chmod a-x $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/usr/lib/debug/vmlinux-*
+	mkdir -p $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/lib/modules/$(KVER)
+
+	for f in $$(find $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE) -name "*.ko"); do \
+		objcopy --only-keep-debug $$f $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)/$$(basename $$f); \
+		strip --remove-section=.comment --remove-section=.note --strip-unneeded  $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+		objcopy --add-gnu-debuglink $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_PACKAGE)/usr/lib/debug/lib/modules/$(KVER)/$$(basename $$f) $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+	done
+
+install-debugkernel-modules-debug: install-debugkernel-debug
+	install -d -m 755 $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_MODULES_PACKAGE)/lib/modules/$(KVER)
+	-for f in $(DEBUG_MODULES); do \
+		mv $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/$(KVER)/$$f  \
+		   $(CURDIR)/debian/$(DEBUGKERNEL_DEBUG_MODULES_PACKAGE)/lib/modules/$(KVER)/$$f; \
+	done
+
+install-debugkernel-modules:
+	dh_testdir
+	dh_testroot
+
+	mkdir -p $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/$(KVER)
+	for f in $$(find $(KSRC) -name "*.ko"); do \
+		install -c -m 644 $$f $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/$(KVER)/$$(basename $$f); \
+	done
+	ln -sf $(KVER) $(CURDIR)/debian/$(DEBUGKERNEL_MODULES_PACKAGE)/lib/modules/current
+
+binary-debugkernel: debugkernel-stamp debugkernel-modules-stamp install-debugkernel install-debugkernel-modules install-debugkernel-debug install-debugkernel-modules-debug
+else
+binary-debugkernel:
+endif
+
+
+ifeq ($(ARCH),arm)
+binary-arch: build-arch install-arch binary-crashkernel binary-debugkernel
+else
+binary-arch: install-libc-headers
+endif
+	sed -e 's,@VERSION@,$(KVER),g' \
+		< $(CURDIR)/debian/kernel-flasher.postinst.in \
+		> $(CURDIR)/debian/kernel-flasher.postinst
+	sed -e 's,@VERSION@,$(KVER),g' \
+		< $(CURDIR)/debian/ape-algo-pr.postinst.in \
+		> $(CURDIR)/debian/ape-algo-pr.postinst
+	cd $(CURDIR) && debian/generate_depmod_scripts
+	cd $(CURDIR) && cat debian/kernel-modules.postinst.in2 >> debian/kernel-modules.postinst
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -s
+	dh_installdocs -s
+ifeq ($(ARCH),arm)
+	dh_strip -p$(HEADERS_PACKAGE)
+endif
+	dh_compress -s
+	dh_fixperms -s --exclude /usr/src/kernel-headers
+	dh_installdeb -s
+	dh_shlibdeps -s
+	dh_gencontrol -s
+	dh_md5sums -s
+	dh_builddeb -s
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary-crashkernel binary-debugkernel binary install

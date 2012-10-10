@@ -1,0 +1,113 @@
+Source: kernel
+Section: utils
+Priority: optional
+Maintainer: Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>
+Build-Depends: debhelper (>= 4.0.0), fiasco-gen
+Build-Depends-Indep: bzip2, lzop
+Standards-Version: 3.8.0
+
+Package: kernel
+Architecture: armel
+Description: Flashable Linux kernel
+ This package provides a flashable kernel image
+
+Package: kernel-flasher
+Architecture: armel
+Pre-Depends: kernel (= ${binary:Version}), fiasco-flasher
+XB-Maemo-Flags: reboot-update
+Description: Linux kernel updater
+ This package will flash the kernel image upon installation
+ and eat kernel's files from /boot.
+
+Package: ape-algo-pr
+Architecture: armel
+Section: user/utils
+Depends: kernel (= ${binary:Version}), kernel-modules (= ${binary:Version}), ape-algo
+Description: APE flashing algorithm for product kernels
+ Package to build APE flashing algorithm for product configurations
+
+Package: kernel-headers
+Architecture: armel
+Depends: ${shlibs:Depends}
+Description: Linux kernel headers
+ This package provides kernel headers.
+
+Package: linux-kernel-headers
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Linux Kernel Headers for development
+ This package provides headers from the Linux kernel. These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+
+Package: kernel-modules
+Architecture: armel
+Depends: module-init-tools (>= 3.3)
+Description: Linux kernel modules
+ This package provides kernel modules
+
+Package: kernel-modules-test
+Architecture: armel
+Depends: kernel (= ${binary:Version}), kernel-modules (= ${binary:Version})
+Description: Linux kernel test modules
+ This package provides kernel test modules (modules, which have a string
+ 'text' in their name).
+
+Package: kernel-modules-debug
+Architecture: armel
+Depends: module-init-tools (>= 3.3)
+Description: Linux kernel modules for debugging
+ This package provides kernel modules needed for debugging and profiling
+
+Package: kernel-modules-extra
+Architecture: armel
+Depends: module-init-tools (>= 3.3)
+Description: Linux kernel modules
+ This package provides some extra kernel modules
+
+Package: kernel-debug
+Architecture: armel
+Description: Linux kernel debug symbols
+ This packages provides vmlinux file for the kernel and
+ kernel modules related to debugging.
+
+Package: kernel-source
+Architecture: all
+Section: devel
+Priority: optional
+Provides: kernel-source-2.6
+Recommends: libc6-dev | libc-dev, gcc, make, binutils, bzip2
+Description: Linux kernel sources for rx-51 product
+ This package provides the source code for the Linux kernel
+
+Package: crashkernel
+Architecture: armel
+Description: kdump capture kernel
+ This package provides kdump capture kernel which can be loaded into
+ running kernel. This kernel is used to collect kernel crashdump from
+ the crashed kernel.
+
+Package: kernel-d
+Architecture: armel
+Description: debug configuration kernel
+ This package provides a flashable kernel image compiled
+ with the debug configuration, enabling much more debug options
+ than the regular kernel.
+
+Package: kernel-d-modules
+Architecture: armel
+Depends: module-init-tools (>= 3.3)
+Description: Modules for the debug configuration kernel
+ This package provides modules for the debug configuration kernel
+
+Package: kernel-d-debug
+Architecture: armel
+Description: Debug symbols for for the debug configuration Linux kernel
+ This packages provides vmlinux file for the debug configuration kernel and
+ kernel modules.
+
+Package: kernel-d-modules-debug
+Architecture: armel
+Depends: module-init-tools (>= 3.3)
+Description: Linux kernel debug modules for the debug configuration kernel
+ This package provides debug configuration kernel needed for
+ debugging and profiling.

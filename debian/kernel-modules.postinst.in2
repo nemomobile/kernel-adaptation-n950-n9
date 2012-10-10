@@ -1,0 +1,14 @@
+
+MODULES_BACKUP_DIR=/lib/modules/backup
+if [ -d $MODULES_BACKUP_DIR ]; then
+	echo "Copying back old modules.";
+	# some files (hand-installed or from other module packages) may be present
+	# in the target directory, so not doing a directory rename
+	TARGET_DIR=/lib/modules/`uname -r`
+	if [ ! -d $TARGET_DIR ]; then
+		mkdir $TARGET_DIR
+	fi
+	mv -f $MODULES_BACKUP_DIR/* $TARGET_DIR/
+	rm -r $MODULES_BACKUP_DIR
+fi
+

@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -e
+
+# they say this is The Right Way (tm) to check for
+# scratchbox environment
+if [ -L /targets/links/scratchbox.config ]; then
+	# hehe
+	true
+else
+	if [ "$1" == "upgrade" ]; then
+		MODULES_BACKUP_DIR=/lib/modules/backup
+		if [ -d $MODULES_BACKUP_DIR ]; then
+			echo "Previously created modules backup directory is not cleaned up, doing it now.";
+			rm -f $MODULES_BACKUP_DIR/*;
+		else
+			mkdir $MODULES_BACKUP_DIR
+		fi
+		echo "Copying old modules to backup directory."
+		cp /lib/modules/`uname -r`/* $MODULES_BACKUP_DIR/
+	fi
+fi
+

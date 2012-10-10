@@ -1,0 +1,10 @@
+#!/bin/sh
+
+grep '^Package:' debian/control | # list all packages
+		fgrep module | # only for packages which contain modules
+		sed 's/.* //' | # leave only package names
+		(while read package; do
+			cp debian/modules.post.in debian/$package.postinst;
+			cp debian/modules.post.in debian/$package.postrm;
+		done) # run depmod in postinsts and postrms
+

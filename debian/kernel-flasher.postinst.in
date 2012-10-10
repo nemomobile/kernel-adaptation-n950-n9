@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -e
+
+KERNEL=/boot/zImage-@VERSION@
+KERNEL_FIASCO=/usr/share/osso/kernel-@VERSION@.fiasco
+
+# they say this is The Right Way (tm) to check for
+# scratchbox environment
+if [ -L /targets/links/scratchbox.config ]; then
+	# hehe
+	true
+else
+	if [ -f $KERNEL -a -x /usr/sbin/fiasco-flasher ]; then
+		rm -f /boot/zImage-@VERSION@
+		rm -f /boot/System.map-@VERSION@
+	fi
+	
+	if [ -f $KERNEL_FIASCO -a -x /usr/sbin/fiasco-flasher-stage ]; then
+		fiasco-flasher-stage $KERNEL_FIASCO
+	fi
+
+fi
+
+#DEBHELPER#
+

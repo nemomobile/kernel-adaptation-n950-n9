@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+cd /lib/modules
+
+ls -1d * | grep -v current | while read i; do
+   /sbin/depmod $i || :
+done
+
+#DEBHELPER#
+

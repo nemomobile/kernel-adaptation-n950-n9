@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# This scripts adds local version information from the debian/changelog.
+
+usage() {
+	echo "Usage: $0 [srctree]" >&2
+	exit 1
+}
+
+cd "${1:-.}" || usage
+
+dpkg-parsechangelog -l../../changelog | grep Version | sed 's/.*-/-/' | cut -b -9
+

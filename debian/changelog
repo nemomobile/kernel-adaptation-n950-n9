@@ -1,0 +1,4446 @@
+kernel (2.6.32-20112201+0m6) intrepid; urgency=low
+
+  * This entry has been added by BIFH queue processor
+    version has been changed to 2.6.32-20112201+0m6
+
+ -- BIFH Bot <sysint@maemo.research.nokia.com>  Mon, 30 May 2011 16:46:51 +0300
+
+kernel (2.6.32-20112201) intrepid; urgency=low
+
+  * prevent mcspi deadlocking while OPP level is changed during a transaction
+  * Fixes: NB#255722 - [SSU-Dali]-Device is freezed while downloading the s/w
+    package for SSU
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 30 May 2011 16:46:50 +0300
+
+kernel (2.6.32-20112107) intrepid; urgency=low
+
+  * Fixes: NB#259584 - The origin check still checks the groups/tokens
+    always against the current credentials
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 27 May 2011 16:43:25 +0300
+
+kernel (2.6.32-20112106) intrepid; urgency=low
+
+  * dspbridge policy fixes
+  * Fixes: NB#257623 - Send signal on preemption to all restricted tasks
+  * Fixes: NB#257022 - dsp enforcement point: task_struct reference may
+    be unreliable
+
+  * Fixes: NB#257960 - Strace attaching to process (Gallery) has been
+    disabled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 27 May 2011 09:35:15 +0300
+
+kernel (2.6.32-20112105) intrepid; urgency=low
+
+  * Fixes: NB#160892 - timed needs a notification when system time
+    changes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 26 May 2011 14:05:52 +0300
+
+kernel (2.6.32-20112104) intrepid; urgency=low
+
+  * Fixes: NB#256422 - Print messages about processes writing to the
+    mmcblk0 MBR
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 26 May 2011 09:11:22 +0300
+
+kernel (2.6.32-20112103) intrepid; urgency=low
+
+  * Fixes: NB#254225 - oops at pvrsrvkm's PollForValueKM common in
+    coreweb
+  * Fixes: NB#233069 - [TASK] Find & fix all incorrect sync counter
+    completion checks
+
+  * g_ether: add ECM configuration back
+  * MTP fix to make it working with XP and new interface
+  * Fixes: NB#258542 - ECM configuration required back on the device.
+  * Fixes: NB#251328 - Make Windows XP with NCCD detect MTP interface
+  * Fixes: NB#248181 - Fix Music tranfer problems with Windows XP &
+    WMP11
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 25 May 2011 09:31:51 +0300
+
+kernel (2.6.32-20112102) intrepid; urgency=low
+
+  * Fixes: NB#256565 - Double tap to wake screen does not work after
+    device goes to sleep
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 24 May 2011 10:16:49 +0300
+
+kernel (2.6.32-20112101) intrepid; urgency=low
+
+  * Fixes: NB#257659 - kernel does not recognize the official RM-696
+    machine id
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 23 May 2011 12:05:37 +0300
+
+kernel (2.6.32-20112009) intrepid; urgency=low
+
+  * More robust button handling in carkit
+  * Fixes: NB#252218 - Fix for nonfunctional basic analog one-button
+    headset button detection
+
+  * Fixes: NB#257136 - Oops in omap_sham_finish_req
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 20 May 2011 16:21:59 +0300
+
+kernel (2.6.32-20112008) intrepid; urgency=low
+
+  * Fixes: NB#255515 - Kernel panic obeserved at wake_dsp in
+    bridgedriver
+
+  * Fixes: NB#242983 - Joiku kernel module integration
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 20 May 2011 11:35:19 +0300
+
+kernel (2.6.32-20112007) intrepid; urgency=low
+
+  * Fixes: NB#255894 - SSU failed because of Validator errors
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 19 May 2011 15:01:47 +0300
+
+kernel (2.6.32-20112004) intrepid; urgency=low
+
+  * add guest entrance policy control
+  * Fixes: NB#251637 - add guest entrance policy control
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 18 May 2011 10:45:33 +0300
+
+kernel (2.6.32-20112003) intrepid; urgency=low
+
+  * Fixes: NB#204935 - Attaching to another process with ptrace must be
+    restricted
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 17 May 2011 14:10:22 +0300
+
+kernel (2.6.32-20111905) intrepid; urgency=low
+
+  * Fixes: NB#250802 - Device reboots randomly after call is
+    disconnected via BT headset
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 12 May 2011 09:34:02 +0300
+
+kernel (2.6.32-20111904) intrepid; urgency=low
+
+  * Fixes: NB#251891 - vibra improvement to prevent selftest failure
+  * Fixes: NB#252192 - inconsistent lock state removed in vibra
+  * Fixes: NB#238764 - dummy input events from ECI headset removed
+  * Fixes: NB#242393 - improvement of open accessory cable redetection
+
+  * Fixes: NB#252400 - If 'double tap to unlock screen' is on and device
+    has been in the pocket for a while apps start continuously receiving
+    touch events
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 11 May 2011 09:49:39 +0300
+
+kernel (2.6.32-20111903) intrepid; urgency=low
+
+  * Fixes: NB#251554 - Application is unable get requested credential
+    after security policy update
+  * Fixes: NB#240690 - It should not be possible to define static group
+    that collides with resource token
+
+  * Fixes: NB#240416 - OOM killing is not optimal
+
+  * Fixes: NB#251742 - Don't read past the current buffer end with TV
+    out
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 10 May 2011 14:32:28 +0300
+
+kernel (2.6.32-20111902) intrepid; urgency=low
+
+  * windows hack removed
+  * tune g_ether for Nokia purposes
+  * Fixes: NB#252809 - g_ether does not use user provided SerialNumber
+    parameter
+  * Fixes: NB#251241 - [FEA] [TASK] Remove Windows hack from USB Mass
+    storage and Ovi-suite (sync&Connect) modes
+
+  * Fixes: NB#252709 - Possible buffer overflow in wl1271 driver SSID
+    handling
+  * Fixes: NB#244470 - Kernel crash when loading ti1273.bin
+
+  * Fixes: NB#251660 - unhandled fault (kernel panic, omap_hsmmc)
+
+  * Fixes: NB#250585 - UBIFS should be compiled in into the Kernel
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 10 May 2011 12:12:14 +0300
+
+kernel (2.6.32-20111805) intrepid; urgency=low
+
+  * Adopt MTP driver to current usb configuration
+  * Adopt f_mass_storage to current usb configuration
+  * Enable autoclear workaround only when needed
+  * g_nokia release descriptors in unbind
+  * Fixes: NB#247752 - Make Music sync work with Media player & Windows
+    7
+  * Fixes: NB#247875 - Pass USBCV MSC (Mass Storage Class) Tests in Ovi-
+    suite mode
+  * Fixes: NB#249414 - g_nokia leaks memory
+  * Fixes: NB#245138 - AUTOCLEAR workaround is enabled for usecases,
+    where it's not needed
+
+  * Fixes: NB#250155 - bridgedriver oopsing in gh_find
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 05 May 2011 14:39:03 +0300
+
+kernel (2.6.32-20111804) intrepid; urgency=low
+
+  * Fixes: NB#224407 - NULL pointer Oops in ramzswap
+
+  * Fixes: NB#250448 - merge kernel fixes from v2.6.32.3[789]
+
+  * camera: Fix crop offset in memory-to-memory resizer operations
+  * Fixes: NB#240012 - Fix front camera module identification with TA
+    image
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 05 May 2011 09:55:35 +0300
+
+kernel (2.6.32-20111803) intrepid; urgency=low
+
+  * Fixes: NB#227799 - Bound mount points propagation
+
+  * Fixes: NB#232950 - Device doesn't boot and corrupts memory
+  * Fixes: NB#250912 - Remove PlayReady filesystem support from
+    Validator
+  * Fixes: NB#250914 - Remove also kernel hashlist entries when file is
+    removed
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 04 May 2011 10:35:37 +0300
+
+kernel (2.6.32-20111802) intrepid; urgency=low
+
+  * Fixes: NB#247207 - DSS LPM consumes too much power
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 03 May 2011 14:33:54 +0300
+
+kernel (2.6.32-20111801) intrepid; urgency=low
+
+  * Fixes: NB#251051 - "pdata->slots[0].gpio_wp" was passed to a
+    negative sink in omap_hsmmc_gpio_init()
+
+  * Fixes: NB#251229 - Reboot got stuck on 17-4 with Lankku B3
+  * Fixes: NB#250419 - Add support for eMMC hardware reset
+
+  * Fixes: NB#251136 - PVR: fix IOCTL command ID range checking
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 03 May 2011 12:02:52 +0300
+
+kernel (2.6.32-20111706) intrepid; urgency=low
+
+  * Fixes: NB#250920 - oops in omap_hsmmc_dma_cb
+
+  * unsupported accessory detection
+  * rm696 vibra time stamps ignored
+  * als/proximity support for F1.5 hw
+  * Fixes: NB#244783 - [FEA] Detection between NHJ and AHJ plugs
+  * Fixes: NB#250185 - Proxy/ALS parameters are wrong F1.5 onwards
+  * Fixes: NB#246623 - TOAST on TA: Charge: Failed to connect to BME
+  * Fixes: NB#237242 - SisuX drive signal has gaps
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 29 Apr 2011 13:39:45 +0300
+
+kernel (2.6.32-20111705) intrepid; urgency=low
+
+  * workaround for proper mtd ecclayout handling by swap
+  * Fixes: NB#243101 - Onenand reporting lots of bad blocks during
+    secure erase
+
+  * Fixes: NB#220293 - Throughput during USB multiple binary files
+    download to eMMC in Mass storage mode is less than the target value
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 28 Apr 2011 10:36:10 +0300
+
+kernel (2.6.32-20111704) intrepid; urgency=low
+
+  * Fixes: NB#226792 - I2c bus is exposed as a device node to user
+    space, access must be limited
+
+  * Fixes: NB#250419 - Add support for eMMC hardware reset
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 27 Apr 2011 15:30:00 +0300
+
+kernel (2.6.32-20111703) intrepid; urgency=low
+
+  * Fixes: NB#232331 - Long sleep timeout in EMMC is causing consumption
+    increase on periodic EMMC accesses
+
+  * Fixes: NB#241996 - Don't touch TVOUT_EN gpio from board code
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 27 Apr 2011 09:52:50 +0300
+
+kernel (2.6.32-20111702) intrepid; urgency=low
+
+  * Fixes: NB#198231 - validator overhead is too big
+
+  * Fixes: NB#248697 - ubifs oopes if it is R/O and fsync() is called
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 26 Apr 2011 15:12:01 +0300
+
+kernel (2.6.32-20111701) intrepid; urgency=low
+
+  * Fixes: NB#226217 - Synchronize sco disconnection
+
+  * Fixes: NB#247418 - PVR kernel driver IOCTL IDs depend on build
+    configuration
+  * Fixes: NB#248492 - PVR kernel build failure with CONFIG_BUG=n
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 26 Apr 2011 09:34:05 +0300
+
+kernel (2.6.32-20111604) intrepid; urgency=low
+
+  * Fixes: NB#245107 - Disable secure trim feature for Hynix eMMC
+    temporarily
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 20 Apr 2011 15:22:37 +0300
+
+kernel (2.6.32-20111603) intrepid; urgency=low
+
+  * camera: Correctly initialize media_entity in as3645a and ad58xx
+  * Fixes: NB#244753 - Don't crash when userspace submits an invalid
+    buffer
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 20 Apr 2011 08:33:19 +0300
+
+kernel (2.6.32-20111602) intrepid; urgency=low
+
+  * Fixes: NB#245525 - Return value of pvr_put_ctx is not checked
+
+  * Fixes: NB#239364 - Fix small partial updates when CPR is enabled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 18 Apr 2011 12:49:10 +0300
+
+kernel (2.6.32-20111601) intrepid; urgency=low
+
+  * Fixes: NB#246196 - L3 capture of L2 injected packets corrupt
+
+  * dspbridge fixes
+  * Fixes: NB#240472 - dsp-bridge doesn't reload correctly under some
+    circumstances
+  * Fixes: NB#235852 - Kernel panic obeserved at sm_interrupt_dsp in
+    bridgedriver
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 18 Apr 2011 09:40:01 +0300
+
+kernel (2.6.32-20111506) intrepid; urgency=low
+
+  * Fixes: NB#244962 - merge kernel fixes from v2.6.32.3[456]
+
+  * Fixes: NB#246139 - WLAN PLT mode failing when ad-hoc is disabled
+  * Fixes: NB#244646 - Warning wl12xx during adhoc scanning
+  * Fixes: NB#245502 - recent wl12xxx commits break the kernel for older
+    devices
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 14 Apr 2011 10:01:16 +0300
+
+kernel (2.6.32-20111505) intrepid; urgency=low
+
+  * Fixes: NB#238426 - scheduler problems with sched_clock() wrapping
+
+  * tlv320dac33: Lower OSC calibration time
+  * Fixes: NB#245960 - Reduce OSC calibration time on DAC33 path
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 13 Apr 2011 14:16:14 +0300
+
+kernel (2.6.32-20111504) intrepid; urgency=low
+
+  * Fixes: NB#230231 - Fix display tearing on exiting ULPS
+  * Fixes: NB#232999 - Limit display power-on workaround to affected
+    panels
+  * Fixes: NB#235434 - Use even offsets and widths at max video upscale
+    ratio
+
+  * Fixes: NB#240463 - PM BAT tests failed sometimes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 13 Apr 2011 11:36:03 +0300
+
+kernel (2.6.32-20111503) intrepid; urgency=low
+
+  * ISP: rename driver directory from isp to omap3isp
+  * Media Controller: Properly handle link flags
+  * Fixes: NB#234464 - FORWARD_NULL error in file
+    /drivers/media/video/ad58xx.c
+  * Fixes: NB#237271 - SMIAPP: Avoid hitting BUG_ON when control init
+    fails
+  * Fixes: NB#237052 - SMIAPP: Division by zero in kernel
+  * Fixes: NB#241503 - Flash: Torch light does not lit in the first try
+
+  * Fixes: NB#242471 - Pressing power button in the middle of a pinch
+    animation halts the device
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 12 Apr 2011 10:59:24 +0300
+
+kernel (2.6.32-20111502) intrepid; urgency=low
+
+  * Fixed locking problem with SRF and resource update
+  * Fixed SRF to dump device names properly from debugfs
+  * Fixes: NB#230026 - CPU does not sleep anymore
+
+  * Usb CD-ROM emulation feature.
+  * Fixes: NB#243113 - Successfully enumerate on USB3.0 host on Windows
+  * Fixes: NB#240455 - [TASK] [FEA] CD-ROM emulation must be supported
+    in Ovi-Suite USB mode
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 11 Apr 2011 13:41:12 +0300
+
+kernel (2.6.32-20111501) intrepid; urgency=low
+
+  * Fixes: NB#230047 - CONFIG_IPV6_PRIVACY is not enabled.
+
+  * Fixes: NB#234360 - Bootup issue on RX-71 EMU boards
+
+  * omap-sham: remove debug print
+  * omap-sham: enable driver for EMU chips
+  * omap-sham - don't treat NULL clk as an error
+  * Fixes: NB#242325 - HMAC implementation is broken in omap-sham
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 11 Apr 2011 10:26:44 +0300
+
+kernel (2.6.32-20111407) intrepid; urgency=low
+
+  * Fixes: NB#243638 - Kprobes should be disabled in production kernel
+
+  * PVR: add support for GPU command tracing
+  * Fixes: NB#233048 - PVR: expose cmd sync counters with timestamps via
+    debugfs
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 08 Apr 2011 12:07:48 +0300
+
+kernel (2.6.32-20111406) intrepid; urgency=low
+
+  * Fixes: NB#198898 - METABUG: Get rid of /proc/component_version and
+    bootreason
+  * Fixes: NB#236269 - Finally turn off /proc/component_version and
+    bootreason
+
+  * Fixes: NB#240936 - Support initial framebuffer virtual resolution
+
+  * Fixes: NB#243617 - shrink kernel size by 45KiB by disabling quota
+    support
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 08 Apr 2011 09:26:08 +0300
+
+kernel (2.6.32-20111405) intrepid; urgency=low
+
+  * Fixes: NB#233845 - Simultaneous A2DP connection from headset and
+    phone crashes device
+  * Fixes: NB#241285 - Device auto rebooted while turning on and off the
+    internet connection
+  * Fixes: NB#242806 - Potential buffer-overflow bug in NVS file
+    processing
+
+  * NFC speed improved
+  * RM-696 vibra amplifier control is less aggressive
+  * Old type headset interrupt storm corrected
+  * Fixes: NB#234918 - Vibra's amplifier is switched off aggressively
+  * Fixes: NB#236991 - Delay in I2C operations reduces NFC bandwidth
+  * Fixes: NB#237316 - Device Reboots with unsupported headset
+
+  * Fixes: NB#242222 - Remove DSS rotation hacks
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 07 Apr 2011 09:26:19 +0300
+
+kernel (2.6.32-20111404) intrepid; urgency=low
+
+  * Fixes: NB#242718 - Save 70KiB of kernel size
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 06 Apr 2011 09:32:05 +0300
+
+kernel (2.6.32-20111403) intrepid; urgency=low
+
+  * PVR coverity fixes
+  * Fixes: NB#241787 - missing check of return value of OSReservePhys()
+
+  * Fixes: NB#225197 - [TASK] It must not be possible to set resource
+    token values into GID or add them to supplementary groups by
+    setgroups
+  * Fixes: NB#240690 - It should not be possible to define static group
+    that collides with resource token
+
+  * Fixes: NB#234699 - Fixes race condition on sec_write.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 05 Apr 2011 09:54:49 +0300
+
+kernel (2.6.32-20111402) intrepid; urgency=low
+
+  * Fixes: NB#237022 - DVFS doesn't raise the CPU clock immediately when
+    the device rotates
+
+  * Fixes: NB#240340 - during downloading of packages ,kernel panic
+    happened and device rebooted
+  * Fixes: NB#240329 - WLAN data transfer stalls off and on with
+    WPA2/AES - recovery fails
+  * Fixes: NB#239746 - Backporting from 2.6.38 TCP throughput increase
+    patch
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 04 Apr 2011 13:53:55 +0300
+
+kernel (2.6.32-20111401) intrepid; urgency=low
+
+  * Enable g_ether
+  * Fixes: NB#239767 - g_ether module missing in kernel-modules package
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 04 Apr 2011 11:52:37 +0300
+
+kernel (2.6.32-20111306) intrepid; urgency=low
+
+  * Fixes: NB#238314 - backporting of latest upstream ubifs is required
+
+  * Don't report coordinate data on double tap wakeup
+  * Fixes: NB#240608 - Double tap leaks one tap through tklock during
+    call
+
+  * Fixes: NB#239965 - ramzswap taints the kernel
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 31 Mar 2011 09:47:27 +0300
+
+kernel (2.6.32-20111305) intrepid; urgency=low
+
+  * Fixes: NB#235722 - Fix playback of very small videos
+
+  * Fixes: NB#224378 - Remove the trustzone call to check sram dirty on
+    every idle cycle
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 30 Mar 2011 09:36:27 +0300
+
+kernel (2.6.32-20111304) intrepid; urgency=low
+
+  * Hack: leave files from the older kernel-modules package in the system
+    after the upgrades.
+  * Fixes: NB#235749 - [SSU] Cannot load old CMT modules
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 29 Mar 2011 13:46:43 +0300
+
+kernel (2.6.32-20111303) intrepid; urgency=low
+
+  * Fixes: NB#161871 - hardcoded lpj value should be used
+
+  * Make 100Hz accelerometer sampling rate possible
+  * Fixes: NB#234880 - Accelerometer driver should support native
+    sampling freq of the chip
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 29 Mar 2011 09:17:40 +0300
+
+kernel (2.6.32-20111302) intrepid; urgency=low
+
+  * Fixes: NB#238788 - During BT A2DP stream WLAN passive scan
+    performance is poor
+  * Fixes: NB#233261 - Reset when enabling / disabling internet
+    connection
+  * Fixes: NB#238838 - WLAN uses wrong TID to setup 11n BA session for
+    non-besteffort queues
+
+  * Fixes: NB#239245 - Headset/lineout phone call audio level very low
+
+  * Fixes: NB#236519 - merge kernel fixes from v2.6.32.33
+  * Fixes: NB#238059 - cherry-pick upstream commits related to
+    /proc/pid/smaps
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 28 Mar 2011 13:19:22 +0300
+
+kernel (2.6.32-20111301) intrepid; urgency=low
+
+  * Fixes: NB#233036 - PVR support for various debugging/recovery
+    logging features
+
+  * Fixes: NB#237982 - W/A for OMAP3 erratum i671
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 28 Mar 2011 10:35:08 +0300
+
+kernel (2.6.32-20111204) intrepid; urgency=low
+
+  * Fixes: NB#232972 - kernel panic @ cgroup_attach_task
+
+  * Fixes: NB#238314 - backporting of latest upstream ubifs is required
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 24 Mar 2011 15:33:02 +0200
+
+kernel (2.6.32-20111203) intrepid; urgency=low
+
+  * Fixes: NB#237110 - Kernel support for disabling WLAN adhoc on
+    runtime
+  * Fixes: NB#236226 - ERROR sdio write failed (-110) no HW recovery
+
+  * Implement wakeup gesture support for atmel_mxt touchscreen
+  * Fixes: NB#233000 - [TASK] Double tap wake-up
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 23 Mar 2011 09:22:40 +0200
+
+kernel (2.6.32-20111202) intrepid; urgency=low
+
+  * Fixes: NB#232951 - page allocation failure in mtd_read
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 22 Mar 2011 10:36:40 +0200
+
+kernel (2.6.32-20111201) intrepid; urgency=low
+
+  * Fixes: NB#236774 - SECURE_NO_SETUID_FIXUP bit should not be set for
+    aegis mode
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 21 Mar 2011 14:07:08 +0200
+
+kernel (2.6.32-20111106) intrepid; urgency=low
+
+  * Accessory detection robustness corrections
+  * Fixes: NB#236329 - ECI headset gets detected as AV-cable
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 18 Mar 2011 10:11:29 +0200
+
+kernel (2.6.32-20111105) intrepid; urgency=low
+
+  * Fixes: NB#233667 - Dereferencing possibly NULL pointer in sgxinit.c
+
+  * DAC33 audio path: Retention support
+  * Multi card pop removal
+  * dac33: fallback to FIFO bypass mode
+  * Fixes: NB#233781 - Retention support for the DAC33 card
+  * Fixes: NB#234237 - Cross card pop removal
+  * Implemented: AdpPr-930
+  * Implemented: AdpPr-742
+
+  * Guarantee that the first ALS read never blocks
+  * Fixes: NB#234798 - COREWEB: /sbin/mce 'read mce_read_chunk_from_file
+    als_read_value_filtered g_module_check_init g_module_open'
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 17 Mar 2011 09:34:29 +0200
+
+kernel (2.6.32-20111104) intrepid; urgency=low
+
+  * Fixes: NB#213244 - APE-CMT communication broken after cold rebooting
+    the CMT
+
+  * Fixes: NB#229223 - WLAN .11n block acks for Lankku
+  * Fixes: NB#233194 - While sharing the video to you tube, WLAN to 3G
+    and 3G to WLAN problems
+
+  * Fixes: NB#211569 - select() is performing badly
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 16 Mar 2011 12:42:20 +0200
+
+kernel (2.6.32-20111103) intrepid; urgency=low
+
+  * Provide service of getting peer credentials to user space
+  * Fixes: NB#198287 - Is there a more secure alternative to
+    creds_getpeer() ?
+
+  * Fixes: NB#233221 - Provide proper madc testing interface
+
+  * Fixes: NB#228020 - Security threat: dev/kmem and /dev/mem
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 15 Mar 2011 13:47:27 +0200
+
+kernel (2.6.32-20111102) intrepid; urgency=low
+
+  * Fixes: NB#233791 - phonet GID / CAP_SYS_ADMIN to root exploit
+
+  * Fixes: NB#234013 - merge kernel fixes from v2.6.32.32
+  * Fixes: NB#232923 - merge kernel fixes from v2.6.32.{30,31}
+
+  * Fixes: NB#230231 - suppress display slow update warnings
+  * Fixes: NB#231261 - disable ESD check in display low power mode
+
+  * fix test case-triggered bug blocking integration
+  * Fixes: NB#234249 - phonet-tests times out
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 15 Mar 2011 09:43:59 +0200
+
+kernel (2.6.32-20111101) intrepid; urgency=low
+
+  * Fixes: NB#229877 - UI freezes after short period of use
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 14 Mar 2011 11:50:03 +0200
+
+kernel (2.6.32-20111005) intrepid; urgency=low
+
+  * Fixes: NB#231954 - processes without heap in /proc/<pid>/{maps,smaps}
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 11 Mar 2011 14:11:03 +0200
+
+kernel (2.6.32-20111004) intrepid; urgency=low
+
+  * Added resource framework dump under PM debugfs
+  * Added pm_qos dump under PM debugfs
+  * Fixed a potentially failing corner case with PM optimizer
+
+  * I2C delayed clock control
+  * Fixes: NB#222160 - i2c bus goes to idle after every transfer even if
+    most transfer are consecutive
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 10 Mar 2011 11:02:45 +0200
+
+kernel (2.6.32-20111003) intrepid; urgency=low
+
+  * Fixes: NB#222560 - syslog parser leaves incorrect impression onenand
+    issues are FAT problems
+  * disable onenand unlocking when initialized
+
+  * Headset detection optimizations
+  * Headset detection traces
+  * Fixes: NB#220903 - Response time for audio routing to wired headset
+
+  * Accelerometer robustness corrections
+  * Fixes: NB#225712 - Accelerometer may end up to non-functional state
+  * Fixes: NB#220908 - Accelerometer PM contex save is unreliable and
+    unoptimal
+
+  * Generate postinsts and postrms to run depmod for all module packages.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 09 Mar 2011 16:51:06 +0200
+
+kernel (2.6.32-20111002) intrepid; urgency=low
+
+  * Several SW workarounds for HW bugs
+  * Moving data for DMA alignment hack back
+  * Fixes: NB#226209 - USB throughput is two times lower in Ovi suite
+    mode
+  * Fixes: NB#225044 - Fix unreliable register accesses by not using
+    MUSB AUTOCLEAR
+  * Fixes: NB#224933 - Fix race condition that caused spurious MUSB DMA
+    interrupts
+  * Fixes: NB#224987 - Prevent MUSB TX jam by changes in TX DMA usage
+
+  * Add camera support for RX-71 M4.1
+  * Fix incorrect implementation on ad58xx lens driver
+  * Rotate secondary camera sensor by 180 dergrees
+  * ISP: preview: Fix defect correct config function
+  * SMIAPP: Fix support for newer Lada Toshiba revisions
+  * SMIAPP: drop frame skipping for Lada Toshiba CS1.0
+  * Fixes: NB#226988 - smiapp 2-0037: i2c transfer error in libqcamera-
+    tests
+  * Fixes: NB#232763 - Camera not responding banner on camera-ui launch
+  * Fixes: NB#222140 - Set current resizer sink pad's crop leads to
+    smaller value
+  * Fixes: NB#214666 - Camera lens is returned too hard back to home
+    position
+  * Fixes: NB#224034 - camera memory leaks reported by kmemleak
+  * Fixes: NB#224014 - bad colour of pictures and videos from secondary
+    camera
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 08 Mar 2011 09:17:27 +0200
+
+kernel (2.6.32-20111001) intrepid; urgency=low
+
+  * Fixes: NB#221869 - please disable RD certificate check for non-HS
+    devices
+  * Fixes: NB#227003 - RX-71 Hardware is not booting up anymore
+
+  * Make ape-algo depend on exact versions of kernel and kernel-modules.
+  * Fixes: NB#232084 - [DE444]:flashing FIASCO with new kernels fails now
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 07 Mar 2011 10:27:17 +0200
+
+kernel (2.6.32-20110903) intrepid; urgency=low
+
+  * Fixes: NB#224922 - extra ttyS serial terminal line devicenodes may
+    be created in vain
+
+  * Fixes: NB#220311 - Smart reflex requires margin to be added for
+    RM680
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 04 Mar 2011 12:29:59 +0200
+
+kernel (2.6.32-20110902) intrepid; urgency=low
+
+  * Removes option to compile credp as a module
+  * Make origin check during execve against the new prepared credentials
+  * Fixes: NB#213011 - [qa-14126] Application can not be launched from
+    application grid
+
+  * Fix LOCKDEP issoe in mmc code (found by Alexander Shishkin)
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 02 Mar 2011 12:08:19 +0200
+
+kernel (2.6.32-20110901) intrepid; urgency=low
+
+  * MTP: Limit the number of queued INT transfers
+  * file_storage: Handle START/STOP UNIT command
+  * file_storage: Use module parameters in DO_INQUIRY data
+  * Fixes: NB#228858 - Make "Eject drive" behave correctly.
+  * Fixes: NB#223948 - Prevent reboot when huge number of files are
+    copied via scp
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 28 Feb 2011 11:32:35 +0200
+
+kernel (2.6.32-20110805) intrepid; urgency=low
+
+  * Fixes: NB#229704 - tbench case 210002 causes i/o error on mmcblk0
+
+  * Enabled autoidle for gp timers to save some power
+  * Fixes: NB#217440 - Device hangs if watchdog is not fed
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 24 Feb 2011 15:02:45 +0200
+
+kernel (2.6.32-20110804) intrepid; urgency=low
+
+  * Fixes: NB#229125 - Enable display ESD check on RM-696
+
+  * Fixes: NB#228588 - WLAN scan interferes with VOIP and data traffic
+  * Fixes: NB#229426 - Comparing unsigned to less than zero in
+    drivers/net/wireless/wl12xx/init.c
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 24 Feb 2011 09:39:25 +0200
+
+kernel (2.6.32-20110803) intrepid; urgency=low
+
+  * Fixes: NB#219336 - prevent retention while vibra is on
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 22 Feb 2011 14:09:07 +0200
+
+kernel (2.6.32-20110802) intrepid; urgency=low
+
+  * Fixes: NB#212930 - Vertical line displayed at the center of the
+    viewfinder
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 22 Feb 2011 11:09:57 +0200
+
+kernel (2.6.32-20110801) intrepid; urgency=low
+
+  * Fixes: NB#228634 - merge kernel fixes from v2.6.32.29
+
+  * Fixes: NB#221429 - Use proper timer for hci commands
+  * Fixes: NB#227531 - WLAN can't associate on ht-only AP's
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 21 Feb 2011 12:15:07 +0200
+
+kernel (2.6.32-20110704) intrepid; urgency=low
+
+  * Fix harmful behaviour from dmesg in interactive shell caused by DSP
+    bridge
+  * Fixes: NB#209248 - DSP bridge causing harmful behaviour from dmesg
+
+  * Remove potential race
+  * Workaround spurious IRQ problem
+  * Fixes: NB#224955 - Fix potential race condition in MUSB TX endpoints
+  * Fixes: NB#199157 - USB should not generate spurious interrupts.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 18 Feb 2011 14:43:22 +0200
+
+kernel (2.6.32-20110703) intrepid; urgency=low
+
+  * Fixes: NB#216686 - linux-dali should provide memblock allocator for
+    drivers
+  * Fixes: NB#216607 - bridgedriver is doing ioremap() on system RAM
+  * Fixes: NB#216600 - omapfb is doing ioremap() on system RAM
+  * Fixes: NB#195588 - ARM WA REQ: 728018
+
+  * Fixes: NB#196795 - eMMC CLK frequency too high in VDD2 OPP50 mode
+  * Fixes: NB#218841 - WLAN sdio: initialization takes too long
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 17 Feb 2011 16:48:49 +0200
+
+kernel (2.6.32-20110702) intrepid; urgency=low
+
+  * PVR: support for dumping SGX shaders during HW recovery
+
+  * World writable led control permissions corrected
+  * Fixes: NB#217708 - RX-71:1029 headset doesn't work
+  * Fixes: NB#225676 - lp552x sysfs attribute permissions
+
+  * Fixes: NB#224204 - Don't flush the CPU cache when using framebuffer
+    memory
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 17 Feb 2011 09:36:01 +0200
+
+kernel (2.6.32-20110701) intrepid; urgency=low
+
+  * Fixes: NB#222466 - Lankku Display DSI HS clock frequency too high
+  * Fixes: NB#214153 - Workaround for SMD Pyrenees HBM tearing due to
+    ACL FPS drop
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 14 Feb 2011 10:58:19 +0200
+
+kernel (2.6.32-20110606) intrepid; urgency=low
+
+  * Fixes: NB#226520 - WLAN ad-hoc mode to be reverted back to
+    Dali/Harmattan
+
+  * Allow policies for non-executables
+  * Confine operations use policy as specified by the caller
+  * Fixes: NB#225053 - libraries need to be able to have credentials
+  * Fixes: NB#225189 - The creds_confine* must not use the mode of the
+    found policy
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 11 Feb 2011 15:11:14 +0200
+
+kernel (2.6.32-20110605) intrepid; urgency=low
+
+  * Initial version of PM optimizer
+  * Fixes: NB#215269 - DVFS operating point is wrong during user
+    interaction
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 10 Feb 2011 09:17:01 +0200
+
+kernel (2.6.32-20110604) intrepid; urgency=low
+
+  * Fixes: NB#225791 - OneNAND timing: ensure that there is at least one
+    clock cycle between AVD high to OE low
+  * Fixes: NB#222107 - Create package for kernel test modules
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 08 Feb 2011 16:11:35 +0200
+
+kernel (2.6.32-20110603) intrepid; urgency=low
+
+  * Fixes: NB#221135 - kernel version string is misleading
+
+  * scripts/setlocalversion: return kernel build number.
+
+  * Fixed Direct I/O patches
+  * twl5031-bcc: ignore DCD failure
+  * Fixes: NB#213781 - g_nokia not reloaded when PC resumes from
+    hibernation
+  * Fixes: NB#200618 - Drive on Windows host appears empty after failed
+    file write
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 08 Feb 2011 11:54:44 +0200
+
+kernel (2.6.32-20110602) intrepid; urgency=low
+
+  * Fixes: NB#207969 - Power consumption is high in Idle, WLAN
+  * Fixes: NB#223089 - Power save stays off when changing mode from
+    adhoc to managed
+  * Fixes: NB#224624 - Disable Wireless LAN ad-hoc mode from Kernel
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 08 Feb 2011 09:18:57 +0200
+
+kernel (2.6.32-20110601) intrepid; urgency=low
+
+  * Mtdswap: Recover the initial performance after memory is freed
+  * Mtdswap: Speed up mtdswap up to 10 times
+  * mtdswap: Print the percentage of bad blocks in initialization
+  * mtdswap: Add bad block count to debugfs entry
+  * Fixes: NB#207097 - Mtdswap read error seen in OOM killer syslog
+  * Fixes: NB#205816 - Mtdswap write error handling
+  * Fixes: NB#210362 - Mtdswap oops caused by write error while garbage
+    collecting
+
+  * Fixes: NB#174749 - Static leak over APE_VDDS_SIM shunt resistor is
+    too high
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 07 Feb 2011 11:35:54 +0200
+
+kernel (2.6.32-20110506) intrepid; urgency=low
+
+  * Fixes: NB#173925 - [TASK] startup services need API/interface to
+    enter MALF in case of security problem
+  * Fixes: NB#209599 - Kernel NULL pointer deference
+
+  * Old one button headset ghost keypress correction
+  * Fixes: NB#220215 - Unplugging headset disconnects ongoing phone call
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 04 Feb 2011 09:20:49 +0200
+
+kernel (2.6.32-20110505) intrepid; urgency=low
+
+  * Fixes: NB#198422 - Display does not work during cold flashing
+  * Fixes: NB#207228 - Display backlight is switched on during flat
+    battery boot-up
+  * Fixes: NB#219317 - DSS powerdomain is always on while display is
+    enabled
+  * Fixes: NB#222466 - Lankku Display DSI HS clock frequency too high
+  * Drop display support for obsolete devices with broken panels
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 03 Feb 2011 11:55:46 +0200
+
+kernel (2.6.32-20110504) intrepid; urgency=low
+
+  * Fixes: NB#216922 - Sync with latest HSI upstreaming efforts
+  * Fixes: NB#209021 - Increase battery life during calls
+
+  * More reliable context save for accelerometer PM
+  * Fixes: NB#220908 - Accelerometer PM contex save is unreliable and
+    unoptimal
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 01 Feb 2011 15:42:57 +0200
+
+kernel (2.6.32-20110503) intrepid; urgency=low
+
+  * Fixes: NB#204156 - NAND memory timings fail (104MHz)
+  * Fixes: NB#218079 - OneNAND multi-block erase not supported
+  * Fixes: NB#219704 - COREWEB: SIGBUS errors on RM-696
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 01 Feb 2011 09:42:11 +0200
+
+kernel (2.6.32-20110502) intrepid; urgency=low
+
+  * Fixes: NB#218434 - Fix OneNAND partition interface
+
+  * Fixes: NB#221300 - During power save, beacons with power constraint
+    IE are also filtered out
+  * Fixes: NB#221297 - WLAN driver does not enable 11h spectrum
+    management functionality
+  * Fixes: NB#221292 - WAPI unicast key update fails
+  * Fixes: NB#194234 - kernel crash when running l2test conn-disc loop.
+  * Fixes: NB#211077 - Implement flushable A2DP packets.
+  * Fixes: NB#221711 - After connection is lost the power consumption is
+    high
+  * Fixes: NB#220226 - Fix security level upgrading
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 31 Jan 2011 14:15:40 +0200
+
+kernel (2.6.32-20110501) intrepid; urgency=low
+
+  * Fixes: NB#216546 - VAUX1 regulator does not go off
+  * RM696 regulator setup changed to use common setup with RM680
+
+  * Fixes: NB#204936 - Kernel modules aren't protected
+  * Fixes: NB#221467 - Hash verification sometimes fails
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 31 Jan 2011 09:31:07 +0200
+
+kernel (2.6.32-20110405) intrepid; urgency=low
+
+  * Fixes: NB#219384 - DSP users must be able to be preempted
+  * Fixes: NB#208533 - DSP Bridge is not updating the IVA2 domain clock
+    and power states
+  * dspbridge fixes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 27 Jan 2011 10:10:37 +0200
+
+kernel (2.6.32-20110404) intrepid; urgency=low
+
+  * ISP: Fix CCP2 DPCM decompression
+  * ISP: Fix resizer crop inconsistency between stream on and off
+  * SMIAPP: Fill NVM data size for LadaT and LadaF sensors
+  * ISP: Avoid scrambled captured images on high digital zoom values
+  * Fixes: NB#218232 - Toast: camera tests fail due to missing lens
+    driver support
+  * Fixes: NB#216368 - inconsistency of Zoom factor setup
+  * Fixes: NB#213587 - flash remains on after stopping camera-ui
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 26 Jan 2011 15:01:49 +0200
+
+kernel (2.6.32-20110403) intrepid; urgency=low
+
+  * DirectIO reverted
+  * DMA disabled for usb networking
+  * softconnect implementation
+  * Fixes: NB#219355 - Image files gets corrupted when transferred using
+    usb in masstorage mode to device Mydocs folder
+  * Fixes: NB#217900 - Make softconnect feature to support disconnect
+  * Fixes: NB#213939 - scptest hangs at 10k file copy
+
+  * Fix scheduler bug which caused user process to block after I2C
+    access
+  * Fixes: NB#219201 - user process can block long time after I2C
+    operation
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 26 Jan 2011 12:34:21 +0200
+
+kernel (2.6.32-20110402) intrepid; urgency=low
+
+  * ASoC: dfl61-tlc320dac33: Remove deprecated 'Jack Function'
+  * ASoC: tlc320dac33: Add LOM inversion source selection control
+  * Fixes: NB#218846 - Remove unused 'Jack Function' ALSA control
+  * Fixes: NB#220251 - User control for selecting LOM inversion source
+
+  * Fixes: NB#218873 - ERROR timeout waiting for the hardware to
+    complete initialization
+  * Fixes: NB#219580 - Scan finds poorly 5Ghz APs that need to be
+    passive scanned
+  * Fixes: NB#218902 - Fix BTLE connection acceptance
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 26 Jan 2011 08:55:08 +0200
+
+kernel (2.6.32-20110401) intrepid; urgency=low
+
+  * Fixes: NB#218434 - Fix OneNAND partition interface
+
+  * Fixes: NB#199147 - GPIO driving random values while exiting OFF
+    mode.
+
+  * Correction RM696 led driver to allow engines with stop command
+  * Fixes: NB#219592 - Leds are not working durin LedPattern
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 24 Jan 2011 09:22:56 +0200
+
+kernel (2.6.32-20110306) intrepid; urgency=low
+
+  * Fixes: NB#217536 - wrong mach type number used for RM-680
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 20 Jan 2011 16:01:00 +0200
+
+kernel (2.6.32-20110305) intrepid; urgency=low
+
+  * Fixes: NB#220060 - MMC configuration sub-optimal for Lankku eMMC
+
+  * Fixes: NB#217934 - kernel is behind the mainline - v2.6.32.28 should
+    be pulled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 20 Jan 2011 09:32:52 +0200
+
+kernel (2.6.32-20110304) intrepid; urgency=low
+
+  * ASoC: tpa6130a2: Removal of DAPM widgets
+  * ASoC: tlv320dac33: Codec powering fixes
+  * ASoC: dfl61-tlv320dac33: Pop noise workarounds
+  * Fixes: NB#209030 - Pop noise in DAC33
+
+  * Fixes: NB#218079 - OneNAND multi-block erase not supported
+
+  * Fixes: NB#205649 - bogus error message upon aegis verification
+    failure
+  * Fixes: NB#218930 - validator should check presence of BB5 R&D
+    certificate
+  * Fixes: NB#218934 - optionally invoke validator for non-rootfs volume
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 19 Jan 2011 15:25:13 +0200
+
+kernel (2.6.32-20110303) intrepid; urgency=low
+
+  * Fixes: NB#218911 - Disable hardware dimming feature for some broken
+    displays
+
+  * Fixes: NB#207383 - kernel crash due to access to unallocated mem
+    area
+
+  * Fixes: NB#217848 - Fixed CpuIdle C-state definitions.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 19 Jan 2011 09:50:35 +0200
+
+kernel (2.6.32-20110302) intrepid; urgency=low
+
+  * ISP CCDC LSC cache sync
+  * ISP misc fixes
+  * Fix flash strobe delay
+  * Add Foxconn Acmemini kernel support
+  * Use the V4L2 control framework in the smiapp, as3645a and ad58xx
+    drivers
+  * Remove the deprecated smia-sensor and jt8ev1 drivers
+  * omap3isp: Simplify initialization by removing useless code
+  * omap3isp: Report valid default formats to applications
+  * omap3isp: Clean up the driver for multiomap support
+  * Add internal frame count propagation
+  * Merge stuff from core
+  * ISP misc cleanups
+  * V4L2: Update documentation
+  * SMIAPP: add kernel support for post-streamon mode
+  * ISP: prepare statistics for AUTOIDLE support
+  * ISP: Fix Histogram synchronization issues
+  * Calculate maximum ISP CCDC data rate
+  * Add 12-bit Bayer support
+  * smiapp: add support for et8en2 and tcm8580md
+  * remove outdated et8en2 driver
+  * port lens driver ad5907 to control framework
+  * Move PM from media controller layer to drivers
+  * SMIAPP: use new control framework
+  * Drop v4l2 ident numbers from subdevs
+  * SMIAPP: merge smiaregs into smiapp driver
+  * update secondary sensor ext_clk to 10.8MHz
+  * Fixes: NB#217544 - SMIAPP driver should use new control framework
+  * Fixes: NB#164144 - Unloading camera modules causes oops
+
+  * Reduced touchscreen gain and sensitivity with RM-696
+  * Improved touch event filtering with RM-680, RM-696 (adds latency)
+  * Fixes: NB#216377 - Desktop changes randomly between main application
+    desktop and other without touching
+  * Fixes: NB#217509 - Touchscreen generates spurious IRQ when VAUX1 is
+    turned off
+
+  * debian/source/options: added with 'include-binaries' to not fail on
+    changed binary files.
+  * debian/source/format: created, with '3.0 (native)'.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 18 Jan 2011 13:33:59 +0200
+
+kernel (2.6.32-20110301) intrepid; urgency=low
+
+  * Fixes: NB#190720 - DSP MMU allows unrestricted access to all memory
+  * Fixes: NB#215126 - DSP goes to unrecoverable state after video
+    recording
+
+  * Fixes: NB#214375 - Fix long busyloop in omapdss_dsi_display_enable
+  * Fixes: NB#217797 - Workaround for early Pyrenees panels
+  * Fixes: NB#217794 - Display support for RX-71 M4.1
+  * Fixes: NB#217642 - Implement Color Phase Rotation support for OMAP
+    display subsystem
+
+  * Restok provides the function to check 'tcb' permission
+  * Implemented: SWP#PSeFr-1289
+  * Fixes: NB#210572 - PSeFr-1289 Check that the securityfs interfaces
+    are protected with the "tcb" token
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 18 Jan 2011 09:35:38 +0200
+
+kernel (2.6.32-20110204) intrepid; urgency=low
+
+  * Fixes: NB#217995 - crashkernel doesn't support RM-696
+
+  * Fixes: NB#211696 - Make every GPIO which is marked as an interrupt
+    source, wakeup capable.
+
+  * Fixes: NB#216835 - RM-660 support needs to be dropped
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 13 Jan 2011 15:09:17 +0200
+
+kernel (2.6.32-20110203) intrepid; urgency=low
+
+  * debian/rules: use SBOX_USE_CCACHE=no
+  * Fixes: NB#210047 - unnessary comparisons and branches in the time critical
+    code
+
+  * Fixes: NB#211603 - Moving PA transfer buffer allocation to earlier
+    stage.
+
+  * DirectIO backported from RX-51 tree
+  * No-charging (8mA) configuration added for OTG host
+  * One lock warning fixed
+  * Available power reporting fixed, prevented charging in some cases.
+  * Fixes: NB#206471 - CrystalDiskMark tool read/write errors when
+    testing mass storage
+  * Fixes: NB#215448 - USB should always notify the correct mAs
+  * Fixes: NB#216622 - Device drains power through USB when connected to
+    OTG host
+  * Fixes: NB#211421 - BUG: sleeping function called from invalid
+    context at kernel/mutex.c:287
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 12 Jan 2011 12:04:02 +0200
+
+kernel (2.6.32-20110202) intrepid; urgency=low
+
+  * Fixes: NB#195847 - Low wlan sdio transfer rate when cpu load is low
+  * Fixes: NB#213929 - WLAN driver's SPI transfer is consuming a lot of
+    CPU
+  * Fixes: NB#211874 - WLAN PSM not working with hidden SSID
+
+  * Led driver locking corrections
+  * NFC PN544 memory handling correction
+  * ACI selftest cable detection change
+  * Fixes: NB#210165 - Circular locking in leds-lp5523 and leds-lp5521
+    drivers
+  * Fixes: NB#210044 - Serial console doesn't utilize HW FIFO which
+    causes
+  * Fixes: NB#217314 - Firmware download may cause stack overflow
+  * Fixes: NB#215702 - mfd: twl5031-aci: selftest: Use driver state for
+    plug
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 11 Jan 2011 15:54:26 +0200
+
+kernel (2.6.32-20110201) intrepid; urgency=low
+
+  * Fixes: NB#216877 - Production line testing for panel reset and TE
+    lines
+  * Fixes: NB#216871 - Keep DSI regulators always on keep DSI pins
+    powered
+
+  * Fixes: NB#216356 - kernel is behind the mainline - v2.6.32.27 should
+    be pulled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 11 Jan 2011 10:34:57 +0200
+
+kernel (2.6.32-20110105) intrepid; urgency=low
+
+  * Fixes: NB#203203 - Implement WA for stuck power domains after reboot
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 07 Jan 2011 09:21:35 +0200
+
+kernel (2.6.32-20110104) intrepid; urgency=low
+
+  * Fixes: NB#216548 - Optimize ARM PMU context save/restore in OFF mode
+
+  * Fixes: NB#211230 - read_persistent_clock() handles clock wrapping
+    incorrectly
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 05 Jan 2011 13:41:19 +0200
+
+kernel (2.6.32-20110103) intrepid; urgency=low
+
+  * Fixes: NB#216346 - Unprivileged process is able to read kernel
+    syslog
+
+  * Fixes: NB#212174 - LANKKU Core Power domain activity is not in OFF
+    state during idle when connected to WLAN
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 04 Jan 2011 14:15:37 +0200
+
+kernel (2.6.32-20110102) intrepid; urgency=low
+
+  * Fixes: NB#204070 - OneNAND 104MHz support
+  * Fixes: NB#210769 - Deleting multiply files(1000 * 1MB) from EMMC in
+    OVI Suite mode fails
+
+  * Fixes: NB#177064 - Cannot reconnect to BT headset if key has
+    been removed
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 03 Jan 2011 17:10:19 +0200
+
+kernel (2.6.32-20110101) intrepid; urgency=low
+
+  * Fixes: NB#215353 - smiapp driver restricts control classes
+
+  * Fixes: NB#199743 - ext3 ext4: Avoid uninitialized memory references
+    with a corrupted htree directory
+  * ext3: fixed uninitialized memory references in ext3_htree_next_block
+  * ext4: fixed uninitialized memory references in ext4_htree_next_block
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 03 Jan 2011 11:21:40 +0200
+
+kernel (2.6.32-20105101) intrepid; urgency=low
+
+  * Move touch firmware flashing support into the driver core
+  * Increase touch report rate to 120Hz to better fit panel update rate
+  * Improved touch sensitivity on RM-696
+  * Fixes: NB#207948 - ST_TOUCH_TEST fails occasionally in Lankku builds
+  * Fixes: NB#207795 - Too small touch area provided to the application
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 22 Dec 2010 09:12:19 +0200
+
+kernel (2.6.32-20105004) intrepid; urgency=low
+
+  * Fixes: NB#211861 - WA for bug in new Pyrenees panels
+
+  * Fixes: NB#209561 - Let MMC3 controller power down whenever possible
+  * Fixes: NB#206402 - Use "don't care" retransmission setting to pass
+    PTS tests
+  * Fixes: NB#206065 - BOB1.1 ES10 pairing with N900 fails
+  * Fixes: NB#210727 - Throughput drop in case of 3 parallel streams
+
+  * Don't power down if VBUS is valid
+  * Fix windows hack again
+  * Fixes: NB#209432 - AppCert-USB-Phone doesn't enumerate behind bus-
+    powered full speed hub
+  * Fixes: NB#210931 - USB fails to re-enumerate when PC resumes from
+    hibernation
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 16 Dec 2010 16:45:29 +0200
+
+kernel (2.6.32-20105003) intrepid; urgency=low
+
+  * ISP streamoff/interrupts synchronization
+  * ISP avoid hang on camera smoketests
+  * ISP Pixel clk calculation for secondary sensor
+  * ISP export headers to userspace
+  * V4L2 backport changes from upstream review
+  * Media Controller backport changes from upstream review
+  * Fixes: NB#202978 - camera: cleverly prevent crash at board module
+    unload
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 16 Dec 2010 11:59:48 +0200
+
+kernel (2.6.32-20105002) intrepid; urgency=low
+
+  * ASoC: DAC33: Power down digital parts, when not needed
+  * Fixes: NB#211136 - DAC33 DAI is kept on after playback, while bypass
+    is enabled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 15 Dec 2010 15:18:14 +0200
+
+kernel (2.6.32-20105001) intrepid; urgency=low
+
+  * Fixes: NB#212047 - PVR: fix EDM tracing support
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 15 Dec 2010 10:48:23 +0200
+
+kernel (2.6.32-20104904) intrepid; urgency=low
+
+  * ASoC: DAC33: Keep the DACs enable
+  * Fixes: NB#207290 - Headset downlink audio is very distorted
+
+  * fix false positive VM_BUG on non-SMP
+  * Fixes: NB#205087 - cgroup crash with CONFIG_DEBUG_VM enabled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 10 Dec 2010 09:25:00 +0200
+
+kernel (2.6.32-20104903) intrepid; urgency=low
+
+  * build ramzswap as a module
+  * Fixes: NB#195326 - swap compression porting and evaluation
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 09 Dec 2010 13:55:11 +0200
+
+kernel (2.6.32-20104902) intrepid; urgency=low
+
+  * Fixes: NB#197054 - omap: Ptr "isr_reg" tracked as NULL was
+    dereferenced
+  * Fixes: NB#197037 - cgroups: strcpy destination string overflow
+
+  * Add display driver support for High Brightness Mode
+  * Improve panel ESD check routine
+  * Fixes: NB#207637 - Disable CABC for some broken Himalaya panel revisions 
+
+  * Fixes: NB#201449 - kexec is enabled in linux-dali
+
+  * Initialize ECI headset before reporting the headset
+  * Fixes: NB#207990 - Disturbing sound at the other end of the call if
+    headset is inserted
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 08 Dec 2010 13:57:39 +0200
+
+kernel (2.6.32-20104901) intrepid; urgency=low
+
+  * Fixes: NB#207533 - Scanning 802.11j frequencies doesn't work
+  * Fixes: NB#200603 - Invalid probe-request used for connection
+    maintenance after scan
+  * Fixes: NB#205529 - wlan related kernel crash
+  * Fixes: NB#205288 - wlan association fails in some cases when done
+    quickly after a disassociation
+  * Fixes: NB#205016 - BT headset name is not displayed.
+  * Fixes: NB#204960 - Device name is empty after creating device.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 07 Dec 2010 12:02:49 +0200
+
+kernel (2.6.32-20104805) intrepid; urgency=low
+
+  * Disable mass storage test mode
+  * Fix PM handling
+  * Provide more information to userspace about usb state
+  * Fixes: NB#204780 - MTP needs information about USB state
+
+  * allow kernel to compile when CONFIG_APDS990X is not set
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 03 Dec 2010 09:16:05 +0200
+
+kernel (2.6.32-20104804) intrepid; urgency=low
+
+  * Fixes: NB#196910 - mmcqd hangs
+
+  * Add support for initial frame skipping in ISP driver
+  * Skip initial frame for Lada Toshiba
+  * smiapp: Fix flash mode capability usage
+  * Misc fixes for batray flash driver
+  * Make SMIA++ power handling compliant with SMIA++ specs
+  * Fix ISP Histogram stat buffer wrong error status
+  * Merge ISP preview default gamma tables
+  * Fix isp_get() and isp_put()
+  * smiapp: delay NVM read to improve module load time
+  * Fixes: NB#202785 - Fix ISP iommu faults and device reboot after
+    double streamon
+  * Implemented: SWP#EnoSW-1378
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 01 Dec 2010 14:55:14 +0200
+
+kernel (2.6.32-20104803) intrepid; urgency=low
+
+  * omap-sham API conformance and performance improvements
+  * Fixes: NB#198484 - Reno GPIO configuration is not correct
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 30 Nov 2010 12:02:18 +0200
+
+kernel (2.6.32-20104802) intrepid; urgency=low
+
+  * remove RM-581 support
+
+  * Kernel fixes from v2.6.32.26
+
+  * qwerty off mode correction
+  * Fixes: NB#204496 - Not all typed letters with HW kbrd are shown in
+    the message
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 29 Nov 2010 14:20:36 +0200
+
+kernel (2.6.32-20104801) intrepid; urgency=low
+
+  * Fixes: NB#206557 - Poll() and select() performance issues
+  * Fixes: NB#154191 - WARNING: PRCM indicated MPU wakeup but no wakeup
+    sources are marked
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 29 Nov 2010 10:04:00 +0200
+
+kernel (2.6.32-20104703) intrepid; urgency=low
+
+  * Off mode, error handling and cleanup
+
+  * Fix slowness of the uart console
+
+  * Change panel resolution to 854x480
+  * Change touch resolution to 854x480
+  * Pinmux DSI pins to safe mode & pull down when not in use
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 25 Nov 2010 14:35:05 +0200
+
+kernel (2.6.32-20104702) intrepid; urgency=low
+
+  * Implemented: AdpPr-650
+  * Fixes: NB#203238 - WAPI does not work
+  * Fixes: NB#195361 - Scan channel reordering causes side-effects
+  * Fixes: NB#201901 - DFS frequencies can be used in adhoc mode
+  * Fixes: NB#205652 - Load non LE firmware to ES10 bt chip
+
+  * validator: add protection for securityfs entries
+  * validator: allow userspace helper to lock mode in boot
+  * validator: mode to check only listed executables
+  * validator: do not verify files in PlayReady filesystem
+  * validator: userspace helper validation using vhash only
+  * Fixes: NB#202704 - Non-descriptive verification failure message
+
+  * Fixes: NB#204517 - kernel fails to compile when branch profiling is
+    enabled
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 24 Nov 2010 15:58:18 +0200
+
+kernel (2.6.32-20104701) intrepid; urgency=low
+
+  * RM-696 vibra: Platform data is mandatory
+  * Add module alias to enable autoloading
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 22 Nov 2010 09:06:45 +0200
+
+kernel (2.6.32-20104605) intrepid; urgency=low
+
+  * Change the way we handle save secure ram return value
+  * minimize i2c latencies
+  * McSPI: Off-by-one error in finding the right divisor
+  * Fixes: NB#196799 - WLAN SPI CLK frequency too high in VDD2 OPP50
+    mode
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 19 Nov 2010 10:25:26 +0200
+
+kernel (2.6.32-20104604) intrepid; urgency=low
+
+  * Samsung v4.4 eMMC support
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 18 Nov 2010 10:55:04 +0200
+
+kernel (2.6.32-20104603) intrepid; urgency=low
+
+  * Fixes: NB#201890 - PrefetchAbort with LR at mbox interrupt while
+    taking pictures
+  * Enable IRQ after allocating queues
+  * Fixes: NB#199834 - rm696 hangs to device lock screen and lock code
+    cannot be entered
+  * ASoC: dfl61-twl4030: Error handling correction
+  * ASoC: dfl61-twl4030/dac33: Do not call snd_soc_dapm_sync
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 17 Nov 2010 13:23:32 +0200
+
+kernel (2.6.32-20104602) intrepid; urgency=low
+
+  * PVR: optimize command completion checking
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 16 Nov 2010 11:58:34 +0200
+
+kernel (2.6.32-20104601) intrepid; urgency=low
+
+  * validator: error handling when using async hash API
+  * validator: release crypto module when disabled
+  * Fixes: NB#202786 - Aegis & SHA1 block off mode changes
+  * Fixes: NB#197975 - CMT flashing oops when removing SSI modules
+  * Fixes: NB#199704 - HSI adds unnecessary bootup delay.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 15 Nov 2010 16:56:33 +0200
+
+kernel (2.6.32-20104508) intrepid; urgency=low
+
+  * ACI: unnecessary call back checks removed
+  * LED drivers: Cleanup
+  * NFC: use usleep_range instead of msleep
+  * vibra_spi: Use correct copy function
+  * Fixes: NB#199620 - BSI reading may fail during accessory detection
+  * Fixes: NB#203286 - leds_lp5523 sysfs entry fail
+  * Fixes: NB#193130 - video playback do not tolerate delays in kernel
+    workqueue
+  * Use dedicated workqueue in mailbox
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 12 Nov 2010 14:52:41 +0200
+
+kernel (2.6.32-20104507) intrepid; urgency=low
+
+  * Rotate accelerometer and magnetometer to portrait mode
+  * Fixes: NB#203089 - Accelerometer and magnetometer orientation is
+    wrong
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 12 Nov 2010 09:28:08 +0200
+
+kernel (2.6.32-20104506) intrepid; urgency=low
+
+  * Fixes: NB#201930 - CVE-2010-3442 security vulnerability
+  * Kernel fixes from v2.6.32.24 and v2.6.32.25
+  * support for signed PA formating binaries
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 11 Nov 2010 14:20:39 +0200
+
+kernel (2.6.32-20104505) intrepid; urgency=low
+
+  * ASoC: dac33: FIFO Mode1 fixes
+  * ASoC: dac33: New control for HP muting
+  * Audio: Card name change from rx71* -> dfl61*
+  * Fixes: NB#200139 - Kernel crash due to race condition in ASoC core
+  * Remove Taal-panel support for RX71 boards
+  * Workaround to get DSS working with OPP50
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 11 Nov 2010 10:18:48 +0200
+
+kernel (2.6.32-20104504) intrepid; urgency=low
+
+  * Fixes: NB#198079 - Make 1GHz opp available on Lankku boards which
+    support it
+  * Fixes: NB#198077 - Enable Smartreflex on Lankku
+  * Fixes: NB#191754 - Device with dead/flat battery cannot be cold
+    flashed
+  * TWL4030-MADC: asynchronous conversion abort exposed to user space
+    interface
+  * TWL4030-MADC: asynchronous combined SW+RT conversion added
+  * TWL4030-MADC: ch0 interlock interface added for other kernel modules
+  * Fixes for Reno
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 09 Nov 2010 16:45:17 +0200
+
+kernel (2.6.32-20104503) intrepid; urgency=low
+
+  * Fixing windows hack after CR implementation
+  * Report discoonnect to u_char userspace with SIGHUP
+  * Correct protocol in the ACM's IAD
+  * Do not send ACM notifications to host when DTR down
+  * Fixes: NB#181144 - Every second open of CDC-ACM fails
+  * PVR: add new events for smoother rendering mode switching
+  * Implemented: AdpPr-696
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 09 Nov 2010 12:12:54 +0200
+
+kernel (2.6.32-20104502) intrepid; urgency=low
+
+  * Do not lock PR_SET_KEEPCAPS when Aegis policy is active
+  * Inherit mode intersects with current effective capabilities
+  * Add policy works like set if non-inheritable mode is on
+  * Adding new tokens requires 'tcb' credential (token)
+  * Fixes: NB#198983 - Don't allow adding new tokens with SETGID
+    capability
+  * Fixes: NB#200390 - /proc/pid/smaps dirty pages accounting
+  * writeback fixes from upstream
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 08 Nov 2010 15:41:02 +0200
+
+kernel (2.6.32-20104501) intrepid; urgency=low
+
+  * temporarily disable omap_sham driver
+  * Enable off mode on B3's (and anything newer)
+  * Fixes: NB#187708 - Workaround for DDR corruption while saving secure
+    ram
+  * Fixes: NB#201339 - Workaround for Interrupt controller issue while
+    saving secure ram
+  * Fixes: NB#163106 - Allow CORE to reach OFF state on B3's (and
+    anything newer)
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 08 Nov 2010 09:35:18 +0200
+
+kernel (2.6.32-20104403) intrepid; urgency=low
+
+  * Fixes: NB#201941 - CVE-2010-4072, CVE-2010-4075, CVE-2010-4083
+    vulnerabilities
+  * Fixes: NB#190597 -  serial8250: too much work for irq74
+  * Kernel Driver for RM-696 SPI vibra (SisuX)
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 04 Nov 2010 10:58:09 +0200
+
+kernel (2.6.32-20104402) intrepid; urgency=low
+
+  * ISP preview module clean for upstreaming
+  * ISP suspend resume support
+  * Fix LSC for ISP suspend resume
+  * Use batray strobe signal to trigger flash
+  * Fix batray flash overheating behaviour - again
+  * smiapp: make external clock to sensor as platform data
+  * smiapp: fix unbalanced regulator_disables in SMIA++ driver
+  * smiapp: add module idents for modules with Lada sensors
+  * Fixes: NB#186205 - Flash is not in sync with image capture
+  * Fixes: NB#189966 - Camera view finder corrupted after idle in B3
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 01 Nov 2010 12:27:05 +0200
+
+kernel (2.6.32-20104401) intrepid; urgency=low
+
+  * ASoC: dac33/tpa: Check for broken chip
+  * ASoC: dac33/twl4030: Timeout/delay handling changes
+  * Fixes: NB#196047 - ST_HEADSET_AMPLIFIER_TEST doesnt work
+  * rtc-core, fuse, l2cap, rfcomm, sco, iphb, x_tables to built-in
+  * Disable kernel stack usage debugging
+  * Minor boot time optimizations
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 01 Nov 2010 09:45:34 +0200
+
+kernel (2.6.32-20104307) intrepid; urgency=low
+
+  * Fixes: NB#200391 - SDIO related kernel crash in WLAN hardware
+    recovery scenario
+  * Fixes: NB#199947 - Kernel crash when connecting to wlan
+  * Fixes: NB#199667 - WLAN RSSI and continuous rx do not work, driver
+    hangs
+  * Fixes: NB#170672 - WLAN unsupported rate errors with 5GHz
+  * Fixes: NB#196985 - pairing to Moto HK202 BT headset fails
+  * Implemented: AdpPr-671
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 29 Oct 2010 09:38:45 +0300
+
+kernel (2.6.32-20104306) intrepid; urgency=low
+
+  * McSPI - Use transaction speed if provided
+  * Fixes: NB#197020 - wait: using uninitialized member of wait queue
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 28 Oct 2010 12:02:34 +0300
+
+kernel (2.6.32-20104305) intrepid; urgency=low
+
+  * Fixes: NB#199594 - Set reno ACI block to reset default values at
+    probe
+  * Improvement to 197435 - leds_lp5523 initialization takes too long
+  * RM696 Update ALS / PS cover window parameters for B1 HW
+  * Omap I2C short timeout changed to ignore timeout to speed up timeout
+    cases
+  * Fixes: NB#164255 - Accelerometer driver can be partially unloaded
+    while in use
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 28 Oct 2010 09:08:02 +0300
+
+kernel (2.6.32-20104304) intrepid; urgency=low
+
+  * Helper for NB#198898 - [Metabug] Get rid of /proc/...
+  * Fixes: NB#198902 - /proc/component_version and /proc/bootreason
+    deprecated
+  * Fixes: NB#193334 - Validator need to use Async Crypto API for hash
+    calculation
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 27 Oct 2010 13:33:46 +0300
+
+kernel (2.6.32-20104303) intrepid; urgency=low
+
+  * Fixes: NB#199938 - Spurious irq 95: 0xffffffdf, please flush posted
+    write for irq 12
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 27 Oct 2010 09:59:18 +0300
+
+kernel (2.6.32-20104302) intrepid; urgency=low
+
+  * Implement softconnect change request
+  * Remove unneeded messages
+  * Improve windows-hack for low power configuration
+  * Fixes: NB#188223 - WLK selective suspend test must pass
+  * Fixes: NB#196566 - Improve display driver error recovery times
+  * Improve display subsystem error recovery
+  * Rename taal driver to panel-nokia-dsi
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 26 Oct 2010 10:51:55 +0300
+
+kernel (2.6.32-20104301) intrepid; urgency=low
+
+  * Fixes: NB#190519 - Fix ELP wake up problem with full PSM WLAN
+  * Fixes: NB#185056 - slow BT speed in idle mode
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 25 Oct 2010 09:22:54 +0300
+
+kernel (2.6.32-20104207) intrepid; urgency=low
+
+  * FM-radio reset gpio change for RM-696 S1.1 builds and onwards
+  * Fixes: NB#195380 - BME BSI read is not reliable
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 21 Oct 2010 15:37:07 +0300
+
+kernel (2.6.32-20104206) intrepid; urgency=low
+
+  * arc4, bluetooth, cfg80211, crc7, ecb, ff-memless modules to built-in
+  * hwmon, input-polldev, mac80211, mtd_blkdevs modules to built-in
+  * v4l2-common, v4l2-int-device, videodev modules to built-in
+  * minor boot time optimization
+  * PVR: improve SGX performance
+  * Fixes: NB#195379 - remove excessive SGX power-down/-up transitions
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 21 Oct 2010 11:39:57 +0300
+
+kernel (2.6.32-20104205) intrepid; urgency=low
+
+  * Fixes: NB#164987 -  Low performance in eMMC raw transfers
+  * Fixes: NB#165956 -  eMMC write performance is too low
+  * Fixes: NB#191098 -  eMMC transfer failure end up to filesystem
+    deadlock
+  * Fixes: NB#191496 -  eMMC optimization
+  * NFC driver communication correction
+  * Fixes: NB#183980 - NFC firmware update fails
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 21 Oct 2010 09:16:09 +0300
+
+kernel (2.6.32-20104204) intrepid; urgency=low
+
+  * Fixes: NB#185543 - RTA feature is not supported on OMAP3630
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 20 Oct 2010 12:09:17 +0300
+
+kernel (2.6.32-20104203) intrepid; urgency=low
+
+  * enhance I2C core to support short timeout
+  * Backport usleep_range from upstream
+  * Fixes: NB#194776 - apds990x als sensor driver sets status
+    incorrectly ...
+  * Fixes: NB#191956 - NFC stack has slow response
+  * Fixes: NB#197435 - leds_lp5523 initialization takes too long
+    incorrectly ...
+  * PVR: fix typo leading to failing SGXDoKick IOCTL
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 19 Oct 2010 10:51:32 +0300
+
+kernel (2.6.32-20104202) intrepid; urgency=low
+
+  * backported mtd code from public linux-2.6 that adds support for 4KB
+    page onenand
+  
+  * Fixes: NB#177642 - Kernel SSU packaging with sw certificate
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 19 Oct 2010 09:24:17 +0300
+
+kernel (2.6.32-20104201) intrepid; urgency=low
+
+  * Fix Multimedia Message support
+  * Fixes: NB#198750 - fix OOPS when destroying MMS network namespace
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 18 Oct 2010 14:25:31 +0300
+
+kernel (2.6.32-20104106) intrepid; urgency=low
+
+  * A few WLAN and BT backports from upstream
+  * tlv320dac33: user control for L/ROUT_GAIN
+  * Fixes: NB#198009 - ALSA control needed for L/ROUT_GAIN in dac33
+    codec driver
+  * Massive cleanup and fixes for ISP save/restore context register list
+  * V4L: Use modaliases to load I2C modules
+  * Fixes: NB#195314 - Resizer output is clipped too much on 4x upscale
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 14 Oct 2010 13:54:17 +0300
+
+kernel (2.6.32-20104105) intrepid; urgency=low
+
+  * eci, gpio_keys, led_class, media, uinput modules to built-in
+  * minor boot time optimization
+  * Fixes: NB#196020 - Prevent rare deadlock in error handling
+    situations
+  * Fixes: NB#192244 - Fix glitch on DSI lanes when enabling vdds_dsi
+    regulator
+  * Adjust VRAM and FB sizes to match current use cases
+  * Display support for 0821, 0823, 3405, 3407
+  * Remove display support for devices earlier than B1
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 13 Oct 2010 15:24:19 +0300
+
+kernel (2.6.32-20104104) intrepid; urgency=low
+
+  * backport upstream Phonet stack fixes
+
+  * Enable creating fiasco image for SSU.
+    Fixes: NB#177642 - Kernel SSU packaging with sw certificate
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 12 Oct 2010 13:12:38 +0300
+
+kernel (2.6.32-20104103) intrepid; urgency=low
+
+  * Fixes: NB#193207 - Flashing the CMT was very slow
+  * Fixes: NB#192572 - Increase hsi_char robustness
+  * Fixes: NB#191540 - Fix kernel crash when flashing CMT
+  * Fixes: NB#196925 - Enable WDT feature in DSP-bridge
+  * Implement WDT3 to notify DSP hangs
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 11 Oct 2010 15:08:21 +0300
+
+kernel (2.6.32-20104102) intrepid; urgency=low
+
+  * ISP LSC handling fixes - lots of them
+  * Don't modify ISP resizer ratios when probing crop settings
+  * Remove 16 pixel padding in CCP2/CSI2 to mem pathways
+  * Increase max allowed image line width on CSI2
+  * Add FLASH_READY v4l2 control
+  * Add sysfs sensor ident in SMIA++ driver
+  * Fixes: NB#191874 - Random hang while capturing images
+  * Fixes: NB#196276 - ISP LSC prefetch timeout fix
+  * Fixes: NB#194257 - Don't modify ISP resizer ratios when probing crop
+    settings
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 11 Oct 2010 11:17:59 +0300
+
+kernel (2.6.32-20104101) intrepid; urgency=low
+
+  * Fixes: NB#187428 - Correctable ECC error handling in mtdswap
+  * Fixes: NB#193269 - Write-error on swap-device, no free space!
+  * Fixes: NB#168015 - Drop lines/pixels to overcome downscaling limits
+  * Fixes: NB#171720 - Implement wait_for_go() for manual update
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 08 Oct 2010 16:08:29 +0300
+
+kernel (2.6.32-20104006) intrepid; urgency=low
+
+  * Fixes: NB#196127 - WLAN Extended radio-parameter table not
+    initialized in hw
+  * Fixes: NB#195387 - WLAN WMM is not properly configured after HW
+    crash recovery
+  * Fixes: NB#195602 - WLAN hw recovery related kernel crash
+  * Fixes: NB#195740 - WLAN goes to active mode while it should be in
+    dynamic/fullpsm mode
+  * Fixes: NB#158234 - BT inconsistent lock state warnings in rfcomm
+  * Fixes: NB#193439 - Kernel crashes when WLAN is associated and you
+    remove the wl1271_spi module from kernel
+  * Fixes: NB#194843 - WLAN Incorrect identifier used for SMS-4 (GEM)
+    cipher suite
+  * Fixes: NB#194984 - WLAN PSPoll is sometimes used with WMM & U-APSD
+    Access Point
+  * Fixes: NB#184689 - BT Page allocation failures running DUN tests
+  * Export OMAP DIE ID by default on dali
+  * Backport fix of SDRC deadlock while changing VDD2 frequency
+  * Fixes: NB#189259 - ARM PMU context saved and restored across off
+    transitions
+  * Fixes: NB#195597 - 7 coverity defects should be fixed
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 08 Oct 2010 11:08:07 +0300
+
+kernel (2.6.32-20104005) intrepid; urgency=low
+
+  * Backport kfifo from upstream
+  * file_storage: add iProduct parameter
+  * ptp: including type.h
+  * Allow musb to disconnect
+  * Fixes: NB#192976 - Don't fail tests after interface is reset.
+  * Fixes: NB#195472 - Compilation errors while including ptp.h
+  * ALSA: core: card id change fix
+  * OMAP: McBSP: Keep SRG/FSG disabled in slave mode
+  * OMAP: DMA: FIFO drain errata fixes for OMAP2/3
+  * Fixes: NB#162265 - OMAP3630 WA REQ: 1.67. sDMA FIFO draining does
+    not finish
+  * Fixes: NB#194499 - ALSA twl4030: audio recording gets stuck with
+    twl4030
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 08 Oct 2010 08:46:10 +0300
+
+kernel (2.6.32-20104004) intrepid; urgency=low
+
+  * Add support for data file integrity protection
+  * PVR: reduce overhead during SGX HW polling
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 06 Oct 2010 13:53:13 +0300
+
+kernel (2.6.32-20104003) intrepid; urgency=low
+
+  * Fixes: NB#195908 - missing header in the package linux-kernel-header
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 05 Oct 2010 16:03:41 +0300
+
+kernel (2.6.32-20104002) intrepid; urgency=low
+
+  * Fix memory thresholds with use_hierarchy == 1
+  * Fixes: NB#191994 - events generation by cgroups do not correlates to
+    reads()
+  * Improve panel refresh rate calibration
+  * Fixes: NB#195818 - fix panel resume on error situations
+  * Fixes: NB#195815 - LG Pyrenees panels were not detected correctly
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 04 Oct 2010 13:21:47 +0300
+
+kernel (2.6.32-20104001) intrepid; urgency=low
+
+  * PVR: Fix two error paths
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 04 Oct 2010 09:09:59 +0300
+
+kernel (2.6.32-20103907) intrepid; urgency=low
+
+  * Fixes: NB#192715 - WLAN data transfer speed is very slow and ping
+    latency seems inconsistent (high spikes)
+  * Fixes: NB#194785 - Can't raise wlan0 interface up with RM-696 (Lankku B1)
+  * Atmel mXT: fix dead touchscreen on RM680 builds <= s0.7
+  * Fixes: NB#195415 - touchscreen not responding 
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 01 Oct 2010 08:51:59 +0300
+
+kernel (2.6.32-20103906) intrepid; urgency=low
+
+  * Kernel fixes from v2.6.32.23
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 30 Sep 2010 09:33:51 +0300
+
+kernel (2.6.32-20103905) intrepid; urgency=low
+
+  * Fixes: NB#189277 - RX-71: mce constantly crashing
+  * Fixes: NB#185178 - MCE dies due to missing ALS data
+  * Fixes: NB#192352 - Tvout cable is detected as headphones
+  * ALS / Proximity interrupt handling corrections
+  * ALS / Proximity driver loading corrections
+  * Fixes: NB#188239 - sleeping function called from invalid context at
+    kernel
+  * Remove opp bump request from tasklet context
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 29 Sep 2010 13:33:29 +0300
+
+kernel (2.6.32-20103904) intrepid; urgency=low
+
+  * Fixes: NB#193170 - use after free()
+  * fix potential memory leak
+  * use of private buffer to store digest
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 28 Sep 2010 17:05:14 +0300
+
+kernel (2.6.32-20103903) intrepid; urgency=low
+
+  * tell bus throughput minimum to allow to select proper OP
+  * Speed up initialization of bcc
+  * Backport upstream's serial number check for g_file_storage
+  * Fix logic which causes a couple of OOPSes
+  * Lower priority of overrun message
+  * Fixes: NB#191787 - Performance problem for UDP Upload
+  * Fixes: NB#191764 - Let g_file_storage accept serial number longer
+    than 12 hex
+  * Fixes: NB#191905 - twl5031_bcc_event_work() takes too long time in
+    kernel events workqueue
+  * Fixes: NB#191589 - USB must specify PM constraints for bus
+    throughput
+  * Fixes: NB#182208 - Pass WHQL tests for non-standard control requests
+  * Fixes: NB#189268 -  kernel BUG at mm/slub.c:2969! Unable to handle
+    kernel NULL pointer dereference
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 28 Sep 2010 11:05:55 +0300
+
+kernel (2.6.32-20103902) intrepid; urgency=low
+
+  * 1GB ram support
+  * Fixes: NB#188335 - Kernel does not recognize full 1GB memory
+  * Fixes: NB#190729 - WLAN scan state machine jams if firmware scan
+    returns an error
+  * Fixes: NB#191087 - WLAN firmware crashes not always reported to
+    user-space
+  * Fixes: NB#191065 - BT SCO connection to HS-3W headset fails
+  * Fixes: NB#188201 - BT device unblocking doesn't always work
+  * Fixes: NB#190010 - BT audio is not heard in carkit
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 27 Sep 2010 16:56:30 +0300
+
+kernel (2.6.32-20103901) intrepid; urgency=low
+
+  * Atmel mXT: orientation fix for RX71 with pyrenees
+  * Atmel mXT: touch release coordinate accuracy improvement
+  * Atmel mXT: touch latency improvement (lower filtering)
+  * Atmel mXT: touch move and hold less noisy
+  * Atmel mXT: debugfs interface for fw parameter tuning
+  * Atmel mXT: sysfs entries for initial and movement hysteresis
+  * various minor fixes to cellular speech driver
+  * Fixes: NB#193571 - Implement workaround for Pyrenees HW bug
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 27 Sep 2010 09:36:06 +0300
+
+kernel (2.6.32-20103804) intrepid; urgency=low
+
+  * Correct typing error in credp assigning UID number to GID
+  * Add camera support for various RX-71 macro boards
+  * Fixes: NB#187856 - Video related kernel crash
+  * Fixes: NB#192000 - Using DPCM format over CSI2 from batray causes
+    reboot
+  * Kernel fixes from v2.6.32.22
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 24 Sep 2010 13:20:25 +0300
+
+kernel (2.6.32-20103803) intrepid; urgency=low
+
+  * Fixes: NB#191344 - ACI selftest fails after using audio routes
+  * Fixes: NB#182781 - Video playback stops after few seconds when wired
+    headset (WH-701) is connected to the device
+  * Fixes: NB#192006 - Microphone not working if headset attached during
+    call
+  * Fixes: NB#192115 - twl4030_keypad does not recognize state of stuck
+    keys
+  * Optimize accelerometer i2c bus operations
+  * move ACI selftest from debugfs to sysfs
+  * ACI debugfs code cleanup
+  * AV plug polarity corrections
+  * Improve mmc_test module (show results via debugfs by demand)
+  * Power supply fixes
+  * Fixes: NB#188678 - The device shows charging even without charger
+    connected
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 22 Sep 2010 10:58:10 +0300
+
+kernel (2.6.32-20103802) intrepid; urgency=low
+
+  * Fixes: NB#177135 - device does not power ON using HW key
+  * Rework reno resources and scripts to comply with OMAP3 power on
+    requirements
+  * Revert HACK which supports old fashion 'fua' parameter in
+    g_file_storage
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 20 Sep 2010 09:37:47 +0300
+
+kernel (2.6.32-20103801) intrepid; urgency=low
+
+  * fixing all checkpatch.pl errors
+  * enable cryptodev also in rm581_debug_defconfig
+  * PVR: Update SGX kick IOCTL to assist fence sync support
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 17 Sep 2010 16:33:28 +0300
+
+kernel (2.6.32-20103707) intrepid; urgency=low
+
+  * Speed up module loading using ELF hash tables
+  * Fix corruption in still capture and vf with zoom
+  * Fix ISP resizer crop rectangle mangling
+  * Update batray flash oveheating protection behaviour
+  * Add common lens driver for dali and lankku (ad58xx)
+  * Fixes: NB#191167 - Improper crop application on ISP resizer
+  * Kernel fixes from v2.6.32.21
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 17 Sep 2010 10:11:05 +0300
+
+kernel (2.6.32-20103706) intrepid; urgency=low
+
+  * Fixes: NB#189986 - fix display update latencies by using atomic
+    notifiers
+  * Fixes: NB#190056 - WLAN power save entry retry mechanism is not
+    optimal
+  * Fixes: NB#186655 - Device does not go into complete WLAN power save
+    mode
+  * Implemented: AdpPr-602
+  * Implemented: AdpPr-606
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 16 Sep 2010 14:15:13 +0300
+
+kernel (2.6.32-20103705) intrepid; urgency=low
+
+  * SSI driver fixes and warnings, improved debug
+  * Fixes: NB#178276 - CMT resets during APE DVFS change
+  * Fixes: NB#190966 - Fix kernel panic when phonet interface is down
+  * Created debugfs nodes for omap-pm.h interface
+  * Fixes: NB#191356 - Audio subsystem generates too much activity
+    during phone call use case
+  * ASoC: WL1273 FM Radio: Eliminate unnecessary error return value.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 16 Sep 2010 10:46:45 +0300
+
+kernel (2.6.32-20103704) intrepid; urgency=low
+
+  * B3 keyboard layout changes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 16 Sep 2010 09:08:33 +0300
+
+kernel (2.6.32-20103703) intrepid; urgency=low
+
+  * Fixes: NB#190502 - trivial fix to improve boot time
+  * Minor DSS fixes from upstream
+  * Enable systemtap options in kernel
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 15 Sep 2010 09:24:58 +0300
+
+kernel (2.6.32-20103702) intrepid; urgency=low
+
+  * Fixes: NB#187724 - twl5031_aci selftest support
+  * Fixes: NB#187705 - twl5031_aci selftest (ST_HOOKINT_TEST in
+    testserver) not robust for multiple concurrent users
+  * Fixes: NB#188919 - kernel oops on activating heartbeat trigger
+  * Fixes: NB#188818 - FM radio mono/stereo mode change not functional
+  * Fixes: NB#190334 - Magnetometer blocks IRQs for 15ms in every 100ms
+  * RM696 ALS/PS: ALS calcation updated to match latests measurement
+    result
+  * RM696 ALS/PS: Prevent threshold update right after device open
+  * RM696 ALS/PS: Proximity threshold control improved
+  * RM696 ALS/PS: ALS gain control improved
+  * RM696 ALS/PS: Proximity pulse and IR current adjusted
+  * accelerometer: Interrupt contfiguration tuned to get better data for
+    rotation
+  * Magnetometer: old interface removed as unnecessary
+  * ECI: Obsolete button codes removed
+  * ACI: selftest support
+  * ACI: Microphone sleep mode bias setting
+  * LEDS: Max current limitation for both RM680 and RM696
+  * RM680 ALS/PS: Short delay between regulator on and detection
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 14 Sep 2010 14:30:14 +0300
+
+kernel (2.6.32-20103701) intrepid; urgency=low
+
+  * cleanup resources when secure call fails
+  * Fixes: NB#175540 - Userspace interface to HW-accelerated SHA1
+    calculation
+  * Fixes: NB#176816 - I2C_1 CLK too slow (HS mode)
+  * Fixes: NB#182289 - page allocation failure. order:5, mode:0xc0d0
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 14 Sep 2010 10:09:45 +0300
+
+kernel (2.6.32-20103607) intrepid; urgency=low
+
+  * Change IVA2 power state to OFF if DSP fails to start
+  * Display partial update support
+  * Display support for S4.1
+  * Fixes: NB#170574 - bridgedriver.ko prevents core_pwrdm going to OFF
+    state
+  * Fixes: NB#184049 - Taal and GF driver error handling locking problem
+  * Fixes: NB#185680 - Nokia logo partially appears again for a moment
+    while booting
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 10 Sep 2010 11:06:53 +0300
+
+kernel (2.6.32-20103606) intrepid; urgency=low
+
+  * Add support for ISP bandwidth management
+  * Add support for multiple RAW bayer patterns in ISP driver
+  * Export v4l and media headers to userspace
+  * Fix camera board module load crash on iommu init fail
+  * Fixes: NB#164144 - loading camera modules causes oops
+  * Fixes: NB#178824 - ISP crash after "Unable to stop ... CCDC" message
+  * Fixes: NB#185719 - Crop rectangle is changed after stream on
+  * Fixes: NB#187635 - support camera buffers spanning multiple VMAs
+  * Fixes: NB#189141 - DQBUF hangs in mem-previewer-resizer-mem pipeline
+  * Fix for batray flash overheating protection
+  * Fix ISP bandwidth management code for mem-2-mem pipelines
+  * Fix ISP preview engine parameters for first frame
+  * Fix ISP resizer crop settings
+  * Fix smiapp analog gain bug
+  * Implement ISP pipeline locking
+  * Incorporate upstream review changes v4l2_subdev userspace API
+  * Obfuscate Lada sensor strings
+  * Remove legacy video nodes finally
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 09 Sep 2010 13:58:35 +0300
+
+kernel (2.6.32-20103605) intrepid; urgency=low
+
+  * Fixes: NB#176613 - kmemleak on USB module load/unload
+  * Fixes: NB#188784 - X creates touch screen events incorrectly
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 09 Sep 2010 09:17:30 +0300
+
+kernel (2.6.32-20103604) intrepid; urgency=low
+
+  * Fixes: NB#171077 - "unwind"-related messages spamming the console
+  * Prevent glibc from clearing environment when policy without
+    capabilities is active
+
+  * debian/control: Set /me as maintainer.
+  * debian/rules: Added a symbolic link for vmlinux from kernel-debug.
+    Patch by Viktor.Rosendahl@nokia.com.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 08 Sep 2010 09:46:09 +0300
+
+kernel (2.6.32-20103603) intrepid; urgency=low
+
+  * aegis: credp: New ioctl command SIOCCREDP_CONFINE2.
+  * omap-aes queue locking cosmetic change
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 07 Sep 2010 14:09:17 +0300
+
+kernel (2.6.32-20103602) intrepid; urgency=low
+
+  * ECI buttons autorepeat
+  * Fixes: NB#164055 - WH-701 headset is not detected as ECI accessory
+  * Fix rare kernel crash while reporting jack status
+  * Implemented: SWP#AdpPr-367
+  * New accessory detection logic
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 07 Sep 2010 10:04:26 +0300
+
+kernel (2.6.32-20103601) intrepid; urgency=low
+
+  * Fixes: NB#186607 - FTP upload does not work
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 06 Sep 2010 15:07:13 +0300
+
+kernel (2.6.32-20103502) intrepid; urgency=low
+
+  * Fixes: NB#188769 - Cyclic reboots on B3s
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 01 Sep 2010 13:40:28 +0300
+
+kernel (2.6.32-20103501) intrepid; urgency=low
+
+  * Fixes: NB#160029 - Dali does not toggle Bluetooth HOSTWU HW line at
+    bootup
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 30 Aug 2010 15:04:55 +0300
+
+kernel (2.6.32-20103406) intrepid; urgency=low
+
+  * Fixes: NB#180610 - io_dispatch_pm: hibernate cmd failed 0x80040902
+  * Fixes: NB#184561 - Unmatched enable_irq in twl4030 interrupt handler
+  * Fixes: NB#188110 - DMM reserve memory failure observed while
+    capturing 12MP images after few iterations
+  * Introduce OMAP3630 ES1.2 into linux-dali kernel
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 27 Aug 2010 11:48:14 +0300
+
+kernel (2.6.32-20103405) intrepid; urgency=low
+
+  * Fixes: CVE-2010-2492
+  * Fixes: NB#184687 - I2C controller timed out
+  * Fixes: NB#186787 - Kernel security vulnerability
+  * Kernel fixes from v2.6.32.17..v2.6.32.20
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 27 Aug 2010 09:38:47 +0300
+
+kernel (2.6.32-20103404) intrepid; urgency=low
+
+  * crypto: omap-sham: Adjust DMA parameters
+  * omap: dma: Support for prefetch in destination synchronized transfer
+  * Fixes: NB#183206 - loading of new hashes into kernel fails
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 26 Aug 2010 10:40:51 +0300
+
+kernel (2.6.32-20103403) intrepid; urgency=low
+
+  * charger detection optimizations
+  * Fixes: NB#176076 - Poor Bluetooth audio quality after pausing
+    streaming
+  * Fixes: NB#182718 - WLAN No ack to nullfunc from access point -
+    connection lost
+  * Fixes: NB#185033 - WLAN ERROR ELP wakeup timeout! spam on console
+    when using rmmod wl1271
+  * Fixes: NB#185769 - Dead code in WLAN driver removed
+  * Fixes: NB#185779 - Remove dead code from the WLAN driver
+  * Implemented: AdpPr-613
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 25 Aug 2010 15:05:05 +0300
+
+kernel (2.6.32-20103402) intrepid; urgency=low
+
+  * ECI: Jack report function provided via platform data
+  * Fixes: NB#183975 - NFC Host Interface production test fails with
+    read error
+  * Fixes: NB#183980 - NFC firmware update fails
+  * Fixes: NB#183991 - NFC message notifications do not arrive as
+    expected
+  * Fixes: NB#185178 - COREWEB: /sbin/mce 'read mce_read_chunk_from_file
+  * fs: mtd: remove mtdblock driver from configuration
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 25 Aug 2010 10:33:50 +0300
+
+kernel (2.6.32-20103401) intrepid; urgency=low
+
+  * Add 'manufacturer' parameter to g_file_storage
+  * Disable automatic bulk combine/spli feature from USB driver
+  * Display support for Macro 3.3
+  * Display support for Pyrenees TS2.0
+  * Fix Columbus display
+  * Fixes: NB#177186 - Disable USB Automatic Packet Splitting
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 24 Aug 2010 09:07:28 +0300
+
+kernel (2.6.32-20103308) intrepid; urgency=low
+
+  * Add ISP debug option on build
+  * Add modules aliases for camera i2c drivers
+  * Add recovery configuration for ISP statistics modules
+  * Allow both SPI & SDIO WLAN drivers to be built-in the kernel
+  * Fixes: NB#145996 - LSC table can not be updated during Streaming
+    state
+  * Fixes: NB#173751 - CSI2 64-byte corruption when full resolution in
+    Batray is used
+  * Fixes: NB#173751 - CSI2 data corruption for csi2 to mem path
+  * Fixes: NB#183831 - circular locking dependency in flash driver
+  * Fixes: NB#186442 - recursive locking is detected while launching
+    camera
+  * Misc fixes for ISP and statistics
+  * Rework LSC update logic in ISP driver
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 20 Aug 2010 12:39:55 +0300
+
+kernel (2.6.32-20103307) intrepid; urgency=low
+
+  * Fixes: NB#184800 - Kernel panic during glmemperf execution.
+  * Fixes: NB#186286 - Division by zero in kernel
+  * RM680 ALS: Remove division by zero case in kernel
+  * Set VRRTC to sleep mode on RM680 boards
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 20 Aug 2010 09:15:04 +0300
+
+kernel (2.6.32-20103306) intrepid; urgency=low
+
+  * Implement boot-time panel reset skip
+  * Implement dynamic PM for display
+  * Memory leak in sgtable_alloc() function is fixed.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 19 Aug 2010 09:22:10 +0300
+
+kernel (2.6.32-20103305) intrepid; urgency=low
+
+  * Add SDIO WLAN support for RX-71:3100
+  * Fixes: NB#176816 -  I2C_1 CLK too slow (HS mode)
+  * re-apply FUA patches from upstream
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 18 Aug 2010 14:22:01 +0300
+
+kernel (2.6.32-20103304) intrepid; urgency=low
+
+  * ACI/ECI - control interface for periodic detection
+  * ACI/ECI - Detection latency tuning interface
+  * ACI/ECI - Microphone on / off control
+  * ACI/ECI - Periodic detection of open cable
+  * ACI/ECI - Testing interface
+  * FM radio - compilation support for analog mode only
+  * Implemented: SWP#AdpPr-623
+  * RM680 ALS - Calibration format change
+  * RM680 ALS - Glass attenuation and chip factor support
+  * RM680 ALS - Threshold interface aligment with reported results
+  * RM680 leds - logo led support removed for all HW revisions
+  * RM696 ALS - Calibration interface
+  * RM696 sensor orientation update
+  * sched: coverity fixes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 17 Aug 2010 13:20:41 +0300
+
+kernel (2.6.32-20103303) intrepid; urgency=low
+
+  * Fixes: NB#185643 - Changing display backlight breaks the display on
+    B1.1
+  * Fix tREF values of 195.2MHz memory clock
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 17 Aug 2010 09:17:08 +0300
+
+kernel (2.6.32-20103302) intrepid; urgency=low
+
+  * PVR coverity fixes
+  * SDIO WLAN support for Lankku and Devlon
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 16 Aug 2010 11:58:43 +0300
+
+kernel (2.6.32-20103301) intrepid; urgency=low
+
+  * Enable DVFS in dspbridge
+  * Fixes: NB#173013 - Fixes IVA2 power state conflict btn PM &
+    bridgedriver.
+  * Fixes: NB#180143 - DVFS is not enabled in dspbridge driver
+  * Implemented: AdpPr-522
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 16 Aug 2010 09:31:54 +0300
+
+kernel (2.6.32-20103206) intrepid; urgency=low
+
+  * Fixes: NB#117800 - USB transceiver is not sleeping by default
+  * Fixes: NB#161841 - omap2_onenand_init() should be optimized
+  * Fixes: NB#183639 - Flasher should enumerate USB successfully
+  * USB Charger Detection improvements
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 13 Aug 2010 09:34:06 +0300
+
+kernel (2.6.32-20103205) intrepid; urgency=low
+
+  * Fixes: NB#145274 - Serial console dies with PM enabled
+  * HACK: Disable backlight control with GF to prevent kernel panic.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 12 Aug 2010 16:46:06 +0300
+
+kernel (2.6.32-20103204) intrepid; urgency=low
+
+  * atmel_mxt: 12bit accuracy support
+  * atmel_mxt: Improve touch release accuracy on edges
+  * Fixes: NB#168505 - Clear IP heart beat poll state only when read
+  * Fixes: NB#179675 - atmel_mxt 2-004b: selftest: AVdd not present
+  * Fixes: NB#183272 - WLAN passive scan doesn't work properly
+  * Fixes: NB#183369 - Touchscreen function "mirrored" in regards to
+    display
+  * RM-696: Touch orientation is now aligned with display
+  * RX-71, RM-680, RM-696: Touch sampling rate now FW default (100Hz)
+  * RX-71: use touch hw reset on boards which supports it
+  * Fixes: NB#183066 - Fixes SR calibration stopped error.
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 12 Aug 2010 11:10:31 +0300
+
+kernel (2.6.32-20103203) intrepid; urgency=low
+
+  * ASoC sync with upstream
+  * dfl61-twl4030: Remove the 700ms delay from digimic0 path
+  * Fixes: NB#183827 - kernel BUG at drivers/media/video/isp/ispstat.c:447
+  * ISP streamon NULL check fix
+  * OMAP McBSP: Extended threshold mode
+  * serialize config and request ioctls for ISP statistics
+  * Stop enabling ISP LSC at init in passthrough mode
+  * tlv320dac33: automatic FIFO configuration in Mode1, and Mode7
+  * TWl4030: Avoid feeding wrong bias to digimic when switching sources
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 10 Aug 2010 13:53:06 +0300
+
+kernel (2.6.32-20103202) intrepid; urgency=low
+
+  * Avoid cacheflush() deadlock
+  * Fixes: NB#180072 - Device hangs partially
+  * ECI (headset with several buttons) corrections
+  * FM radio driver correction ( memleak )
+  * RM696 ALS / Proximity driver correction
+  * RM696 keypad support (row only HW configuration)
+  * RM696 NFC driver corrections and test support
+  * twl4030 qwerty driver uses threaded IRQ
+  * Fixes: NB#163350 - ECI button detection not working everytime
+  * Fixes: NB#175446 - Volume keys not working in S0.2 design
+  * Fixes: NB#175999 - FM radio functional test fails in production
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 10 Aug 2010 09:59:22 +0300
+
+kernel (2.6.32-20103201) intrepid; urgency=low
+
+  * dspbridge fix wrong flushes
+  * Fixes: NB#182001 - dspbridge causes corruption on user-space
+  * HSI: fix some error handling bugs
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 09 Aug 2010 09:35:20 +0300
+
+kernel (2.6.32-20103105) intrepid; urgency=low
+
+  * generic cpuidle optimizations for rx71 and rm680
+  * PVR: fix SGX HW recovery
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 06 Aug 2010 13:47:24 +0300
+
+kernel (2.6.32-20103104) intrepid; urgency=low
+
+  * Fixes: NB#178236 - BT stereo audio playback broken when associating
+    with WLAN twice
+  * Fixes: NB#181938 - WARNING in WLAN scan code
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Fri, 06 Aug 2010 09:40:59 +0300
+
+kernel (2.6.32-20103103) intrepid; urgency=low
+
+  * Kernel fixes from v2.6.32.16
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 05 Aug 2010 10:10:16 +0300
+
+kernel (2.6.32-20103102) intrepid; urgency=low
+
+  * Add generic driver for SMIA++ sensors
+  * Drop Batray pre-flash off time to 40ms
+  * Fast standby support for batray
+  * Fixes: NB#177624 - 16:9 low resolution images gets saved with
+    vertical stripes
+  * Fixes: NB#178777 - Histogram ISP SCM engine deliver only erroneous
+    events
+  * Initial camera support for RM-696
+  * ISP H3A fixes and proper cache handling for H3A buffers
+  * Support for DPCM in ISP CSI2/CCP2 drivers
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 04 Aug 2010 10:25:44 +0300
+
+kernel (2.6.32-20103101) intrepid; urgency=low
+
+  * Add MMC performance tests to mmc_test module
+  * Do not touch gadget's linked list on USB controller driver
+  * Fixes: NB#168311 - Write errors and musb_g_ep0_irq 785 errors during
+    testusb
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 03 Aug 2010 09:18:01 +0300
+
+kernel (2.6.32-20103005) intrepid; urgency=low
+
+  * cmt_speech: Notify user-space when interface is reset unexpectedly
+  * Fixes: NB#181087 - pvrsrvkm: possible circular locking dependency
+    detected
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 29 Jul 2010 10:21:46 +0300
+
+kernel (2.6.32-20103004) intrepid; urgency=low
+
+  * Fixes: NB#126401 - Record path: Pop noise in the beginning
+  * Fixes: NB#180144 - Fixes race in resource fwk with per-resource
+    mutex.
+  * twl4030: 700ms delay added for capture, when digimic is used
+  * wl1273: Use function to obtain the codec mode from machine driver
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 28 Jul 2010 09:41:52 +0300
+
+kernel (2.6.32-20103003) intrepid; urgency=low
+
+  * Fixes: NB#162253 - Fixes UART module freeze when MDR1 register is
+    accessed
+  * Fixes: NB#181689 - kernel panics at exit_creds
+  * lessen amount of flusher thread wake-ups to improve PM
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 27 Jul 2010 15:18:56 +0300
+
+kernel (2.6.32-20103002) intrepid; urgency=low
+
+  * Avoid possible null dereference panic
+  * Fixes: NB#178052 - dspbridge test app makes device reboot easily
+  * Fixes: NB#180387 - SR sometimes fails
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Tue, 27 Jul 2010 09:56:28 +0300
+
+kernel (2.6.32-20103001) intrepid; urgency=low
+
+  * Add module parameter 'limit'
+  * Change module parameter 'noswap' to 'header'.
+  * Fixes: NB#176381 - Dedicated charger is not recognized
+  * Fixes: NB#177116 - WCDMA standby power consumption increased 16 ->
+    35 mA
+  * Fixes: NB#179718 - Flashing and connection errors on CITA workers
+  * power consumption and charger detection fixes
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 26 Jul 2010 09:45:56 +0300
+
+kernel (2.6.32-20102903) intrepid; urgency=low
+
+  * eliminate excessive wake-ups to lessen power consumption
+  * Fixes: NB#166519 - excessive wake-ups of bdi-default and flusher-x:y
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Thu, 22 Jul 2010 12:43:41 +0300
+
+kernel (2.6.32-20102902) intrepid; urgency=low
+
+  * Disable unneeded ID Comparator
+  * Fixes: NB#163610 - dsp mailbox causes lockdep warning
+  * Fixes: NB#175465 - Disable unneeded ID Comparator
+  * mailbox lockdep warning fix
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Wed, 21 Jul 2010 09:28:22 +0300
+
+kernel (2.6.32-20102901) intrepid; urgency=low
+
+  * TWL4030: DAC power optimizations
+  * TWL4030: Fix digital loopback dB mapping
+
+ -- Eugene Lyubimkin <ext-lyubimkin.eugene@nokia.com>  Mon, 19 Jul 2010 15:33:40 +0300
+
+kernel (2.6.32-20102805) intrepid; urgency=low
+
+  * Add kernel support to 195.2MHz memory clock
+  * Fixes: NB#175818 - Mtdswap runs out space with large block size
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 16 Jul 2010 09:34:46 +0300
+
+kernel (2.6.32-20102804) intrepid; urgency=low
+
+  * Fixes: NB#175653 - Too small USB transferring rate in Mass storage
+    mode
+  * Make 1GHz CPU frequency available, so userspace can choose it.
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 15 Jul 2010 11:03:15 +0300
+
+kernel (2.6.32-20102803) intrepid; urgency=low
+
+  * Implement smartreflex and 1Ghz OPP for OMAP3630
+  * Fixes: NB#162372 - OMAP3630 WA REQ: 1.48
+  * Fixes: NB#162384 - OMAP3630 WA REQ: 2.11
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 14 Jul 2010 13:38:02 +0300
+
+kernel (2.6.32-20102802) intrepid; urgency=low
+
+  * 298fa2ea76ebeb7d3b218dc095adbcec283c8749
+  * Fixes: NB#166947 - WLAN always active-scans 13 channels
+  * Fixes: NB#171282 - Unable to sync over BT with Iphone
+  * Fixes: NB#175390 - Ad-hoc: Warning when ad-hoc network is
+    disconnected
+  * Fixes: NB#176363 - No way to enable/disable WLAN U-APSD classes
+    individually
+  * Fixes: NB#176472 - Imcompatible dynamic PSM interface in wlan driver
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 13 Jul 2010 11:26:20 +0300
+
+kernel (2.6.32-20102801) intrepid; urgency=low
+
+  * 32d73f7bb20a625ac166b767d81fa35bdb91f685
+  * fix credp_kconfine to drop credentials if no policy found
+  * replace legacy SSI drivers with HSI framework
+  * Fixes: NB#177222 - new credentials are not added to the process
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 12 Jul 2010 09:22:10 +0300
+
+kernel (2.6.32-20102702) intrepid; urgency=low
+
+  * e019f36353f0e3d296a8c32a1c6f816a52dd5f38
+  * Add support for MMC erase and secure erase
+  * do not compile R&D-only in to make the kernel smaller and boot-up
+    faster
+  * Implement SoC Info for OMAP
+  * oprofile hack to fix callgraphs in userspace
+  * Fixes: NB#176360 - prevent excessive wake-ups in sunrpc
+  * Fixes: NB#176733 - oprofile callgraphs in userspace
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 09 Jul 2010 09:26:33 +0300
+
+kernel (2.6.32-20102701) intrepid; urgency=low
+
+  * 03051a84b1c8d28a4bf6671d47ebaecb22d40667
+  * Add crop support in ISP
+  * Add hack to ignore extra data from the ISP AF module
+  * Add v4l2 subdev pad-level format, size and ival enum API
+  * Batray flash overheat protection support
+  * Drop setting GP HOLD implicitly in batray driver
+  * Remove extra delay in first VIDIOC_DQBUF
+  * Workaround for Windows' limitation with multiple USB configurations
+  * Fixes: NB#148169 - USB should not prevent sleep regardless of VBUS
+  * Fixes: NB#173816 - PC cable disconnect takes some time to be
+    recognized
+  * Fixes: NB#175465 - Disable unneeded ID Comparator
+  * Fixes: NB#175525 - USB ACM should never loose data
+  * Fixes: NB#176850 - USB Setup packages should be consistent
+  * Fixes: NB#177012 -  NULL pointer Oops from modprobe g_file_storage
+  * Fixes: NB#177186 - Allow softupd to enumerate behind a hub
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 07 Jul 2010 09:51:48 +0300
+
+kernel (2.6.32-20102603) intrepid; urgency=low
+
+  * 964f6261645420132c3db1b1816e0389bf8c5c33
+  * omap_sec - increase buffer size limits
+  * Fixes: NB#170626 - VIDIOC_G_EXT_CTRLS not working for secondary
+    sensor
+  * Fixes: NB#170688 - Statistic module is not working when is enabled
+    after Stream On
+  * Fixes: NB#171580 - kernel BUG at
+    drivers/media/video/isp/ispstat.c:336
+  * Fixes: NB#174226 - CCP2 readback DPCM decompression does not work
+  * Fixes: NB#176767 - can't cold flash RX-71:3206
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 02 Jul 2010 13:25:32 +0300
+
+kernel (2.6.32-20102602.1) intrepid; urgency=low
+
+  * d51c6eb150d4cdcc385d6efc0cd1174fad10b531
+  * Fixes: NB#177121 -  Unable to launch applications from control panel
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 30 Jun 2010 16:21:15 +0300
+
+kernel (2.6.32-20102602) intrepid; urgency=low
+
+  * ab96171e8c82f1bff8dd9ddfcf266795982ee21a
+  * Added support for VRRTC regulator
+  * Allow VAUX1 regulator go to OFF state
+  * Display support for Lankku
+  * Display support for RX-71 3225 & 4000
+  * Support for skipping onenand bad block scan
+  * TWL4030-MADC does less i2c accesses during operation
+  * Fixes: NB#161841 - omap2_onenand_init() should be optimized
+  * Fixes: NB#175407 - After CS call device consumes over 110mA in idle
+  * packaging: Make symlink of the latest crashkernel
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 30 Jun 2010 09:27:08 +0300
+
+kernel (2.6.32-20102601) intrepid; urgency=low
+
+  * 5349eff9714fd36f53b680d210e3cea1fb0d2f91
+  * dali: kernel rm-690 support
+  * dali: kernel RM-696 s0.2 peripherals support
+  * dali: mtd: add mtd repartition ioctl support
+  * Fixes: NB#162376 - MMC clks are enabled & disabled while enabling
+    ts_fck.
+  * Fixes: NB#172458 - SSU fails due to unmet dependencies of ape-algo
+    in newly flashed image
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 28 Jun 2010 09:26:53 +0300
+
+kernel (2.6.32-20102503) intrepid; urgency=low
+
+  * f6cdff857273d11789092865da7d53d334dba02c
+  * coverify RESOURCE_LEAK fix - Storage not saved
+  * improve use-time by killing a thread waking up every 5 secs
+  * Fixes: NB#170905 - creds_confine() does not drop credentials if no
+    policies defined
+  * Fixes: NB#171137 - creds_confine fails confining process credentials
+  * Fixes: NB#174137 - kmemleak in credp
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 23 Jun 2010 17:06:27 +0300
+
+kernel (2.6.32-20102502) intrepid; urgency=low
+
+  * 66df024eff3e1c879c2d245552c01b7346573785
+  * Alphamon (proximity / als) ID update
+  * Direct ALS threshold control interface
+  * Proximity compensation between several chip versions
+  * Proximity cutoff at high als levels
+  * Proximity IR led current adjustment
+  * Updated dipro driver
+  * Fixes: NB#173908 -  Cable detection leaves mic bias on with
+    headphones
+  * Implemented: SWP#AdpPr-531
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 22 Jun 2010 15:07:24 +0300
+
+kernel (2.6.32-20102501) intrepid; urgency=low
+
+  * a46b29b781dd90ce1a80b6ebda0498d2fa820778
+  * Fixes: NB#161944 - BT a2dp audio is breaking when trying coex with
+    WLAN
+  * Fixes: NB#164019 - WARNING: at net/wireless/mlme.c:46
+    cfg80211_send_rx_auth+0x108/0x150 [cfg80211]()
+  * Fixes: NB#170072 - WLAN psm setting through network latency does not
+    work as expected
+  * Fixes: NB#170551 - WLAN WFA: IBSS network Beacon has wrong Basic
+    rate set
+  * Fixes: NB#174777 - ARP filtering changes cause locking cross
+    dependency
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 21 Jun 2010 09:26:49 +0300
+
+kernel (2.6.32-20102404) intrepid; urgency=low
+
+  * b92a2ee766fa99fa146dd9244f670bbbe7622f0a
+  * Improved display error handling
+  * Fixes: NB#171702 - kernel BUG at...
+  * Implemented: SWP#AdpPr-432
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 18 Jun 2010 09:38:58 +0300
+
+kernel (2.6.32-20102403) intrepid; urgency=low
+
+  * 24abdb22840b4b4c5ce8e607faa2f9160a4ad319
+  * Fixes: NB#164254 - accelerometer selftest fails if module is
+    unloaded and loaded back
+  * Fixes: NB#172201 - Accelerometer uncalibrated after reboot
+  * Fixes: NB#173033 - Headset mic not working
+  * Fixes: NB#173085 - Noise with WH701 from host in cellular call
+  * Fixes: NB#161844 - dss/himalaya/etc init should be optimized
+  * Fixes: NB#173487 - S1.1 fails to achieve UI
+  * Implemented: SWP#AdpPr-413
+  * Implemented: SWP#AdpPr-538
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 17 Jun 2010 12:51:15 +0300
+
+kernel (2.6.32-20102402) intrepid; urgency=low
+
+  * 4869ae608fd61a3f418c2c93037970c9afc8d1a9
+  * Fixed an oops in debug message output
+  * Fixed madc block power control
+  * Optimise USB Charger Detection Sequence
+  * switch to LZO compression for the kernel image
+  * USB Suspend IRQ to be handled on peripheral-only configurations too
+  * Fixes: NB#158374 - kernel has debug options which may hit boot-time
+  * Fixes: NB#171565 - Oops in madc when reconnecting USB cable
+  * Fixes: NB#171582 - prevent charger detection from breaking HS chirps
+  * Fixes: NB#173327 - Only disable USB regulators if they are enabled
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 16 Jun 2010 16:30:06 +0300
+
+kernel (2.6.32-20102401) intrepid; urgency=low
+
+  * 83093ff77850b8d53efa9e954e253996b05668ed
+  * Allow broken firmware (v1.1) to pass crc check. (CS1.1, CS1.2)
+  * Fix cfg area location calculation
+  * twl5031-bcc code cleanup
+  * Fixes: CB#33458 - Cannot reach dead statement
+  * Fixes: NB#172583 - WLAN data transfer failures with Zyxel Prestige
+    600
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 15 Jun 2010 16:41:18 +0300
+
+kernel (2.6.32-20102306) intrepid; urgency=low
+
+  * 96559a1a371a2776a8e6d8ca04d9c289a3a9ceec
+  * add new kernel command-line option vhash
+  * disable cryptoalgos' selftests to speed up boot
+  * Fix TV-out glithces on Dali
+  * Fixes: NB#154863 - TV-out glitches
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 11 Jun 2010 13:25:22 +0300
+
+kernel (2.6.32-20102305) intrepid; urgency=low
+
+  * 9710d403d0372fcf46683e2ee441a32c2be12b59
+  * PVR part of vsync support
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 11 Jun 2010 09:58:53 +0300
+
+kernel (2.6.32-20102304) intrepid; urgency=low
+
+  * bef59df4e542c75a60eb9aad873dbdb7ae5d5aba
+  * avoid dangling pipe on the modem side
+  * DAC33: ALSA control for changing the UTHR in Mode7
+  * DSS part of vsync support
+  * Support for block addressable cards in mmc_test module
+  * Fixes: NB#164938 - Misaligned in-kernel MMC transfer hangs task
+  * Fixes: NB#172405 - fixes kernel memory leak in pn_pep
+  * Implemented: SWP#AdpPr-583
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 09 Jun 2010 16:10:34 +0300
+
+kernel (2.6.32-20102303) intrepid; urgency=low
+
+  * f8cab8cc1bcd5375de97575cdbb5af9b5778a7d1
+  * Fix view finder in video recording mode
+  * Use DMA also when USB is on full-speed
+  * Fixes: NB#168311 - ignore Spurious IRQs while DMA is running
+  * Fixes: NB#170420 - WLAN fw crashes during Coex testing
+  * Fixes: NB#170830 - ttyGS2 should hangup on USB cable unplug
+  * Fixes: NB#170879 - Video mode: Viewfinder displayed in three
+    fragments
+  * Fixes: NB#170954 - Fix BT firmware downloading
+    creating an ad-hoc after test run
+  * Fixes: NB#172212 - WLAN Ad-hoc: Device ignores scanned SSIDs when
+    creating an ad-hoc after test run
+  * Fixes: NB#172542 - WLAN error when using secured connection WPA-PSK
+  * Implemented: SWP#AdpPr-164
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 09 Jun 2010 10:32:40 +0300
+
+kernel (2.6.32-20102302) intrepid; urgency=low
+
+  * 57ef626eaaecfe5ec8d993d752f6dac89b804765
+  * ACI & ECI input devices combined to one device
+  * Fix annoying unhandled disconnect message
+  * fix charger detection
+  * implement USB data contact detection (DCD)
+  * Fixes: NB#167011 - Accessory detection stops working if you plug ...
+  * Fixes: NB#168761 - Tv-out cable is recognized as SND_JACK_HEADPHONE
+  * Fixes: NB#169935 - nfsroot via USB does not work if CONFIG_PM is off
+  * Fixes: NB#170118 - Reno interrupt handling latency
+  * Fixes: NB#170354 - Add missing 500mA configuration to g_file_storage
+  * Fixes: NB#170455 - Device shows charging without connected charging
+  * Fixes: NB#171107 - Device doesn't shutdown
+  * Fixes: NB#171573 - oops when disconnecting cable with debug enabled
+  * Fixes: NB#171632 - USB charging overnight results in device off
+    with empty battery
+  * Fixes: NB#171962 - RDS scanning is stuck for long periods of time
+  * Fixes: NB#172472 - Regular (non-ECI) headset detection is not
+    working...
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 08 Jun 2010 09:16:52 +0300
+
+kernel (2.6.32-20102301) intrepid; urgency=low
+
+  * 7c76a2e1d389c59b87be356fed74c146fe89b432
+  * OMAP3: McBSP FIFO handling correction
+  * Implemented: SWP#AdpPr-533
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 07 Jun 2010 08:57:32 +0300
+
+kernel (2.6.32-20102206) intrepid; urgency=low
+
+  * 8fb2d514c2f4068996f4e6e79cd2758763e152dd
+  * DSS Coverity fixes
+  * Performance problem with 200MHz memories fixed
+  * Fixes: CB#24451 - Cannot reach dead statement
+  * Fixes: CB#24453 - Comparing unsigned less than zero is never true
+  * Fixes: CB#24454 - Comparing unsigned less than zero is never true
+  * Fixes: CB#24455 - Dereferencing NULL value
+  * Fixes: CB#24456 - Dereferencing NULL value
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 04 Jun 2010 10:33:40 +0300
+
+kernel (2.6.32-20102205) intrepid; urgency=low
+
+  * 318794ca142dc05c061149154f41146ec37659a1
+  * DSS: Initial RM696/Pyrenees display support
+  * DSS: Obsolete Himalaya panel driver removal
+  * Kernel fixes from v2.6.32.15
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 03 Jun 2010 09:13:27 +0300
+
+kernel (2.6.32-20102204) intrepid; urgency=low
+
+  * c6419fdecc5e423480f33f6a214ea00251526c8b
+  * Add display support for Macro 3.2
+  * Fixes: NB#169108 - Suspend fails occasionally
+  * Fixes: NB#171427 - dali b1.1 does not boot up properly on...
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 02 Jun 2010 12:59:03 +0300
+
+kernel (2.6.32-20102203) intrepid; urgency=low
+
+  * aaef1bc498e8c4106109ae29517bb6c08235437f
+  * Add probe format per subdev file handle
+  * Add subdev operations for pixel format enumeration
+  * Fix batray lens extclk
+  * Kernel fixes from v2.6.32.14
+  * Replace videobuf with an ISP private video buffers queue
+  * Fixes: NB#164721 - Device reboots while executing OBEX FTP tests
+  * Fixes: NB#164993 - Update security requirements for existing BT
+    connection
+  * Fixes: NB#168197 - WLAN connection fails sometimes due to DHCP
+    problem
+  * Fixes: NB#170643 - Incorrect framerate for 1280x720@24fps video mode
+  * Implemented: SWP#AdpPr-213
+  * Implemented: SWP#AdpPr-493
+  * Implemented: SWP#maeco-1767
+  * Add debug kernel packages
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 01 Jun 2010 16:24:05 +0300
+
+kernel (2.6.32-20102202) intrepid; urgency=low
+
+  * 6c0ec713528d624b9cc5bb2516e62f32a4eaf09d
+  * ASoC core: support for keeping audio paths enabled during suspend
+  * ASoC core: Volume limiting fix in case, when invert is in use
+  * eci: initialization robustnes improvements
+  * McBSP: support for 32 bit sample format
+  * proximity: remove deadlock in open call
+  * tlv320dac33: Fixes for subsequent power off
+  * tpa6130a2: DAPM widget changes (DAPM_HP -> DAPPM_OUTPUT)
+  * tpa6130a2: Regulator supply fix
+  * twl4030: module loading speed optimizations
+  * twl4030: Support for digimic Left Right swapping (user control)
+  * twl4030: turn off codec, when it is not in use instead of standby
+  * twl4030-vibra: correct power down sequence
+  * Fixes: NB#154808 - Current consumption higher before audio activity
+    on Reno
+  * Fixes: NB#155245 - Pop noise when starting and stopping dac33
+    playback
+  * Fixes: NB#164055 - WH-701 headset is not detected as ECI accessory
+  * Fixes: NB#168270 - Big kernel lock on misc devices initialization
+  * Fixes: NB#168358 - Eci accessory initialization fails
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 01 Jun 2010 10:10:57 +0300
+
+kernel (2.6.32-20102108) intrepid; urgency=low
+
+  * 32eb37ad3f70d1fceec8548d9de8fdcd2fb15bf1
+  * OMAP: DSS: Taal and Grande Finale driver small optimizations
+  * refresh kernel configuration (no actual changes)
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 28 May 2010 13:03:04 +0300
+
+kernel (2.6.32-20102107) intrepid; urgency=low
+
+  * c20e71b80e109f46d8b6d2a4589638cf66301bc2
+  * Fix a bogus and confusing sparse warning in the unwind code.
+  * FM-radio corrections
+  * PVR: fix graphics memory sharing among processes
+  * sync fix for NB#163854 with upstream
+  * Fixes: NB#168712 wl1273-fm errors and radio chip not functional ...
+  * Fixes: NB#169414 - linux-dali compilation fails with rx51_defconfig
+  * Fixes: NB#169871 - Phonet OOPS with memory poisoning
+  * Add kdump capture kernel package for collecting kernel crashdumps
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 27 May 2010 16:20:35 +0300
+
+kernel (2.6.32-20102106) intrepid; urgency=low
+
+  * 8472af77f4b46e341a06ffe8df6789064fea0a62
+  * Kernel fixes from v2.6.32.13
+  * Tuning I2C parameters
+  * Fixes: NB#161852 - prng_mod_init() should be optimized
+  * Fixes: NB#164503 - OMAP3630 WA REQ: 1.62. I2C1 to 3 SCL low period
+    is shorter in FS mode
+  * Fixes: NB#164740 - (HS I2C busses) Signal integrity fails I2C busses
+    between OMAP and Reno
+  * Fixes: NB#170154 - DSS2: Fix Grande Finale support for RM-680 B1.2
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 27 May 2010 13:03:52 +0300
+
+kernel (2.6.32-20102105) intrepid; urgency=low
+
+  * ff34a989ffad3a86c02ce47755eb76c88ae080bc
+  * Fix display update on RM-581
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 27 May 2010 08:42:34 +0300
+
+kernel (2.6.32-20102104) intrepid; urgency=low
+
+  * c73f363e1d1ef184c7b94a17390f0fce857d38d1
+  * Better error recovery from ESD and display resets
+  * Disable CONFIG_FTRACE
+  * Force flashing option
+  * Fixes: NB#164491 -OMAP3630 WA REQ: 1.8. I2C RDR flag may be wrongly
+    set
+  * Fixes: NB#169797 - devtmpfs should be enabled
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 26 May 2010 10:37:56 +0300
+
+kernel (2.6.32-20102102) intrepid; urgency=low
+
+  * 3a20ebc4a8d2efe02ebad65ada372923ef19da09
+  * Add H3A statistics buffer magic check hack
+  * Add ISP CCP2 mem read back support
+  * Fixes memory read issue with Himalaya ES3.x
+  * fix oops on cache flush
+  * Increase DSI frequencies to 256MHz
+  * Tear-free display updates
+  * Various small changes preparing for tear-free update
+  * Fixes: NB#168655 - Reno VAUX3.OUT is 2.5V and it should be 2.8V
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 24 May 2010 17:07:42 +0300
+
+kernel (2.6.32-20102101) intrepid; urgency=low
+
+  * d96a48c6ad351f6229385d39cc3740d56df6d645
+  * Allow boards other than Nokia's to compile too
+  * Core OFF mode disabled by default for OMAP3630
+  * Enable deterministic nowayout for omap_wdt
+  * OMAP3630 silicon revision check updated
+  * Remove register/open race caused by BKL removal
+  * Fixes: NB#163254 - vfp_pm_save_context spam on console
+  * Fixes: NB#169492 - add missing parameter to usb_musb_init()
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 24 May 2010 09:27:12 +0300
+
+kernel (2.6.32-20102005) intrepid; urgency=low
+
+  * f8323c56fc59e8f0ac7348ce9f28fe50a33c1ac7
+  * Accelerometer click detection parameters tuned
+  * ECI init correction
+  * Fix memory corruption after DSP_MMUFAULT
+  * Remove big kernel lock from misc device open call
+  * RM680 led driver selftest update
+  * RM680 updated magnetometer driver
+  * RM696 led driver (lp5521)
+  * RM696 magnetometer driver
+  * Fixes: NB#163586 - Kernel memory poison overwritten after
+    DSP_MMUFAULT
+  * Fixes: NB#168270 - Big kernel lock on misc devices initialization
+  * Fixes: NB#168358 -  Eci accessory initialization fails
+  * Implemented: SWP#AdpPr-390
+  * Implemented: SWP#AdpPr-414
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 20 May 2010 13:10:12 +0300
+
+kernel (2.6.32-20102004) intrepid; urgency=low
+
+  * 09bbd8ddb79f482eb69259c9239097da11c4727e
+  * Bugfixes for USB Driver
+  * Fixes: NB#156079 - leave MUSB clock handling for platform code
+  * Fixes: NB#168171 - React to ACM_CTRL_DTR
+  * Fixes: NB#168633 - prevent suspend() before we enable MUSB clock
+  * Fixes: NB#168940 - handle all usb events when notifying VBUS states
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 19 May 2010 12:15:27 +0300
+
+kernel (2.6.32-20102003) intrepid; urgency=low
+
+  * 564c4a77625834ea4b4c2769fdbac2fe9b5a43fc
+  * v4l2 videobuf fixes from upstream
+  * Add senna camera flash driver
+  * CSI2 output video node
+  * H3A SBL overflow workaround
+  * Add subdev-level frame rate configuration API
+  * Support for multiple opens and config on video nodes
+  * ISP CSIPHY segregation and cleanup
+  * omap-sham driver rewrite
+  * Fixes: NB#123263 - Change the DPRINTK macros to dev_dbg in ISP
+    driver
+  * Fixes: NB#164144 - loading camera modules causes oops
+  * Fixes: NB#165849 - restarting hal daemon triggers kernel backtrace
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 18 May 2010 12:57:04 +0300
+
+kernel (2.6.32-20102002) intrepid; urgency=low
+
+  * 157860d5b25f1f06caf7282068f295e1e586ea13
+  * Fixes: NB#141220 - iphb module should have a timer to flush TCP
+    keepalive queue
+  * Fixes: NB#157664 - Warning in WLAN with cfg80211_send_assoc_timeout
+  * Fixes: NB#166510 - Soft lockup watchdog caused wakeups in idle
+  * Fixes: NB#168117 - Extra padding in WLAN scan result information
+    elements
+  * Implemented: SWP#AdpPr-492
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 17 May 2010 16:19:16 +0300
+
+kernel (2.6.32-20102001) intrepid; urgency=low
+
+  * 4559c7f999f43535c106c3dd5edacbed58db621c
+  * Kernel fixes from v2.6.32.12
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 17 May 2010 09:28:38 +0300
+
+kernel (2.6.32-20101905.1) intrepid; urgency=low
+
+  * cdb9d168d5e2f3911f1b8e8e1f8d2ca2eb630b4c
+  * Accelerometer: threshold adjustment interface
+  * Add display support for RM-680 S1.1 and later
+  * /dev/omap_sec device lockup fix
+  * FM-radio: HW seek corrections
+  * FM-radio: TX disabled in RM680 and RM581
+  * FM-radio: Volume control support
+  * Led sysfs path hack removed
+  * OMAP3 HAL API definition corrected
+  * Proximity: Persistence feature to avoid false events
+  * Rohm ES2 (rev1) als / ps sensor support
+  * Use the Taal panel driver also for Himalaya panels
+  * Implemented: SWP#AdpPr-40
+  * Implemented: SWP#AdpPr-482
+  * Implemented: SWP#AdpPr-483
+  * Implemented: SWP#AdpPr-513
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 12 May 2010 13:30:38 +0300
+
+kernel (2.6.32-20101904) intrepid; urgency=low
+
+  * 576b14f6a71d4e7b6d6b79de4b62456827c1952e
+  * GF display rotation support
+  * kernel crashdumps for linux-dali
+  * notify USB Suspend and Resume states for BCC driver
+  * start using ARM unwind tables
+  * Fixes: NB#161843 - decrease time spent on musb_init()
+  * Fixes: NB#165973 - decrease time spent on twl5031_bcc_init()
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 11 May 2010 12:38:40 +0300
+
+kernel (2.6.32-20101903) intrepid; urgency=low
+
+  * 4734782048592c0488d65de31d3ab9231a2e7595
+  * Enable new policy modes and flags: 'not-inheritable', 'setxuid',
+    'add' and 'inherit'
+  * Fixes: NB#163854 - Oops in __mark_inode_dirty
+  * Fixes: NB#165921 - Data stops moving after scan with WLAN WPA access
+    point
+  * Fixes: NB#166556 - WLAN chip stays powered for extra ~100ms when
+    powersave is enabled
+  * Implemented: SWP#AdpPr-431
+  * Implemented: SWP#AdpPR-436
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 10 May 2010 17:35:54 +0300
+
+kernel (2.6.32-20101902) intrepid; urgency=low
+
+  * b9206363a1c81d8d8a3ded44a71b0cc741f5033b
+  * ACI: Support enable/disable
+  * compiler sparse warning removals
+  * Headset path: limit the TPA6140A2 gain to -6dB
+  * tpa6130a2: proper support for volume limiting
+  * tpa6130a2: TLV map fix for tpa6140a2 (with control name change)
+  * Fixes: NB#164819 - Audio quality is poor on the headset
+  * Fixes: NB#166849 - Wrong gain values on TPA6140A2 amplifier
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 10 May 2010 12:55:20 +0300
+
+kernel (2.6.32-20101901) intrepid; urgency=low
+
+  * fb51fc7c5c9289b885c8d1269d58ffb99c10b5bc
+  * RM-696 S0.1 partial support
+  * twl4030 vbus_restart option for production/care sleep test
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 10 May 2010 09:12:29 +0300
+
+kernel (2.6.32-20101806) intrepid; urgency=low
+
+  * d2ecec05dbc159023e0a4d80b28ca0a4d00f8ff4
+  * fix a compiler warning in FBUS line discipline
+  * Minor miscellaneous DSS fixes
+  * OMAP: DSS2: Taal: Add Himalaya support to the Taal panel driver
+  * Fixes: NB#167167 - Fix kernel crash when enabling tearsync on a
+    disabled panel
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 07 May 2010 09:26:55 +0300
+
+kernel (2.6.32-20101805) intrepid; urgency=low
+
+  * 910b133ebfdc7b26b2bdf19f2875a0ad87e208a4
+  * Truly enable DSP recovery
+  * small cleanup in memcontrol
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 06 May 2010 08:57:41 +0300
+
+kernel (2.6.32-20101804) intrepid; urgency=low
+
+  * f35dd66edef3d84fbe03176fcf175b5de21ddadb
+  * Add CCP2 subdev entity
+  * Add on-the-fly config support for LSC
+  * Disable ES3 SDRC fix for OMAP3630 based devices
+  * Fix memory corruption in preview module due to invalid pad number
+  * Input video node for preview and resizer
+  * Introduce DLL lock WA for OMAP3430 and OMAP3630
+  * Introduce locking for Media Controller
+  * Introduce twl5031 scripts for dali devices
+  * ISP memory to memory pipeline support
+  * Keep VDD2 always on for 3630 ES1.0 (WA 3630 erratum #1.75.)
+  * Make reset work with TWL scripts by setting Global Source of Reset
+    (RST_GS)
+  * Make twl5031 resource remapping board specific
+  * sec: changed to use shash
+  * sec: checking for creds_count
+  * sec: support for command credentials
+  * sec: use only latest PA binaries
+  * Statistics event generation with buffer status
+  * Sync twl4030-power.c with mainstream code
+  * Fixes: NB#145996 - LSC table can not be updated during Streaming
+    state
+  * Fixes: NB#161533 - Camera is drawing 50mA constant current always
+  * Fixes: NB#161791 - Device fails to reboot when cpufreq policy
+    governor is ondemand
+  * Fixes: NB#164499 - OMAP3630 WA REQ: 1.40. ISP H3A wrong data output
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 05 May 2010 10:22:18 +0300
+
+kernel (2.6.32-20101803) intrepid; urgency=low
+
+  * eaf2786ebf8af5dda0599f9b12503aea69680898
+  * ASoC sync with upstream
+  * Fix credp_kset to work for policy flags
+  * HAC support for Dali B1 (AUDIO_CONFIG4)
+  * Introduce 200MHz memory timings inside kernel
+  * tlv320dac33: FIFO caused delay reporting
+  * tlv320dac33: fix for early interrupt in Mode1
+  * tlv320dac33: use BIAS_OFF for standby
+  * Unbound memory timing data from device's HWIDs
+  * Fixes: NB#159834 - Analog bypass stops working when headset is
+    plugged in
+  * Fixes: NB#161163 - VAUX4 TWL regulator is always active
+  * Fixes: NB#164055 - WH-701 headset is not detected as ECI accessory
+  * Fixes: NB#164057 - WH-800 headset microphone is not working
+  * Fixes: NB#164851 - Headset microphone not working when backlight is
+    off
+  * Fixes: NB#164854 - Accessory detection not working when display is
+    off
+  * Fixes: NB#164925 - headset buttons as XKeyEvents
+  * Fixes: NB#165110 - Plugged AV devices are not recognized in most
+    cases
+  * Fixes: NB#165706 -  New toolchain breaks kernel compilation
+  * Implemented: SWP#AdpPr-171
+  * Implemented: SWP#AdpPr-7
+  * Implemented: SWP#AdpPr-70
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 04 May 2010 16:44:26 +0300
+
+kernel (2.6.32-20101802) intrepid; urgency=low
+
+  * 0168f04eba157c4d65f1c943011fa6d083bfe943
+  * Display support for Macro3.1
+  * Fixes: NB#159200 - eMMC 8-bit bus width
+  * Fixes: NB#165364 -  Kernel crash and reboots using oprofile
+  * Fixes: NB#166168 - PVR: possible circular locking dependency
+    detected
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 03 May 2010 17:43:59 +0300
+
+kernel (2.6.32-20101801) intrepid; urgency=low
+
+  * 1663b021d02a99a61b38eb5aa7c3ce43b597b2bf
+  * do not send SD/SDIO commands to eMMC because Samsung's eMMCs cannot
+    always handle it
+  * Fix GF locking issue
+  * Improve himalaya power up reliability
+  * improve MMC interrupt reliability
+  * Fixes: NB#164621 - uSD card causes kernel panic when booting
+  * Fixes: NB#165213 - MMC voltage regulator use conflicts with TV-out
+  * Implemented: SWP#AdpPr-419
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 03 May 2010 10:42:49 +0300
+
+kernel (2.6.32-20101709) intrepid; urgency=low
+
+  * 6e4072dab2dec76984c97930bf26c3e59fd6727e
+  * Kernel fixes from v2.6.32.11
+  * Sync with upstream branch "pm-wip-opp"
+  * Fixes: NB#151866 - pm_test fails with wl1271 (WLAN driver)
+  * Fixes: NB#155033 - Warning from WLAN MAC stack about scanning
+    ieee80211_configure_filter
+  * Fixes: NB#161401 - WLAN WARNING: at net/mac80211/main.c:82
+    ieee80211_configure_filter
+  * Fixes: NB#163006 - WLAN memleak after one ifconfig wlan0 up & down
+    cycle
+  * Fixes: NB#164481 - WLAN sta_info_cleanup running all the time
+  * Fixes: NB#164737 - bluetooth kernel denial of service
+  * Fixes: NB#164838 - WLAN stack has always running timers
+    after associated scan
+  * Fixes: NB#164883 - WLAN hardware connection monitor is shut down
+    after associated scan
+  * Fixes: NB#165102 -  opp_find_freq_floor() returns wrong result when
+    given ULONG_MAX as input
+  * Fixes: NB#165210 - WLAN driver not returning current rate correctly
+  * Implemented: SWP#AdpPr-160
+  * Implemented: SWP#AdpPr-193
+  * Implemented: SWP#AdpPr-210
+  * Implemented: SWP#AdpPr-65
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 30 Apr 2010 16:09:11 +0300
+
+kernel (2.6.32-20101708) intrepid; urgency=low
+
+  * 65047addd04b24130f12ffffa6042ade09977eeb
+  * accelerometer: Refresh acceleration data at device open
+  * Atmel bootloader (atmel_mxt_bl) compiled as a module
+  * Atmel touchscreen driver statistics gathering
+  * Atmel TS: Fixed bogus hwid check in devlons causing dead touchscreen
+  * ECI: input driver interface enhancement
+  * FM-radio: Driver corrections and improvements
+  * FM-radio: V4L2 interface extensions
+  * GPS: regulator framework support
+  * Magnetometer: orientation for new HW version
+  * Mic bias control updates
+  * MTP Cancel Support
+  * Fixes: NB#156079 - USB prevents core powerdomain to hit off mode
+  * Fixes: NB#159765 - I2C2_SCL frequency should be 400 kHz
+  * Fixes: NB#160385 - NAV microphone bias setting
+  * Fixes: NB#161224 - Frequency range seek wrap around does not work
+  * Fixes: NB#162035 - Do not fail device open() even if we're not
+    connected
+  * Fixes: NB#163982 - accelerometer module unload breaks touchscreen
+    driver
+  * Fixes: NB#164674 - handle buffer full/empty cases on u_serial.c
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 30 Apr 2010 11:05:49 +0300
+
+kernel (2.6.32-20101704) intrepid; urgency=low
+
+  * 1f364291c1a9bff70503f72a66f94120b1e467f0
+  * fix for rare DSS crash with non-GF boards
+  * minor DSS improvements
+  * PVR: Add support for DRM style event querying
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 28 Apr 2010 12:31:01 +0300
+
+kernel (2.6.32-20101703) intrepid; urgency=low
+
+  * 3e423000f5dd42d38ec8a815443d1a06a598c863
+  * add turbo mode and increase dma min bytes threshold
+  * PVR driver locking fixes
+  * Set SGX max frequency to 200MHz when available
+  * wl1271: use turbo mode for spi r/w transactions
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 27 Apr 2010 16:44:12 +0300
+
+kernel (2.6.32-20101701) intrepid; urgency=low
+
+  * 1884535b6ff735fed504e88d07feacd6a36a3f3f
+  * change default I/O scheduler to cfq
+  * fix frequency used with Toshiba 64G eMMC
+  * ioctl for setting command and cleanup
+  * Move reference hashlist reading and parsing to userspace
+  * omap_sec: support for PA binary versioning
+  * prevent OneNAND's voltage regulator from sleeping while OneNAND is
+    in use
+  * secure RAM resize to 48 KiB
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 26 Apr 2010 14:31:23 +0300
+
+kernel (2.6.32-20101601) intrepid; urgency=low
+
+  * bf4f324946a106610c2a4653004683dc22924e03
+  * enable use of Phonet without root privileges
+  * new OMAP AES hw accelerator driver
+  * sync up with mainline dspbridge
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 23 Apr 2010 16:05:05 +0300
+
+kernel (2.6.32-20101504) intrepid; urgency=low
+
+  * 92e44db7818c7614cad13dfebdd83001f5bf9e67
+  * convert charger detection into power_supply framework
+  * Make policy work for interpreted scripts
+  * Fixes: NB#163883 -  Executables started by upstart do not get the
+    right security credentials
+  * Enable McBSP(3) sidetone on TWL path
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 20 Apr 2010 12:35:39 +0300
+
+kernel (2.6.32-20101503) intrepid; urgency=low
+
+  * f82039ce370d35c0c6a7d0ab0d7c791e48550557
+  * Touchscreen HW reset for >= B1 builds
+  * Increased input event buffer for multitouch
+  * Display fix for Dali B1
+  * Kernel configuration for rootfs on eMMC
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 15 Apr 2010 15:09:45 +0300
+
+kernel (2.6.32-20101502) intrepid; urgency=low
+
+  * eb08038432b7cddf0ff95cce95ec9e0fcbbd51d8
+  * PVR: increase SGX functional clock to 185MHz
+  * upstream fixes for cgroup memory controller
+  * ability to disable OOM-killer in a cgroup
+  * notification about OOM in a cgroup
+  * fix locking related issues in the PVR driver
+  * Dynamically calculating SRAM access delay.
+  * SDRC stall latency wrt DPLL3 M2 changes.
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 15 Apr 2010 10:57:13 +0300
+
+kernel (2.6.32-20101501) intrepid; urgency=low
+
+  * 4d44fa915f04a13e89f2d6ad14ea782bef3c4718
+  * CSI2 subdev conversion
+  * Enable GF suspend/resume
+  * Fix cam_mclk rate for OMAP3630
+  * ISP resizer ratios computation fixes
+  * Output video nodes for CCDC, Resizer and Preview
+  * Set throughput constraint for camera operation
+  * sync up with mainline dspbridge
+  * Fixes: NB#161060 - DSS power domain prevents (dali) devices to go
+    into deeper C state
+  * Fixes: NB#162336 - Dali hangs in idle
+  * Fixes: NB#163494 - No frames from video device
+  * Fixes: NB#163825 - cgroups cannot be enabled
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 14 Apr 2010 13:08:37 +0300
+
+kernel (2.6.32-20101401) intrepid; urgency=low
+
+  * fc52abe082d34523c1bf52124b59cbf6b287c4f9
+  * Backport upstream WLAN stack patches (mac80211) tag 2010-03-31
+  * don't delay USB disconnect event
+  * DSS patches needed for Xv
+  * fix lockdep warning in USB OBEX and MTP drivers
+  * Prevent NULL pointer dereference on USB MTP
+  * Several fixes and improvements in the wl1271 driver
+  * Workaround for MUSB SOFTRESET Errata
+  * Fixes: NB#149865 - WLAN AP loss event received too late
+  * Fixes: NB#152760 - WLAN ad-hoc mode cell id is not synced everytime
+  * Fixes: NB#157457 - WLAN powersave mode timeout varies too much
+  * Fixes: NB#159888 - WLAN memory leak when ELP fails
+  * Fixes: NB#160392 - Fix recursive spinlock BUG during USB CH9 tests
+  * Fixes: NB#161243 - usb chap9 cert fails on suspend.
+  * Fixes: NB#162071 - do not delay USB disconnect event
+  * Fixes: NB#162230 - WLAN reporting "ERROR PSM entry failed"
+  * Fixes: NB#162370 - musb SOFTRESET is not usable with omap3630
+  * Fixes: NB#162772 - switch to spin_lock_irqsave() and prevent lockdep
+    warning
+  * Fixes: NB#162859 - WLAN driver using rates in unoptimal way
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 06 Apr 2010 14:11:21 +0300
+
+kernel (2.6.32-20101304) intrepid; urgency=low
+
+  * 429da5fed80868e894a4b226c96d47d2f9e9dbc5
+  * add batray image orientation as a part of platform data
+  * Few minor DSS fixes
+  * Improve GF and Himalaya initialization reliability
+  * resizer fix for busy on stream-off
+  * sync up with mainline dspbridge
+  * update mode selection in smiaregs based on aspect ratio
+  * Fixes: NB#155026 - Fix possible circular locking dependency
+  * Fixes: NB#155170 - Avoid NULL pointer dereference when driver not
+    loaded
+  * Fixes: NB#157966 - Fix TV-OUT support on Columbus S1.2 and later
+  * Fixes: NB#158148 - Camera freeze with display blanking out
+  * Fixes: NB#158183 - Display production tests are unstable
+  * Fixes: NB#159918 - Unnecessary messages while loading bridgedriver
+  * Fixes: NB#161580 - Raw capture corruption on secondary camera
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 01 Apr 2010 17:20:05 +0300
+
+kernel (2.6.32-20101303) intrepid; urgency=low
+
+  * ca8197b7ba535c085289b2f3b64a607cffbffea3
+  * disable_ts entry in sysfs (will release vaux1)
+  * Driver name change qt602240 -> atmel_mxt
+  * Input rate configuration (modparm/board-file). Set to 60Hz
+  * Input rate control through sysfs
+  * Optional HW reset support for boards that have dedicated gpio
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 31 Mar 2010 15:43:48 +0300
+
+kernel (2.6.32-20101302) intrepid; urgency=low
+
+  * ec7947e1e8521a236ff5f634c3819e82a8d07927
+  * Add flag to serialize subdev private ioctls
+  * Add image orientation controls for batray.
+  * Disallow on-the-fly LSC update
+  * Fix and enable kexec support
+  * PVR: fix race conditions during SGX HW recovery
+  * Fixes: NB#162496 - VFP HW state corruption when FP is used in signal
+    handler
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 30 Mar 2010 13:26:47 +0300
+
+kernel (2.6.32-20101301) intrepid; urgency=low
+
+  * 0ade201f19054d5e90742810087892c5c6de426f
+  * New refactored FM radio driver
+  * omap-sha1-md5 renamed to omap-sham
+  * Plug event refresh at registration
+  * spin_lock_irqsave() replaced with spin_lock_bh()
+  * Fixes: NB#161772 - Volume keys are in different order
+  * Fixes: NB#161880 - Problem to set on FM-radio Rx
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 29 Mar 2010 14:38:05 +0300
+
+kernel (2.6.32-20101206) intrepid; urgency=low
+
+  * 1e73b1257228b8e854bcf9fa8148677941acc11b
+  * Fixes: NB#161598 - Device freezes when browsing the Web
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 26 Mar 2010 17:43:42 +0200
+
+kernel (2.6.32-20101205) intrepid; urgency=low
+
+  * 63ac4e530af6f8d4049b141de2c9bf76349432aa
+  * avoid the display/pm-related lockup
+  * Fixes: NB#162336 -  Dali hangs in idle
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 26 Mar 2010 16:37:01 +0200
+
+kernel (2.6.32-20101204) intrepid; urgency=low
+
+  * 9150658b0781c49c2d8a32e73beaf1532eb32edd
+  * ASoC related backports from upstream
+  * input (key) event reporting through the jack interface
+  * McBSP FIFO caused delay reporting
+  * McBSP register cache
+  * McBSP sidetone implementation (not yet in use)
+  * omap-sha1-md5 device registration moved to platform code
+  * Production/service sleep current PM interface
+  * tlv320dac33: Internal clocking configuration changes
+  * tlv320dac33 path: switch to left justified format
+  * TWL4030 audio path: I2S clocks running when no DAPM route present
+  * TWL4030 soc codec output amplifier PM fix
+  * Fixes: NB#161485: Popping during audio playback, if the DAC33 FIFO
+    is in use
+  * Fixes: NB#162008 - device reboots in idle
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 25 Mar 2010 14:27:41 +0200
+
+kernel (2.6.32-20101203) intrepid; urgency=low
+
+  * 1e50d7c102984740da42cd90068c019f7aad4103
+  * Backport more upstream WLAN stack patches (mac80211)
+  * Fixed compilation without CONFIG_PM option
+  * ISP DPCM fix for batray
+  * ISP Histogram fixes
+  * Other WLAN fixes and improvements
+  * printk.time starts from the kernel boot (fixes bootgraph.pl)
+  * PVR: fixes needed to enable Xorg RandR support
+  * PVR: increase SGX functional clock to 185MHz
+  * Support for format setting on subdev pads
+  * Fixes: NB#156474 - fix BT rfcomm reference counting
+  * Fixes: NB#161060 - DSS power domain prevents (dali) devices to go
+    into deeper C state
+  * Fixes: NB#161598 - Device freezes when browsing the Web
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 25 Mar 2010 10:10:50 +0200
+
+kernel (2.6.32-20101202) intrepid; urgency=low
+
+  * 0e98eccc216fd82113532db3c82633cc2c5ec9bf
+  * add support for SGX HW recovery diagnostics
+  * Introduce new DLL issue workaround
+  * Introduce OMAP34xx temperature sensor driver
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 23 Mar 2010 13:26:26 +0200
+
+kernel (2.6.32-20101201) intrepid; urgency=low
+
+  * 825e0c369951ae99c1e140f65c9e72c44cfa9436
+  * Accelerometer interrupt line selftest
+  * Accelerometer regulator support based on chip state
+  * Chip id and version query for magnetometer and als-ps sensor
+  * Fix for audio / video switching
+  * Increase the log buffer size to enable boot time measurements
+  * Led driver channel name change
+  * Support for hrtimer-based oprofiling
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 22 Mar 2010 12:33:36 +0200
+
+kernel (2.6.32-20101104) intrepid; urgency=low
+
+  * 76dc6bb72f2a3707431af5f3b42d035a69781687
+  * Do not turn on VUSB regulators unless cable is attached
+  * Fixed TWL4030 workaround for ACI/ECI bug
+  * Fix several Coverity Reports on USB drivers
+  * MTP event notification mechanism
+  * PM: Added VFP save and restore
+  * PM: Cpuidle fixed to handle PER properly in safe state
+  * PM: Disabled scratchpad semaphore usage
+  * PM: OMAP3630 retention voltage changed from 0.975V to 0.8V
+  * PM: Refreshed serial sleep logic to the latest version against
+    linux-omap
+  * PM: SDRC DLL kick support added
+  * PM: Secure RAM saved now before entering sleep instead of init
+  * Fixes: NB#160640 - kernel BUG at arch/arm/kernel/traps.c:647!
+  * Fixes: NB#161033 - don't turn on VUSB regulator unnecessarily
+  * Fixes: NB#158106 - Unreliable eMMC flashing
+  * Fixes: NB#160422 - internal/external MMC drives not always visible in /dev
+    folder
+  * Fixes: NB#157178 - task kmmcd:235 blocked for more than 120 seconds
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 19 Mar 2010 16:46:06 +0200
+
+kernel (2.6.32-20101103) intrepid; urgency=low
+
+  * 0c47f6a182f23dab3bf5d4d4091ecf5426fc65b3
+  * Kernel fixes from v2.6.32.10
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 18 Mar 2010 12:50:42 +0200
+
+kernel (2.6.32-20101102) intrepid; urgency=low
+
+  * 7e6efee402af40a70e88da9ef1c730d4df9ea720
+  * sync up with mainline dspbridge
+  * Fixes: NB#160141 - Console spam killer giving too many warnings
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 17 Mar 2010 14:08:13 +0200
+
+kernel (2.6.32-20101101) intrepid; urgency=low
+
+  * 8db826161790b84e038fe624c2423689172aafbe
+  * ASoC: tlv320dac33 fixes
+  * Do not lie about being selfpowered on USB configurations
+  * Enable double-buffering in USB driver
+  * H3A, HIST cleanup and fixes
+  * Implement Media graph enumeration and power handling
+  * Implemet generic interrupt handling for ISP
+  * ISP tmp buff removal between preview and resizer
+  * PVR: fix pdump tracing functionality
+  * Fixes: NB#150726: McBSP2 port disappears (when using with DAC33)
+  * Fixes: NB#160340 - fix regulator_disable() warning
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 16 Mar 2010 09:49:48 +0200
+
+kernel (2.6.32-20101005) intrepid; urgency=low
+
+  * dc0bf9d27ab7d54757909362ab8f78e1a8c4bfd8
+  * control entry for avswitch
+  * Fixes: NB#159485 - GPS driver doesn't work
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 12 Mar 2010 16:41:22 +0200
+
+kernel (2.6.32-20101004) intrepid; urgency=low
+
+  * e846eea875bc782d5082c8d00f04591049e3eb20
+  * Cleanup u_char.c driver
+  * Fix compile error with MUSB
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 12 Mar 2010 16:25:02 +0200
+
+kernel (2.6.32-20101003) intrepid; urgency=low
+
+  * 442cb33ab112f95d27214df3460520a1838cfe94
+  * bind the MTP function based on module parameter
+  * disable unnecessary host mode
+  * Improve GF reliability on S0.7 Dalis
+  * increase request sizes in u_char.c to PAGE_SIZE
+  * remove the low_latency flag from u_serial.c
+  * Fixes: NB#159332 - add uinput module for bluetooth headset keys
+  * Fixes: NB#159808 -  sleeping function called from invalid context at
+    kernel/mutex
+  * Fixes: NB#159426 -  kernel-headers is missing files
+  * Fixes: NB#159912 -  GUI session is not starting in Dali S0.7
+    Hardware HWID 0320
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 11 Mar 2010 12:00:57 +0200
+
+kernel (2.6.32-20101002) intrepid; urgency=low
+
+  * 28e99fd30f4889a9cfb0c57fca6cac91ce1c4f1f
+  * Accelerometer selftest was not working after PM changes
+  * ALS / Proximity provides always fresh data
+  * Backport upstream WLAN stack patches (mac80211)
+  * Change WLAN clock request mode to open-drain
+  * ECI driver with input device support
+  * Initial version of the Aegis Access Control
+  * Led driver selftest correction
+  * Led driver startup changes
+  * Fixes: NB#155033 - Warning from MAC stack about scanning
+  * Fixes: NB#158556 - WLAN sends direct probes forever - wlan0: direct
+    probe to X (try -542940025)
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 09 Mar 2010 15:18:57 +0200
+
+kernel (2.6.32-20101001) intrepid; urgency=low
+
+  * 73ca019c887d0e7df0fd2ec25351e40009c3f8e1
+  * Add Batray sensor and lens driver
+  * Add events support for subdevs
+  * Add H3A and HIST modules as subdev devices
+  * Add RM-680 board files for camera
+  * Add V4L2 events support
+  * Disable unused regulators during boot time to save power
+  * Fix front camera support for RM-680
+  * Mark ACI kernel module to be compiled as builtin
+  * More ISP restructuring for MC framework.
+  * Revert workaround of flagging VAUX[1-4] regulators as "always_on"
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 08 Mar 2010 15:13:29 +0200
+
+kernel (2.6.32-20100905) intrepid; urgency=low
+
+  * 21058e858bef0239e14a8e0202fc4fc600a42777
+  * add back our TTY hack to prevent TTY from eating our bytes
+  * allow iSerialNumber to be passed as module parameter
+  * ASoC: RX71: Add support for HAC (Hearing Aid Coil) output
+  * Audio: Enable the BT/FM radio audio as module
+  * decrease consumption with USB cable connected by changing usb3v1
+    supply
+  * Enable swap tracking in cgroup memory controller
+  * fix McSAAB boot sequence race
+  * Grande Finale alpha driver
+  * Implement memory thresholds using cgroup notification API
+  * improve Phonet packets routing
+  * let transfers bigger than 64Kb go through USB DMA
+  * Move memory charges at task migration between cgroups
+  * New DSS patches from upstream, affecting all panel drivers
+  * omap2_mcspi: Flush posted writes
+  * Support for passing the reboot command to the boot loader.
+  * TWL4030-MADC acquisition delay and trigger polarity bugfixes.
+  * Fixes: NB#155902 - allow userland to pass SerialNumber as module
+    parameter
+  * Fixes: NB#156695 - isi_netlink returns incorrect route to PC
+  * Fixes: NB#157040 - allow transfers bigger than 64k on USB DMA
+  * Fixes: NB#157190 - BT audio is not working
+  * Fixes: NB#158542 - SPI: Bare reads crash controller
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 05 Mar 2010 13:37:53 +0200
+
+kernel (2.6.32-20100904) intrepid; urgency=low
+
+  * 47b092ac5553a3dfc6c1aee62393f57d631fc2a0
+  * Workaround for bug 158106 - Unreliable eMMC flashing, not fix.
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 03 Mar 2010 09:15:19 +0200
+
+kernel (2.6.32-20100903) intrepid; urgency=low
+
+  * 746b89fe83c14288a116b4c36e186ae12f70236f
+  * Atmel touchscreen: improved multi finger state handling
+  * Atmel touchscreen support for Devlons (RX-71)
+  * Columbus: generate correct mt-protocol event sequence on touch-up
+  * PVR: fix SGX power management
+  * Fixes: NB#156444 - PVR: kernel crash when binding large texture
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 02 Mar 2010 13:54:36 +0200
+
+kernel (2.6.32-20100902) intrepid; urgency=low
+
+  * a6cd87a468d1050a51610128665d80fa9405339d
+  * MTP Cleanups
+  * MTP: Implement Device Status request and IOCTL
+  * sync up with mainline dspbridge
+  * Fixes: NB#158392 - avoid disconnection with Ovi suite
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 02 Mar 2010 13:46:14 +0200
+
+kernel (2.6.32-20100901) intrepid; urgency=low
+
+  * 1cd42aa3d008e2dbe186287a6d465d6f04085561
+  * changes to opp apis - they use enums now
+  * enhance cellular audio path
+  * Sync up with khilman pm-wip-opp branch
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 01 Mar 2010 11:38:25 +0200
+
+kernel (2.6.32-20100806) intrepid; urgency=low
+
+  * f8e097644b3e7dccb8333960581babdf5624e5d2
+  * PVR: add support for runtime detection of SGX HW revision
+  * PVR: SGX 530r125 support
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 26 Feb 2010 08:42:16 +0200
+
+kernel (2.6.32-20100805) intrepid; urgency=low
+
+  * 746acfe62f9bcc261779b84fa6cafd0b5e43c1df
+  * Select and poll may now be used to detect completion of realtime
+    TWL50301-MADC conversion.
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 25 Feb 2010 14:38:43 +0200
+
+kernel (2.6.32-20100804) intrepid; urgency=low
+
+  * a7692dddac44574c26f56a32ac867195c32c7ee3
+  * Kernel fixes from v2.6.32.9
+  * Fixes: NB#156125 - iphb kernel module missing
+  * Fixes: NB#157976 - kernel arbitrary memory access issue
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 25 Feb 2010 13:20:55 +0200
+
+kernel (2.6.32-20100803) intrepid; urgency=low
+
+  * 09f3bdf7d80b0bc76b37105b86455874cdd7d360
+  * Backport of two upstream WLAN patches
+  * Backport of upstream BT fixes
+  * Prepare headers for battery charger drivers
+  * Proper WLAN data rate reporting
+  * Use generic Nokia Product ID in USB
+  * Fixes: NB#153189 - Make MTP work on Windows 7 without Nokia drivers
+  * Fixes: NB#156544 - BT crash (overloaded L2CAP conf response)
+  * Fixes: NB#157040 - g_softupd module missing from linux-dali
+  * Fixes: NB#157152 - oprofile module missing
+  * Fixes: NB#157187 - BT kernel panic (@hci_h4p_inb)
+  * Fixes: NB#157478 - Memory leak in WLAN interface up
+  * Fixes: NB#157503 - Memory leak in WLAN scanning
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 24 Feb 2010 09:31:13 +0200
+
+kernel (2.6.32-20100802) intrepid; urgency=low
+
+  * ccc93b15e8e336f88311a361ed13752c50980df9
+  * Accelerometer interrupt based operation
+  * Accelerometer power down mode support
+  * Add debugfs entries for reading GC and IO statistics
+  * BH1770GLC (ALS/PS) notify proximity off condition
+  * Fix rtc-core module memory leak.
+  * mtdswap: Add debugfs entries for performance statistics
+  * Sync up with mainline dspbridge and those fixes
+  * Workaround for S0.5-S0.7 shared BT / FM Radio reset
+  * Fixes: NB#155199 - bridgedriver kernel panic
+  * Fixes: NB#155844 - Dali keypad keycodes don't match specification
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 23 Feb 2010 11:05:13 +0200
+
+kernel (2.6.32-20100801) intrepid; urgency=low
+
+  * 48a3751e868987fc4e814309867ff5e850c6016b
+  * Backport most up-to-date WLAN mac80211 stack
+  * CPUidle control logic fixes
+  * DSS synchronization with upstream
+  * Enable WLAN WMM and U-APSD
+  * Fixed WLAN MAC address handling
+  * Improved WLAN control message template handling
+  * Improved WLAN frame filtering configuration for power save
+  * Reverted DSP hack as it is now obsolete with repaired CPUidle
+  * Serial sleep logic improved
+  * various minor fixes to DSS driver
+  * WLAN data path optimizations
+  * WLAN SDIO power management improvements
+  * Fixes: NB#152760 - Fixed WLAN ad-hoc mergin reliability
+  * Fixes: NB#153736 - fix WLAN production test related rx warnings
+  * Fixes: NB#154856 - use the GPIO configuration provided by nolo on
+    the kernel command line
+  * Fixes: NB#156542 - Fixes WLAN ad-hoc kernel crash
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 22 Feb 2010 08:35:49 +0200
+
+kernel (2.6.32-20100706) intrepid; urgency=low
+
+  * c69590584c390450f437bdb2dea40b36feaf0a82
+  * ASoC: tlv320dac33: OSCSET calculation and FIFOFLUSH fix
+  * ASoC: TWL4030: codec PM fixes
+  * do not force v4l2 buffer size to be multiple of PAGE_SIZE
+  * memleak fix for IOMMU
+  * Fixes: NB#154996 - I2C data corruption
+  * Fixes: NB#155638 - USB net does not work with OMAP3630+linux-dali
+  * Fixes: NB#156028 - Make PC Suite recognize us
+  * Fixes: NB#156513 - new kmemleaks reported from camera and related
+    driver
+  * Fixes: NB#156745 - I2C jams during madc reading
+  * Fixes: NB#156915 - SSI PEP socket test reboots device.
+  * Fixes: NB#157302 - fuse kernel module missing
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 19 Feb 2010 09:40:41 +0200
+
+kernel (2.6.32-20100705) intrepid; urgency=low
+
+  * eb0c365bfec375976fad479902328380bbe208f6
+  * Fixes: NB#156940 - missing block device encryption support
+  * Fixes: NB#155201 - Recursive locking kernel panic
+  * sync up with mainline dspbridge
+  * Use the GPIO settings provided by nolo on the kernel cmdline
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 17 Feb 2010 14:36:22 +0200
+
+kernel (2.6.32-20100704) intrepid; urgency=low
+
+  * 8ffea97a6ec43cd3781c1bf662771c7897d096ac
+  * Fixes: NB#155919 - device bootup time too long
+  * Fixes: NB#156077 - usb gadget driver memory leak
+  * Fix integration problem with other Aegis modules
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 16 Feb 2010 12:44:28 +0200
+
+kernel (2.6.32-20100703) intrepid; urgency=low
+
+  * 811a5e16644a4d356f0d644d2ca599c7b0f559e7
+  * MTP fixes and improvments
+  * Fixes: NB#152238 - Detect USB charger when booting with cable connected
+  * Fixes: NB#156086 - Enable MTP to be enumerated on Windows
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 16 Feb 2010 12:03:17 +0200
+
+kernel (2.6.32-20100702) intrepid; urgency=low
+
+  * 0dcd54d5d3adb5d2a519c8e020a270fdd4f4b5ba
+  * Fixes: NB#156698 - omap-sha1: fix crashes on accessing cleaned up resources
+  * omap-sha1: added bypass mode error handling
+  * Fixes twl4030_pwrbutton module loading
+  * Use threaded IRQ for power button interrupts to avoid panics
+  * Support for Atmel touchscreen (qt602240) added
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 16 Feb 2010 09:21:19 +0200
+
+kernel (2.6.32-20100701) intrepid; urgency=low
+
+  * 52a16aa3b45eaf17f49d68f4e14fb58b666437dc
+  * Initial commit for Aegis Validator module (v4)
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 15 Feb 2010 09:05:46 +0200
+
+kernel (2.6.32-20100609) intrepid; urgency=low
+
+  * 764d66dec687fc5e9a15d5b9dec508c6f177a22d
+  * hackfix for broken Dali backlight
+  * Fixes: NB#156436 - PC fails to detect the connected device via USB
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 12 Feb 2010 12:43:48 +0200
+
+kernel (2.6.32-20100608) intrepid; urgency=low
+
+  * 597049ff9f5f0af0568225c3c22cf683e7b5bbf3
+  * new omap sha1 and md5 driver
+  * Fixes resource counter and missing header
+  * new mtdoops implementation (remains currently disabled)
+  * Enable ext4 file system, and make mmc statically compiled
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 12 Feb 2010 09:12:30 +0200
+
+kernel (2.6.32-20100607) intrepid; urgency=low
+
+  * b5c45b5522149c3d88fa5c3c730fb78332e41080
+  * DSS2 commits that are already in mainline kernel
+  * add dependencies for Multimedia Messaging Service
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 11 Feb 2010 11:45:09 +0200
+
+kernel (2.6.32-20100606) intrepid; urgency=low
+
+  * 7638ec188d211d0e2c9161b96a6428ad2daafcd5
+  * ACI driver for linux-dali
+  * IR LED intensity control for BH1770GLC
+  * Fixes: NB#154676 - wl1273-fm probing fails
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 10 Feb 2010 14:33:25 +0200
+
+kernel (2.6.32-20100605) intrepid; urgency=low
+
+  * bceac3f787cb7c6cde82b715aaca381d0a0d9c7d
+  * Fix hsmmc platform data memory leak.
+  * Add support for OMAP3430 ISP
+  * Add support Swordfish and Swordtail camera modules
+  * Add support for Acmemini camera modules
+  * Add intial Media Controller framework
+  * Add Workaround to HW bug on TWL5031 ACI/ECI block
+  * Fix memory leak in v4l2 core
+  * Fix memory leaks in the camera ISP code
+  * IOMMU fixes while releasing memory
+  * Move camera power handling to regulator framework
+  * Initial support for ISP on OMAP3630
+  * Move video buffers handling to the isp_video object
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 10 Feb 2010 14:30:38 +0200
+
+kernel (2.6.32-20100604) intrepid; urgency=low
+
+  * bd35c205fec5e9d70e7153a91ece9a44d50f3881
+  * Eliminate some expensive kernel debug checks.
+  * MTP optimizations
+  * redefine mtp interface class
+  * Fixes: NB#154862 - musb_core build failure when PM disabled
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 10 Feb 2010 09:12:01 +0200
+
+kernel (2.6.32-20100603) intrepid; urgency=low
+
+  * 9acc4c393875a4110dc68106614bae9a12eabeaf
+  * Fixed OPP control interface to work properly for OMAP3430
+  * Added DMA stress testing support under PM debug
+  * Allow userspace to enable/disable individual gpio-keys
+  * Fixes: NB#154081 - Device is not able to power off
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 09 Feb 2010 12:47:32 +0200
+
+kernel (2.6.32-20100602) intrepid; urgency=low
+
+  * 03d09c1024cded7e1cb34aa0a05e56cf35076173
+  * ASoC: BT/FM radio digital audio support
+  * ASoC: TWL4030: codec PM fix
+  * SSI char handles too big I/O transaction correctly
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 09 Feb 2010 11:38:01 +0200
+
+kernel (2.6.32-20100601) intrepid; urgency=low
+
+  * ecc0ea4582f6a8984beb854215df1b68af337309
+  * pvr: fix SGX HW recovery resets seen during boot
+  * pvr: preparation for page flipping
+  * Radio driver cleanup
+  * BH1770GLC driver corrections for char dev interface
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 08 Feb 2010 12:46:41 +0200
+
+kernel (2.6.32-20100503) intrepid; urgency=low
+
+  * 19c1e78869a3bc4a716699225bfcbd8e83bd0216
+  * Resync PM code with mainline
+  * Fixes: NB#154070 - OMAP3630 HSdivider HW-bug
+  * Fixes: NB#153336 - Kernel crashes on i2c transfer on RM-660
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 04 Feb 2010 12:55:00 +0200
+
+kernel (2.6.32-20100502) intrepid; urgency=low
+
+  * Fixes: NB#150635 -  ape-algo-pr breaks staging image building
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 04 Feb 2010 10:34:56 +0200
+
+kernel (2.6.32-20100501) intrepid; urgency=low
+
+  * 07e6336304a17dce52e823815cb236e40a75e6ad
+  * add SSI character device module
+  * Resync Phonet with upstream
+  * Fix OOPS when destroying a network namespace
+  * Fix CMT_RST_IND GPIO line number
+  * Fixes: NB#152547 - SSI character device for userspace flashing
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 04 Feb 2010 09:33:29 +0200
+
+kernel (2.6.32-20100410) intrepid; urgency=low
+
+  * fd01a08820772397970d852b0d42c61e6ec712e1
+  * Fixes: NB#154667 - fix cyclic reboot on TI HW
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 29 Jan 2010 17:09:53 +0200
+
+kernel (2.6.32-20100409) intrepid; urgency=low
+
+  * bc93cee65b60258f95a4c67df13c66b82458c724
+  * Prevent core off-mode while DSP state needs to be retained
+  * Import dspbridge from TI's DSPBridge
+  * Enable dspbridge without BRIDGE_DVFS for rm581
+  * remove DSP BKL which makes audio playback smoother
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 29 Jan 2010 16:45:48 +0200
+
+kernel (2.6.32-20100408) intrepid; urgency=low
+
+  * e8652bb161f713502a593b71d558b9a7e00ee2a6
+  * TWL4030 MADC channel allocation code fix
+  * TWL4030 MADC RT conversion fix
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 29 Jan 2010 16:05:31 +0200
+
+kernel (2.6.32-20100407) intrepid; urgency=low
+
+  * Implement preliminary WLAN SDIO support
+  * Make WLAN mac80211 code up-to-date with patches from upstream
+  * f_mtp fixes
+  * introduce g_mtp driver
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 29 Jan 2010 09:27:23 +0200
+
+kernel (2.6.32-20100406) intrepid; urgency=low
+
+  * Enable the power button driver.
+  * Enable netfilter and net scheduling.
+  * PVR: fix memory corruption due to incorrect cache flushing
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 28 Jan 2010 13:27:15 +0200
+
+kernel (2.6.32-20100405) intrepid; urgency=low
+
+  * Add workaround to get Samsung 64G eMMC going
+  * PVR: upgrade to version 1.4
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 26 Jan 2010 10:54:35 +0200
+
+kernel (2.6.32-20100404) intrepid; urgency=low
+
+  * add MTP support to g_nokia 
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 26 Jan 2010 09:42:41 +0200
+
+kernel (2.6.32-20100403) intrepid; urgency=low
+
+  * fresh security driver commits
+  * Enable MMC power saving
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 25 Jan 2010 15:54:18 +0200
+
+kernel (2.6.32-20100402) intrepid; urgency=low
+
+  * Add 800MHz VDD1 OPP for RX-71 and RM-680
+  * Add VDD2 support for RX-71 and RM-680
+  * Rework board-rx51-sdram to sdram-nokia and add 185MHz mem timings
+  * Merge tag v2.6.32-omap1 of linux-omap-2.6
+  * Fix a memory leak in FBUS error path
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 25 Jan 2010 13:32:12 +0200
+
+kernel (2.6.32-20100401) intrepid; urgency=low
+
+  * Driver for LP5523 9 channel LED driver
+  * Magnetometer improvements
+  * Fix compilation problems without CONFIG_PM and CONFIG_CPU_FREQ
+  * Fixes: NB#151826 - magnetometer driver initialization takes too long
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 25 Jan 2010 09:34:52 +0200
+
+kernel (2.6.32-20100305) intrepid; urgency=low
+
+  * Add initial support for swap on OneNAND 
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 22 Jan 2010 13:12:52 +0200
+
+kernel (2.6.32-20100304) intrepid; urgency=low
+
+  * ASoC: tlv320dac33: FIFO mode7 prefill enhancement
+  * ASoC: tlv320dac33: burst mode BCLK divider fixes
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 22 Jan 2010 09:06:40 +0200
+
+kernel (2.6.32-20100303) intrepid; urgency=low
+
+  * TWL4030-MADC accesses BCIA_CONTROL only on TWL5031
+  * Avoid MADC pipeline stall during conversion trigger absense
+  * TWL4030-MADC uses threaded_irq instead of workqueue
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 21 Jan 2010 11:44:55 +0200
+
+kernel (2.6.32-20100302) intrepid; urgency=low
+
+  * Fix usb networking behavior
+  * Move twl4030-usb to threaded_irq
+  * Fixes: NB#153576 - handle possible error in USB dma channel program
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 20 Jan 2010 15:07:33 +0200
+
+kernel (2.6.32-20100301) intrepid; urgency=low
+
+  * Touchscreen 'mouse emulation' for Xorg (evdev)
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 18 Jan 2010 17:06:51 +0200
+
+kernel (2.6.32-20100208) intrepid; urgency=low
+
+  * rule out unaligned buffers from USB DMA
+  * Check return values when reading BCC registers
+  * only disable USB data pullups during charger detection
+  * Fixes: NB#153011 - MUSB RTL1.8 DMA can't handle unaligned buffers
+  * Fixes: NB#153011 - MUSB RTL1.8 DMA can't handle unaligned buffers
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 15 Jan 2010 16:31:28 +0200
+
+kernel (2.6.32-20100207) intrepid; urgency=low
+
+  * Fix voltage switching and sync with upstream OPP Layer
+  * Embedded Trace Macrocell driver
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 15 Jan 2010 15:13:08 +0200
+
+kernel (2.6.32-20100206) intrepid; urgency=low
+
+  * USB charger detection actually detecting a charger
+  * Regulators support for tpa6140a2
+  * Fixed audio configurations for RX71, RM581 and RM6x0
+  * Fixes: NB#151645 - Implement missing charger detection functionality
+  * Fixes: NB#152238 - 'charger' no longer returns always zero
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 15 Jan 2010 08:41:01 +0200
+
+kernel (2.6.32-20100205) intrepid; urgency=low
+
+  * Report camera focus and launch button events
+  * Corrections to force-feedback (vibra) driver from upstream
+  * Setup GPS parent device info to clarify sysfs path
+  * RM-680 sensors (GPS, ALS, PS, Magnetometer and accelerometer)
+  * Fixes: NB#153022 - Report camera focus and launch button events
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 14 Jan 2010 14:01:23 +0200
+
+kernel (2.6.32-20100204) intrepid; urgency=low
+
+  * ssi_driver: use msleep() for uninterruptible sleep
+  * Implemented proper WLAN TX power level handling
+  * Implemented WLAN WMM support (not enabled)
+  * Implemented support for WLAN production line tuning
+  * General BT stability fixes
+  * Fixes: NB#152743 - fix compilation without PREEMPT.
+  * Fixes: NB#151901 - WLAN Ad-hoc network problems
+  * Fixes: NB#149837 - WLAN WEP encrypted networks not working
+  * Fixes: NB#151618 - WLAN WPA encrypted network problems
+  * Fixes: NB#151827 - WLAN crash when power save enabled
+  * Fixes: NB#149841 - WLAN Ad-hoc network problems
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 13 Jan 2010 10:40:23 +0200
+
+kernel (2.6.32-20100203) intrepid; urgency=low
+
+  * Add missing sysfs entries for charger support
+  * Fix for Devlon3 and TV-out
+  * Add Himalaya driver
+  * Enable Himalaya for Devlon3 and Dali
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 12 Jan 2010 14:55:03 +0200
+
+kernel (2.6.32-20100202) intrepid; urgency=low
+
+  * Add dedicated charger detection
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 12 Jan 2010 12:41:51 +0200
+
+kernel (2.6.32-20100201) intrepid; urgency=low
+
+  * Fixed TWL4030 madc race condition and list management bugs
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 11 Jan 2010 11:49:02 +0200
+
+kernel (2.6.32-20100105) intrepid; urgency=low
+
+  * fix export of hw-build
+  * OMAP3630 uart fixes as found in linux-omap
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 08 Jan 2010 13:48:03 +0200
+
+kernel (2.6.32-20100104) intrepid; urgency=low
+
+  * RX-71 qwerty add-on-board definitions
+  * GPS BCM4751 driver
+  * WL1273 FM-radio updates & corrections
+  * BH1770GLC combined ambient light and proximity sensor driver
+  * Add OMAP3 SDTI (Serial Debug Trace Interface) support
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 08 Jan 2010 10:40:23 +0200
+
+kernel (2.6.32-20100103) intrepid; urgency=low
+
+  * Initial support for mode7 of tlv320dac33 codec
+  * support for RM-660 and RM-680 boards
+  * add support for command line partitioning of OneNAND
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 05 Jan 2010 13:02:53 +0200
+
+kernel (2.6.32-20100102) intrepid; urgency=low
+
+  * Add "name" attribute to GPIOs exported to gpiolib sysfs
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 05 Jan 2010 10:24:22 +0200
+
+kernel (2.6.32-20100101) intrepid; urgency=low
+
+  * Merge linux-omap.git/pm changes into linux-dali
+  * Rework on OMAP DVFS OPP layers
+  * VDD1 OPP support for OMAP3630 (without 800MHz OPP)
+  * Fetch USB Patches going to mainline to our tree
+  * Replace gpio switch with gpio keys and gpiolib sysfs
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 04 Jan 2010 16:17:21 +0200
+
+kernel (2.6.32-20095105) intrepid; urgency=low
+
+  * Add MMC support for Dali hardware IDs
+  * Add support for MMC v4.4 (and thus 64G eMMC)
+  * Add MMC support for Devlon M2.1 -> M2.3
+  * Fixes: NB#144851 - Don't occupy other UARTs than UART3
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 18 Dec 2009 09:33:43 +0200
+
+kernel (2.6.32-20095104) intrepid; urgency=low
+
+  * Remove unnecessary WARN() from USB Transceiver Driver
+  * Updates from Mainline for MUSB Driver
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 17 Dec 2009 16:23:55 +0200
+
+kernel (2.6.32-20095103) intrepid; urgency=low
+
+  * Enable POSIX message queues
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 17 Dec 2009 09:48:07 +0200
+
+kernel (2.6.32-20095102) intrepid; urgency=low
+
+  * omap i2c: add timeout to a busy loop in isr
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 16 Dec 2009 13:25:37 +0200
+
+kernel (2.6.32-20095101) intrepid; urgency=low
+
+  * zero-copy enablers for GPRS data path
+  * synchronize Phonet stack with 2.6.33
+  * Remove spam messages from smartreflex code
+  * Add necessary ramp up delay when enabling twl regulators
+  * Introduce TWL4030 MADC support
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 14 Dec 2009 14:01:38 +0200
+
+kernel (2.6.32-20095005) intrepid; urgency=low
+
+  * MMC support for Devlon
+  * MMC support for Columbus
+  * Fixes: NB#149167 - missing twl4030_wdt in linux-dali
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 11 Dec 2009 13:34:00 +0200
+
+kernel (2.6.32-20095004) intrepid; urgency=low
+
+  * spam-killer warns but doesn't kill
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 09 Dec 2009 15:57:44 +0200
+
+kernel (2.6.32-20095003) intrepid; urgency=low
+
+  * Enable USB on linux-dali kernel tree
+  * twl5031: Replace the current implementation by upstreamed one
+  * twl5031: Enable 32kHz oscillator low-power mode
+  * tlv320dac33: rt wq changed to singlethread
+  * tlv320dac33: Regulator fw support added
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 09 Dec 2009 13:58:19 +0200
+
+kernel (2.6.32-20095002) intrepid; urgency=low
+
+  * Regulator framework support for sensors
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 08 Dec 2009 10:15:00 +0200
+
+kernel (2.6.32-20095001) intrepid; urgency=low
+
+  * Updates from linux-omap / 2.6.32
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 07 Dec 2009 13:30:25 +0200
+
+kernel (2.6.32~rc8-20094903) intrepid; urgency=low
+
+  * b2a8a3df15c64336dbb096aed4c55ba348d58de5
+  * DVFS fix and Regfw addition
+  * new cellmo reset sequence
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 04 Dec 2009 15:51:28 +0200
+
+kernel (2.6.32~rc8-20094902) intrepid; urgency=low
+
+  * d23cd3a59962795cb578e13f33cbd4cfd0885172
+  * Enable cgroups
+  * Enable RTC
+  * Fix DSS2 when debug PM layer is selected
+  * Fix compilation when DSS2 is not enabled
+  * Accelerometer feature update
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 03 Dec 2009 14:25:05 +0200
+
+kernel (2.6.32~rc8-20094901) intrepid; urgency=low
+
+  * fdc04179a9964a018f27092c9df38d2679405830
+  * Miscellaneous DVFS and DPS fixes
+  * Updates from linux-omap / 2.6.32-rc8
+  * Add PVR driver
+  * Enablers for regfw usage
+  * New Synaptic Touchscreen driver (syntm12xx)
+  * Vibra driver for linux-dali
+  * Kill applications which abuse serial console
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 02 Dec 2009 14:18:29 +0200
+
+kernel (2.6.32~rc7-20094703) intrepid; urgency=low
+
+  * kill two spinlocks from Phonet stack
+  * synchronize Phonet with upstream net-next
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 19 Nov 2009 10:35:42 +0200
+
+kernel (2.6.32~rc7-20094702) intrepid; urgency=low
+
+  * input-polldev backport from upstream
+  * New OMAP Display Subsystem driver (DSS2)
+  * Taal panel driver
+  * Display support for RX71 and RM581 boards
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Wed, 18 Nov 2009 13:11:30 +0200
+
+kernel (2.6.32~rc7-20094701) intrepid; urgency=low
+
+  * Updates from linux-omap / 2.6.32-rc7
+  * Fix for bypass not working after boot
+  * Move APLL handling to twl4030-codec MFD driver
+  * Device - powerdomain mapping
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Tue, 17 Nov 2009 16:09:03 +0200
+
+kernel (2.6.32~rc6-20094602) intrepid; urgency=low
+
+  * cf1c6c5b2475d890fafdea8ba7e1b3f439cf69dc
+  * Device - powerdomain mapping
+  * add hardware for OMAP SSI bus
+  * add driver for McSAAB (Nokia SSI link layer)
+  * add driver for cellular voice protocol
+  * twl4030 / twl503x keyboard support
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 13 Nov 2009 08:57:43 +0200
+
+kernel (2.6.32~rc6-20094601) intrepid; urgency=low
+
+  * 8b7f0361fb497ea6275cd20fddd898d10d0a13c7
+  * Linux-omap rebuilt: Updated to v2.6.32-rc6
+  * FM radio support for RM-581
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Mon, 09 Nov 2009 12:27:05 +0200
+
+kernel (2.6.32~rc5-20094402) intrepid; urgency=low
+
+  * 2a74a3a5ac91549780c21fdfc0cdbf9c1a3383a5
+  * rm581_defconfig: enable aggressive debugging
+  * HACK: 8250: Fix issues with 3630
+  * linux-dali-audio
+  * linux-net
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Fri, 30 Oct 2009 14:47:04 +0200
+
+kernel (2.6.32~rc5-20094401) intrepid; urgency=low
+
+  * cb3fa88d8c76873875664e1c54794279072ce41b
+  * Merged linux-omap
+  * Merge pm
+  * Merge linux-dali-peripherals.git
+  * Merge linux-dali-audio.git
+  * Merge linux-dali-peripherals
+  * Merge pm
+
+ -- Henrik Saari <henrik.saari@nokia.com>  Thu, 29 Oct 2009 15:15:44 +0200
+
+kernel (2.6.32~rc5-20094301) intrepid; urgency=low
+
+  * Initial packaging for 2.6.32 series in Harmattan.
+
+ -- Alexander Shishkin <ext-alexander.shishkin@nokia.com>  Mon, 19 Oct 2009 14:53:18 +0300
+
