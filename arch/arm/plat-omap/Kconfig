@@ -177,7 +177,7 @@ config OMAP_MBOX_KFIFO_SIZE
 	  module parameter).
 
 config OMAP_IOMMU
-	tristate
+	bool
 
 config OMAP_IOMMU_DEBUG
 	depends on OMAP_IOMMU
