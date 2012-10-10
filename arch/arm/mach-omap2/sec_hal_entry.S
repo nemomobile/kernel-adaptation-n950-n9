@@ -23,6 +23,7 @@ ENTRY(asm_sec_hal_entry)
 	ldmfd	sp!, {r0-r3}
 	mov	r6, #0xff
 	mov	r12, r0
+	.arch_extension sec
 	smc	#1
 	mov	r11, r0
 	bl	sec_hal_flush_helper
@@ -37,5 +38,6 @@ ENTRY(asm_sec_hal_rpc_handler)
 	bl sec_hal_rpc_handler
 	ldmfd sp!, {r0-r3}
 	mov r12, #0xfc
+	.arch_extension sec
 	smc #1
 ENDPROC(asm_sec_hal_rpc_handler)
