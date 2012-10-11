@@ -195,6 +195,8 @@ extern unsigned long long time_sync_thresh;
 #define TASK_WAKEKILL		128
 #define TASK_WAKING		256
 
+#define TASK_STATE_TO_CHAR_STR "RSDTtZXxKW"
+
 /* Convenience macros for the sake of set_task_state */
 #define TASK_KILLABLE		(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
 #define TASK_STOPPED		(TASK_WAKEKILL | __TASK_STOPPED)
@@ -2016,6 +2018,10 @@ extern struct task_struct *find_task_by_pid_ns(pid_t nr,
 
 extern void __set_special_pids(struct pid *pid);
 
+#ifdef CONFIG_SECURITY_CREDENTIALS_POLICY
+extern int kernel_setuid(struct cred *new, uid_t uid);
+#endif
+
 /* per-UID process charging. */
 extern struct user_struct * alloc_uid(struct user_namespace *, uid_t);
 static inline struct user_struct *get_uid(struct user_struct *u)
@@ -2591,8 +2597,6 @@ static inline void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 {
 }
 #endif /* CONFIG_MM_OWNER */
-
-#define TASK_STATE_TO_CHAR_STR "RSDTtZX"
 
 static inline unsigned long task_rlimit(const struct task_struct *tsk,
 		unsigned int limit)
