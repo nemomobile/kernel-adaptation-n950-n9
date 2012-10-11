@@ -2012,8 +2012,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			 * to use with control frames.
 			 */
 			rates = bss_conf->basic_rates;
-			wl->basic_rate_set = wl1271_tx_enabled_rates_get(wl,
-									 rates);
+			rates = wl1271_tx_enabled_rates_get(wl, rates);
+			wl->basic_rate_set = rates ? rates : CONF_TX_RATE_MASK_BASIC;
 			wl->basic_rate = wl1271_min_rate_get(wl);
 			ret = wl1271_acx_rate_policies(wl);
 			if (ret < 0)
