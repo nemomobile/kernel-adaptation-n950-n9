@@ -1158,6 +1158,36 @@ omap_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int omap_i2c_suspend_noirq(struct device *dev)
+{
+
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_i2c_dev *_dev = platform_get_drvdata(pdev);
+
+	/* Disabling irq here to balance the enable in resume_early */
+	disable_irq(_dev->irq);
+	return 0;
+}
+
+static int omap_i2c_resume_early(struct device *dev)
+{
+
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap_i2c_dev *_dev = platform_get_drvdata(pdev);
+
+	/*
+	 * The noirq_resume enables the interrupts one by one,
+	 * this causes a interrupt flood if the SW irq actually reading
+	 * event from i2c device is enabled only after i2c bus irq, as the
+	 * irq that should clear the event is still disabled. We have to
+	 * keep the bus irq disabled until all other irqs have been enabled.
+	 */
+	enable_irq(_dev->irq);
+
+	return 0;
+}
+#endif
 #ifdef CONFIG_PM_RUNTIME
 static int omap_i2c_runtime_suspend(struct device *dev)
 {
@@ -1178,10 +1208,18 @@ static int omap_i2c_runtime_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_PM
 static struct dev_pm_ops omap_i2c_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend_noirq = omap_i2c_suspend_noirq,
+	.resume_early = omap_i2c_resume_early,
+#endif
+#ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend = omap_i2c_runtime_suspend,
 	.runtime_resume = omap_i2c_runtime_resume,
+#endif
 };
 #define OMAP_I2C_PM_OPS (&omap_i2c_pm_ops)
 #else
