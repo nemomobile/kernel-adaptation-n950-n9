@@ -62,6 +62,12 @@ struct gether {
 
 	/* hooks for added framing, as needed for RNDIS and EEM. */
 	u32				header_len;
+	/* NCM requires fixed size bundles */
+	bool				is_fixed;
+	u32				fixed_out_len;
+	u32				fixed_in_len;
+	/* mtu, used to start with non-standard (jumbo) frames */
+	unsigned			mtu;
 	struct sk_buff			*(*wrap)(struct gether *port,
 						struct sk_buff *skb);
 	int				(*unwrap)(struct gether *port,
@@ -87,17 +93,13 @@ void gether_cleanup(void);
 struct net_device *gether_connect(struct gether *);
 void gether_disconnect(struct gether *);
 
+int gether_is_connected(struct gether *);
+void gether_update_mtu(struct gether *);
+
 /* Some controllers can't support CDC Ethernet (ECM) ... */
 static inline bool can_support_ecm(struct usb_gadget *gadget)
 {
 	if (!gadget_supports_altsettings(gadget))
-		return false;
-
-	/* SA1100 can do ECM, *without* status endpoint ... but we'll
-	 * only use it in non-ECM mode for backwards compatibility
-	 * (and since we currently require a status endpoint)
-	 */
-	if (gadget_is_sa1100(gadget))
 		return false;
 
 	/* Everything else is *presumably* fine ... but this is a bit
@@ -110,9 +112,10 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 /* each configuration may bind one instance of an ethernet link */
 int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+int ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 int eem_bind_config(struct usb_configuration *c);
 
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 
 int rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 

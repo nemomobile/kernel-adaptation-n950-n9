@@ -239,6 +239,9 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	size += out->maxpacket - 1;
 	size -= size % out->maxpacket;
 
+	if (dev->port_usb->is_fixed)
+		size = max(size, dev->port_usb->fixed_out_len);
+
 	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
 		DBG(dev, "no rx skb\n");
@@ -249,7 +252,12 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	 * but on at least one, checksumming fails otherwise.  Note:
 	 * RNDIS headers involve variable numbers of LE32 values.
 	 */
-	skb_reserve(skb, NET_IP_ALIGN);
+	/*
+	 * RX: Do not move data by IP_ALIGN:
+	 * if your DMA controller cannot handle it
+	 */
+	if (!gadget_dma32(dev->gadget))
+		skb_reserve(skb, NET_IP_ALIGN);
 
 	req->buf = skb->data;
 	req->length = size;
@@ -276,12 +284,21 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 	struct sk_buff	*skb = req->context, *skb2;
 	struct eth_dev	*dev = ep->driver_data;
 	int		status = req->status;
+	int		align = 0;
 
 	switch (status) {
 
 	/* normal completion */
 	case 0:
 		skb_put(skb, req->actual);
+		if (gadget_dma32(dev->gadget) && NET_IP_ALIGN) {
+			u8 *data = skb->data;
+			size_t len = skb_headlen(skb);
+			align = NET_IP_ALIGN;
+			skb_put(skb, align);
+			skb->data += align;
+			memmove(skb->data, data, len);
+		}
 
 		if (dev->unwrap) {
 			unsigned long	flags;
@@ -303,9 +320,10 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 
 		skb2 = skb_dequeue(&dev->rx_frames);
 		while (skb2) {
+			int max_len = dev->net->mtu + ETH_HLEN + align;
 			if (status < 0
 					|| ETH_HLEN > skb2->len
-					|| skb2->len > ETH_FRAME_LEN) {
+					|| skb2->len > max_len) {
 				dev->net->stats.rx_errors++;
 				dev->net->stats.rx_length_errors++;
 				DBG(dev, "rx length %d\n", skb2->len);
@@ -573,16 +591,41 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 
 		length = skb->len;
 	}
+
+	/*
+	 * Align data to 32bit if the dma controller requires it
+	 */
+	if (gadget_dma32(dev->gadget)) {
+
+		if (WARN_ON(skb_headroom(skb) < ((unsigned long)skb->data & 3))) {
+			dev_kfree_skb_any(skb);
+			goto drop;
+		} else {
+			u8 *data = skb->data;
+			size_t len = skb_headlen(skb);
+			skb->data -= ((unsigned long)skb->data & 3);
+			memmove(skb->data, data, len);
+			skb_set_tail_pointer(skb, len);
+		}
+	}
+
 	req->buf = skb->data;
 	req->context = skb;
 	req->complete = tx_complete;
+
+	/* NCM requires no zlp if transfer is dwNtbInMaxSize */
+	if (dev->port_usb->is_fixed &&
+	    length == dev->port_usb->fixed_in_len &&
+	    (length % in->maxpacket) == 0)
+		req->zero = 0;
+	else
+		req->zero = 1;
 
 	/* use zlp framing on tx for strict CDC-Ether conformance,
 	 * though any robust network rx path ignores extra padding.
 	 * and some hardware doesn't like to write zlps.
 	 */
-	req->zero = 1;
-	if (!dev->zlp && (length % in->maxpacket) == 0)
+	if (req->zero && !dev->zlp && (length % in->maxpacket) == 0)
 		length++;
 
 	req->length = length;
@@ -714,7 +757,7 @@ static u8 __init nibble(unsigned char c)
 	return 0;
 }
 
-static int __init get_ether_addr(const char *str, u8 *dev_addr)
+static int get_ether_addr(const char *str, u8 *dev_addr)
 {
 	if (str) {
 		unsigned	i;
@@ -759,7 +802,7 @@ static const struct net_device_ops eth_netdev_ops = {
  *
  * Returns negative errno, or zero on success
  */
-int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
+int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 {
 	struct eth_dev		*dev;
 	struct net_device	*net;
@@ -898,6 +941,10 @@ struct net_device *gether_connect(struct gether *link)
 		spin_lock(&dev->lock);
 		dev->port_usb = link;
 		link->ioport = dev;
+
+		if (link->mtu > ETH_HLEN)
+			dev->net->mtu = link->mtu;
+
 		if (netif_running(dev->net)) {
 			if (link->open)
 				link->open(link);
@@ -993,4 +1040,36 @@ void gether_disconnect(struct gether *link)
 	dev->port_usb = NULL;
 	link->ioport = NULL;
 	spin_unlock(&dev->lock);
+}
+
+/**
+ * gether_is_connected - report status of usb link
+ * @link: the USB link
+ *
+ * This is called to check of the link is connected.
+ * Usually it's true if host set altsetting 1 for
+ * CDC function.
+ */
+int gether_is_connected(struct gether *link)
+{
+	return link->ioport != NULL;
+}
+
+/**
+ * gether_update_mtu - sync mtu change from usb to network layer
+ * @link: the USB link, on which gether_connect() was called
+ *
+ * This is called to change network interface's mtu value
+ * if it's amended from usb side.
+ *
+ * This shouldn't be done if interface is running already,
+ * but the check should be done on the function driver side,
+ * because it can report STALL for the control request then.
+ */
+void gether_update_mtu(struct gether *link)
+{
+	struct eth_dev		*dev = the_dev;
+
+	/* all the checks are done in the upper layer */
+	dev->net->mtu = link->mtu;
 }
