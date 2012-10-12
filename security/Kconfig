@@ -176,7 +176,6 @@ config SECURITY_CREDENTIALS_POLICY
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
-source security/aegis/Kconfig
 
 source security/integrity/ima/Kconfig
 

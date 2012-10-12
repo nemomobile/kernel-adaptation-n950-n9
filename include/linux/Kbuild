@@ -1,4 +1,3 @@
-header-y += aegis/
 header-y += byteorder/
 header-y += can/
 header-y += dvb/

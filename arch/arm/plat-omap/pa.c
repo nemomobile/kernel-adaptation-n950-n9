@@ -22,16 +22,6 @@
 #include <plat/pa.h>
 #include <plat/sec.h>
 
-#ifdef CONFIG_SECURITY_AEGIS_RESTOK
-#include <linux/cred.h>
-#include <linux/aegis/restok.h>
-#include <crypto/hash.h>
-#endif
-
-#ifdef CONFIG_SECURITY_AEGIS_CREDS
-#include <linux/aegis/creds.h>
-#endif
-
 /*
  * this code does parsing of Protected Applications command parameters and
  * results passed from/to user space and build parameters and result buffers
@@ -466,49 +456,6 @@ static int prepare_par_buf(struct pa_command_data *p, int n, u8 **ppos,
 	return buffer_copy(ppos, pend, &ptr, sizeof(ptr));
 }
 
-#ifdef CONFIG_SECURITY_AEGIS_RESTOK
-static inline int aegis_get_cred(const char *str, int foreign, pa_cred_t *cred)
-{
-	gid_t gid;
-	struct crypto_shash *tfm;
-	u8	sha1[20];
-	int	rv;
-
-	gid = restok_locate(str);
-	if (gid <= 0)
-		return -EPERM;
-
-	if (!foreign && !in_egroup_p(gid))
-		return -EPERM;
-
-	tfm = crypto_alloc_shash("sha1", 0, 0);
-	if (IS_ERR(tfm)) {
-		pr_err("tfm allocation failed\n");
-		return PTR_ERR(tfm);
-	} else {
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(tfm)];
-		} desc;
-
-		desc.shash.tfm = tfm;
-		desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-
-		rv = crypto_shash_digest(&desc.shash, str, strlen(str), sha1);
-	}
-	crypto_free_shash(tfm);
-	memcpy(cred, sha1, sizeof(*cred));
-	pr_debug("rv: %d\n", rv);
-	return rv;
-}
-#else
-static inline int aegis_get_cred(const char *str, int foreign, pa_cred_t *cred)
-{
-	*cred = 0;
-	return 0;
-}
-#endif
-
 static int prepare_par_cred(struct pa_command_data *p, int n, u8 **ppos,
 			    u8 *pend, u8 **ipos, u8 *iend)
 {
@@ -522,11 +469,6 @@ static int prepare_par_cred(struct pa_command_data *p, int n, u8 **ppos,
 	/* PA_IO(entry->type) == PA_IO_SIZE_VAL */
 	pr_debug("cred, len: %d: %s\n", entry->size, *ipos);
 	(*ipos)[entry->size - 1] = '\0'; /* sanity check */
-
-	rv = aegis_get_cred(*ipos, PA_TYPE(entry->type) == PA_TYPE_FOREIGN_CRED,
-			     &cred);
-	if (rv)
-		return rv;
 
 	if (buffer_skip(ipos, iend, entry->size) < 0 ||
 		buffer_copy(ppos, pend, &cred, sizeof(pa_cred_t)) < 0)
@@ -996,21 +938,6 @@ int pa_command_creds_check(struct pa_format_command *cmd)
 		pr_debug("incorrect creds count");
 		return -EINVAL;
 	}
-
-#ifdef CONFIG_SECURITY_AEGIS_CREDS
-	for (i = 0; i < cmd->creds_count; i++) {
-		cmd->creds[i][PA_CREDS_LEN_MAX - 1] = '\0';
-		creds_type = creds_kstr2creds(cmd->creds[i], &creds_value);
-		if (creds_type == -1) {
-			pr_debug("invalid credential string %s\n",
-				 cmd->creds[i]);
-			return -EPERM;
-		}
-
-		if (creds_khave_p(creds_type, creds_value) == 0)
-			return -EPERM;
-	}
-#endif
 
 	return 0;
 }
