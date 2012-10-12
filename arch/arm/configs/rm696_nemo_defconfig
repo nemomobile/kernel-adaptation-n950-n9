@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.54
-# Thu Oct 11 13:32:39 2012
+# Sat Oct 13 06:59:58 2012
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -61,7 +61,8 @@ CONFIG_TREE_RCU=y
 CONFIG_RCU_FANOUT=32
 # CONFIG_RCU_FANOUT_EXACT is not set
 # CONFIG_TREE_RCU_TRACE is not set
-# CONFIG_IKCONFIG is not set
+CONFIG_IKCONFIG=y
+CONFIG_IKCONFIG_PROC=y
 CONFIG_LOG_BUF_SHIFT=16
 CONFIG_CGROUPS=y
 # CONFIG_CGROUP_DEBUG is not set
@@ -831,6 +832,7 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
 # CONFIG_MG_DISK is not set
+# CONFIG_BLK_DEV_HD is not set
 CONFIG_MISC_DEVICES=y
 # CONFIG_ICS932S401 is not set
 CONFIG_OMAP_SDTI=y
@@ -911,6 +913,20 @@ CONFIG_DM_CRYPT=m
 # CONFIG_DM_MULTIPATH is not set
 # CONFIG_DM_DELAY is not set
 # CONFIG_DM_UEVENT is not set
+
+#
+# IEEE 1394 (FireWire) support
+#
+
+#
+# You can enable one or both FireWire driver stacks.
+#
+
+#
+# See the help texts for more information.
+#
+# CONFIG_FIREWIRE is not set
+# CONFIG_IEEE1394 is not set
 CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
@@ -1682,6 +1698,7 @@ CONFIG_LEDS_LP5521=m
 #
 # CONFIG_LEDS_TRIGGERS is not set
 # CONFIG_ACCESSIBILITY is not set
+# CONFIG_INFINIBAND is not set
 CONFIG_RTC_LIB=y
 CONFIG_RTC_CLASS=y
 # CONFIG_RTC_HCTOSYS is not set
@@ -1875,6 +1892,7 @@ CONFIG_PROC_PAGE_MONITOR=y
 CONFIG_SYSFS=y
 CONFIG_TMPFS=y
 CONFIG_TMPFS_POSIX_ACL=y
+# CONFIG_HUGETLBFS is not set
 # CONFIG_HUGETLB_PAGE is not set
 # CONFIG_CONFIGFS_FS is not set
 CONFIG_MISC_FILESYSTEMS=y
