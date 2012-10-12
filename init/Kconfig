@@ -55,7 +55,7 @@ config EXPERIMENTAL
 	  drivers that are currently considered to be in the alpha-test phase.
 
 config BROKEN
-	bool
+	bool "Prompt for staging drivers"
 	default n
 
 config BROKEN_ON_SMP
