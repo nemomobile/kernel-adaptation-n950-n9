@@ -962,7 +962,6 @@ CONFIG_HAVE_ARCH_KGDB=y
 # Security options
 #
 # CONFIG_KEYS is not set
-# CONFIG_SECURITY_DMESG_RESTRICT is not set
 # CONFIG_SECURITY is not set
 # CONFIG_SECURITYFS is not set
 # CONFIG_SECURITY_FILE_CAPABILITIES is not set
