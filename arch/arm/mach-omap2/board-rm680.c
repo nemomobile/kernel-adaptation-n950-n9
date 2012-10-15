@@ -31,6 +31,7 @@
 #include <plat/display.h>
 #include <plat/panel-nokia-dsi.h>
 #include <plat/vram.h>
+#include <linux/pvr.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -286,6 +287,24 @@ static struct omapfb_platform_data rm696_omapfb_data = {
 	}
 };
 
+static void rm696_sgx_dev_release(struct device *pdev)
+{
+	pr_debug("%s: (%p)", __func__, pdev);
+}
+
+static struct sgx_platform_data rm696_sgx_platform_data = {
+	.fclock_max	= 200000000,
+};
+
+static struct platform_device rm696_sgx_device = {
+	.name		= "pvrsrvkm",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &rm696_sgx_platform_data,
+		.release = rm696_sgx_dev_release,
+	}
+};
+
 static int __init rm696_video_init(void)
 {
 	int r;
@@ -320,8 +339,14 @@ static int __init rm696_video_init(void)
 
 	omapfb_set_platform_data(&rm696_omapfb_data);
 
+	r = platform_device_register(&rm696_sgx_device);
+	if (r < 0)
+		goto err3;
+
 	return 0;
 
+err3:
+	platform_device_unregister(&rm696_dss_device);
 err2:
 	if (rm696_tv_display_data.reset_gpio != -1) {
 		gpio_free(rm696_tv_display_data.reset_gpio);
