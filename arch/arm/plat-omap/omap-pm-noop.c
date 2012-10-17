@@ -17,6 +17,7 @@
 
 #undef DEBUG
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
@@ -87,6 +88,7 @@ int omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r)
 
 	return 0;
 }
+EXPORT_SYMBOL(omap_pm_set_min_bus_tput);
 
 int omap_pm_set_max_dev_wakeup_lat(struct device *req_dev, struct device *dev,
 				   long t)
