@@ -12,7 +12,9 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/i2c.h>
 #include <linux/i2c/twl.h>
+#include <linux/input/atmel_mxt.h>
 #include <linux/platform_device.h>
 #include <linux/omapfb.h>
 #include <linux/regulator/fixed.h>
@@ -37,8 +39,12 @@
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
+#include "atmel_mxt_config.h"
 
 #include "dss.h"
+
+#define ATMEL_MXT_IRQ_GPIO		61
+#define ATMEL_MXT_RESET_GPIO		81
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
@@ -88,6 +94,7 @@ static struct twl4030_gpio_platform_data rm680_gpio_data = {
 
 static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("VDDI", "display0"),	/* Himalaya */
+	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -128,12 +135,48 @@ static struct regulator_init_data rm696_vmmc2_data = {
 	.consumer_supplies		= rm696_vmmc2_consumers,
 };
 
+static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
+	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
+};
+
+static struct regulator_init_data rm696_vaux1_data = {
+	.constraints = {
+		.name			= "rm696_vaux1",
+		.min_uV			= 2800000,
+		.max_uV			= 2800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm696_vaux1_consumers),
+	.consumer_supplies		= rm696_vaux1_consumers,
+};
+
 static struct twl4030_platform_data rm680_twl_data = {
 	.gpio			= &rm680_gpio_data,
 	/* add rest of the children here */
 	/* LDOs */
 	.vio			= &rm696_vio_data,
 	.vmmc2			= &rm696_vmmc2_data,
+	.vaux1			= &rm696_vaux1_data,
+};
+
+static struct mxt_platform_data atmel_mxt_platform_data = {
+	.reset_gpio = ATMEL_MXT_RESET_GPIO,
+	.int_gpio = ATMEL_MXT_IRQ_GPIO,
+	.rlimit_min_interval_us = 7000,
+	.rlimit_bypass_time_us = 25000,
+	.wakeup_interval_ms = 50,
+	.config = &atmel_mxt_pyrenees_config,
+};
+
+static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata */= {
+	{
+		/* keep this first */
+		I2C_BOARD_INFO("atmel_mxt", 0x4b),
+		.platform_data	= &atmel_mxt_platform_data,
+	},
 };
 
 static void __init rm680_i2c_init(void)
@@ -142,7 +185,8 @@ static void __init rm680_i2c_init(void)
 			      TWL_COMMON_REGULATOR_VDAC |
 			      TWL_COMMON_REGULATOR_VPLL2);
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
-	omap_register_i2c_bus(2, 400, NULL, 0);
+	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
+			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
 }
 
@@ -363,10 +407,34 @@ err0:
 
 subsys_initcall(rm696_video_init);
 
+static int __init rm696_atmel_mxt_init(void)
+{
+	int err;
+
+	err = gpio_request_one(ATMEL_MXT_RESET_GPIO, GPIOF_OUT_INIT_HIGH,
+			       "mxt_reset");
+	if (err)
+		goto err1;
+
+	err = gpio_request_one(ATMEL_MXT_IRQ_GPIO, GPIOF_DIR_IN, "mxt_irq");
+	if (err)
+		goto err2;
+
+	rm696_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);
+
+	return 0;
+err2:
+	gpio_free(ATMEL_MXT_RESET_GPIO);
+err1:
+
+	return err;
+}
+
 static void __init rm680_peripherals_init(void)
 {
 	platform_add_devices(rm680_peripherals_devices,
 				ARRAY_SIZE(rm680_peripherals_devices));
+	rm696_atmel_mxt_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
 	omap_hsmmc_init(mmc);
