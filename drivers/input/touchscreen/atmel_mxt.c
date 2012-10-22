@@ -4711,6 +4711,7 @@ static const struct i2c_device_id mxt_id[] = {
 	{ DRIVER_NAME, 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, mxt_id);
 
 static struct i2c_driver mxt_i2c_driver = {
 	.driver = {
