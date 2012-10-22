@@ -1,6 +1,7 @@
 #if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT_N9) || \
 	defined(CONFIG_TOUCHSCREEN_ATMEL_MXT_N9_MODULE)
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/input/atmel_mxt.h>
 

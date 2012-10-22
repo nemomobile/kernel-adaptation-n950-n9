@@ -27,6 +27,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/input/atmel_mxt.h>
 #include <linux/gpio.h>
+#include <linux/export.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_TOUCHSCREEN_ATMEL_MXT_DEBUGFS
 #include <linux/debugfs.h>
