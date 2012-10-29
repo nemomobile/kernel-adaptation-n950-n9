@@ -98,6 +98,22 @@ config TOUCHSCREEN_ATMEL_MXT
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_mxt_ts.
 
+config TOUCHSCREEN_ATMEL_MXT_N9
+	tristate "Atmel mXT Nokia N9 touchscreen"
+	depends on I2C
+	select TOUCHSCREEN_ATMEL_MXT_DEBUGFS
+	help
+	  Say Y here to enable support for Atmel mXT touchscreen controller
+	  on Nokia N9.
+
+	  If unsure, say N.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called atmel_mxt
+
+config TOUCHSCREEN_ATMEL_MXT_DEBUGFS
+	bool
+
 config TOUCHSCREEN_AUO_PIXCIR
 	tristate "AUO in-cell touchscreen using Pixcir ICs"
 	depends on I2C
