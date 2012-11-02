@@ -851,7 +851,7 @@ static int hci_h4p_reset(struct hci_h4p_info *info)
 static int hci_h4p_hci_flush(struct hci_dev *hdev)
 {
 	struct hci_h4p_info *info;
-	info = hdev->driver_data;
+	info = hci_get_drvdata(hdev);
 
 	skb_queue_purge(&info->txq);
 
@@ -919,7 +919,7 @@ static int hci_h4p_hci_open(struct hci_dev *hdev)
 	struct sk_buff_head fw_queue;
 	unsigned long flags;
 
-	info = hdev->driver_data;
+	info = hci_get_drvdata(hdev);
 
 	if (test_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
@@ -1005,7 +1005,7 @@ err_clean:
 
 static int hci_h4p_hci_close(struct hci_dev *hdev)
 {
-	struct hci_h4p_info *info = hdev->driver_data;
+	struct hci_h4p_info *info = hci_get_drvdata(hdev);
 
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
@@ -1027,10 +1027,6 @@ static int hci_h4p_hci_close(struct hci_dev *hdev)
 	return 0;
 }
 
-static void hci_h4p_hci_destruct(struct hci_dev *hdev)
-{
-}
-
 static int hci_h4p_hci_send_frame(struct sk_buff *skb)
 {
 	struct hci_h4p_info *info;
@@ -1044,7 +1040,7 @@ static int hci_h4p_hci_send_frame(struct sk_buff *skb)
 
 	NBT_DBG("dev %p, skb %p\n", hdev, skb);
 
-	info = hdev->driver_data;
+	info = hci_get_drvdata(hdev);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		dev_warn(info->dev, "Frame for non-running device\n");
@@ -1099,18 +1095,17 @@ static int hci_h4p_register_hdev(struct hci_h4p_info *info)
 	}
 	info->hdev = hdev;
 
-	hdev->type = HCI_UART;
-	hdev->driver_data = info;
+	hdev->bus = HCI_UART;
+	hci_set_drvdata(hdev, info);
 
 	hdev->open = hci_h4p_hci_open;
 	hdev->close = hci_h4p_hci_close;
 	hdev->flush = hci_h4p_hci_flush;
 	hdev->send = hci_h4p_hci_send_frame;
-	hdev->destruct = hci_h4p_hci_destruct;
 	hdev->ioctl = hci_h4p_hci_ioctl;
 	set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
-	hdev->owner = THIS_MODULE;
+	SET_HCIDEV_DEV(hdev, info->dev);
 
 	if (hci_register_dev(hdev) < 0) {
 		dev_err(info->dev, "hci_register failed %s.\n", hdev->name);
@@ -1204,7 +1199,7 @@ static int hci_h4p_probe(struct platform_device *pdev)
 			info->uart_iclk = clk_get(NULL, "uart1_ick");
 			info->uart_fclk = clk_get(NULL, "uart1_fck");
 		}
-		info->uart_base = ioremap(OMAP_UART1_BASE, SZ_2K);
+		info->uart_base = ioremap(OMAP2_UART1_BASE, SZ_2K);
 		break;
 	case 2:
 		if (cpu_is_omap16xx()) {
@@ -1215,7 +1210,7 @@ static int hci_h4p_probe(struct platform_device *pdev)
 			info->uart_iclk = clk_get(NULL, "uart2_ick");
 			info->uart_fclk = clk_get(NULL, "uart2_fck");
 		}
-		info->uart_base = ioremap(OMAP_UART2_BASE, SZ_2K);
+		info->uart_base = ioremap(OMAP2_UART2_BASE, SZ_2K);
 		break;
 	case 3:
 		if (cpu_is_omap16xx()) {
@@ -1226,7 +1221,7 @@ static int hci_h4p_probe(struct platform_device *pdev)
 			info->uart_iclk = clk_get(NULL, "uart3_ick");
 			info->uart_fclk = clk_get(NULL, "uart3_fck");
 		}
-		info->uart_base = ioremap(OMAP_UART3_BASE, SZ_2K);
+		info->uart_base = ioremap(OMAP2_UART3_BASE, SZ_2K);
 		break;
 	default:
 		dev_err(info->dev, "No uart defined\n");
@@ -1252,7 +1247,7 @@ static int hci_h4p_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	err = set_irq_wake(gpio_to_irq(info->host_wakeup_gpio), 1);
+	err = enable_irq_wake(gpio_to_irq(info->host_wakeup_gpio));
 	if (err < 0) {
 		dev_err(info->dev, "hci_h4p: unable to set wakeup for IRQ %d\n",
 				gpio_to_irq(info->host_wakeup_gpio));
