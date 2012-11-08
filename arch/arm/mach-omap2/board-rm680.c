@@ -33,6 +33,9 @@
 #include <plat/display.h>
 #include <plat/panel-nokia-dsi.h>
 #include <plat/vram.h>
+#include <plat/board-nokia.h>
+#include <plat/omap-pm.h>
+
 #include <linux/pvr.h>
 
 #include "mux.h"
@@ -331,6 +334,21 @@ static struct omapfb_platform_data rm696_omapfb_data = {
 	}
 };
 
+static void rm680_bt_set_pm_limits(struct device *dev, bool set)
+{
+	omap_pm_set_max_mpu_wakeup_lat(dev, set ? H4P_WAKEUP_LATENCY : -1);
+}
+
+static struct omap_bluetooth_config rm680_bt_config = {
+	.chip_type		= BT_CHIP_TI,
+	.bt_wakeup_gpio		= 37,
+	.host_wakeup_gpio	= 101,
+	.reset_gpio		= 26,
+	.bt_uart		= 2,
+	.bt_sysclk		= BT_SYSCLK_38_4,
+	.set_pm_limits	= rm680_bt_set_pm_limits,
+};
+
 static void rm696_sgx_dev_release(struct device *pdev)
 {
 	pr_debug("%s: (%p)", __func__, pdev);
@@ -438,6 +456,7 @@ static void __init rm680_peripherals_init(void)
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
 	omap_hsmmc_init(mmc);
+	omap_bt_init(&rm680_bt_config);
 }
 
 #ifdef CONFIG_OMAP_MUX
