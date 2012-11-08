@@ -262,7 +262,7 @@ static void wl12xx_spi_raw_write(struct device *child, int addr, void *buf,
 				 size_t len, bool fixed)
 {
 	struct wl12xx_spi_glue *glue = dev_get_drvdata(child->parent);
-	struct spi_transfer t[2 * WSPI_MAX_NUM_OF_CHUNKS];
+	struct spi_transfer t[2 * (WSPI_MAX_NUM_OF_CHUNKS + 1)];
 	struct spi_message m;
 	u32 commands[WSPI_MAX_NUM_OF_CHUNKS];
 	u32 *cmd;
@@ -306,11 +306,21 @@ static void wl12xx_spi_raw_write(struct device *child, int addr, void *buf,
 	spi_sync(to_spi_device(glue->dev), &m);
 }
 
+static int wl12xx_spi_power(struct device *child, bool enable)
+{
+	struct wl1271 *wl = dev_get_drvdata(child);
+	if (wl->set_power)
+		wl->set_power(enable);
+
+	return 0;
+}
+
 static struct wl1271_if_operations spi_ops = {
 	.read		= wl12xx_spi_raw_read,
 	.write		= wl12xx_spi_raw_write,
 	.reset		= wl12xx_spi_reset,
 	.init		= wl12xx_spi_init,
+	.power		= wl12xx_spi_power,
 	.set_block_size = NULL,
 };
 
