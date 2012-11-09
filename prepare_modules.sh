@@ -26,7 +26,6 @@ echo "Removing old build and source symlinks"
 rm -rf $ModuleRoot/lib/modules/$KernelVer/build
 rm -rf $ModuleRoot/lib/modules/$KernelVer/source
 mkdir -p $ModuleRoot/lib/modules/$KernelVer/build
-(cd $ModuleRoot/lib/modules/$KernelVer/; mkdir -p $ModuleRoot/lib/modules/$KernelVer/build)
 
 echo Populating lib/modules/$KernelVer/build
 
