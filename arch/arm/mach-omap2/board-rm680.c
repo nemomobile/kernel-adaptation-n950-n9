@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <plat/mux.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
@@ -20,9 +21,12 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/wl12xx.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
+#include <asm/system_info.h>
 
 #include <plat/i2c.h>
 #include <plat/mmc.h>
@@ -37,6 +41,7 @@
 #include <plat/omap-pm.h>
 
 #include <linux/pvr.h>
+#include <plat/mcspi.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -49,11 +54,91 @@
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
 
+
+/* WL1271 SDIO/SPI */
+#define RM696_WL1271_POWER_GPIO		35
+#define RM696_WL1271_IRQ_GPIO		42
+#define	RM696_WL1271_REF_CLOCK		2
+
+static void rm696_wl1271_set_power(bool enable)
+{
+	gpio_set_value(RM696_WL1271_POWER_GPIO, enable);
+}
+
+static struct wl12xx_platform_data wl1271_pdata = {
+	.set_power = rm696_wl1271_set_power,
+	.board_ref_clock = RM696_WL1271_REF_CLOCK,
+};
+
+static inline bool board_is_rm680(void)
+{
+	return (system_rev & 0x00f0) == 0x0020;
+}
+
+static bool board_has_sdio_wlan(void)
+{
+	/* RM-696 - N950 using SPI */
+	if (board_is_rm680())
+		return false;
+
+	return system_rev > 0x0301;
+}
+
+/* SPI for wl1271 */
+static struct omap2_mcspi_device_config wl1271_mcspi_config = {
+	.turbo_mode = 1,
+};
+
+static struct spi_board_info rm696_peripherals_spi_board_info[] = {
+	[0] = {
+		.modalias		= "wl1271_spi",
+		.bus_num		= 4,
+		.chip_select		= 0,
+		.max_speed_hz		= 48000000,
+		.mode			= SPI_MODE_0,
+		.controller_data	= &wl1271_mcspi_config,
+		.platform_data		= &wl1271_pdata,
+	},
+};
+
+/* SDIO fixed regulator for WLAN */
+static struct regulator_consumer_supply rm696_vsdio_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
+};
+
+static struct regulator_init_data rm696_vsdio_data = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS
+					| REGULATOR_CHANGE_MODE,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(rm696_vsdio_consumers),
+	.consumer_supplies	= rm696_vsdio_consumers,
+};
+
+static struct fixed_voltage_config rm696_vsdio_config = {
+	.supply_name		= "vwl1271",
+	.microvolts		= 1800000,
+	.gpio			= RM696_WL1271_POWER_GPIO,
+	.startup_delay		= 1000,
+	.enable_high		= 1,
+	.enabled_at_boot	= 0,
+	.init_data		= &rm696_vsdio_data,
+};
+
+static struct platform_device rm696_vsdio_device = {
+	.name			= "reg-fixed-voltage",
+	.id			= 1,
+	.dev			= {
+		.platform_data	= &rm696_vsdio_config,
+	},
+};
+
+
+/* Fixed regulator for internal eMMC */
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
-/* Fixed regulator for internal eMMC */
 static struct regulator_init_data rm680_vemmc = {
 	.constraints =	{
 		.name			= "rm680_vemmc",
@@ -85,6 +170,89 @@ static struct platform_device rm680_vemmc_device = {
 static struct platform_device *rm680_peripherals_devices[] __initdata = {
 	&rm680_vemmc_device,
 };
+
+
+static void __init rm680_init_wl1271(void)
+{
+	int irq, ret;
+
+	if (board_has_sdio_wlan()) {
+		pr_info("wl1271 SDIO\n");
+		platform_device_register(&rm696_vsdio_device);
+
+		ret  = gpio_request(RM696_WL1271_IRQ_GPIO, "wl1271 irq");
+		if (ret < 0)
+			goto sdio_err;
+
+		ret = gpio_direction_input(RM696_WL1271_IRQ_GPIO);
+		if (ret < 0)
+			goto sdio_err_irq;
+
+		irq = gpio_to_irq(RM696_WL1271_IRQ_GPIO);
+		if (ret < 0)
+			goto sdio_err_irq;
+
+		wl1271_pdata.irq = irq;
+		wl12xx_set_platform_data(&wl1271_pdata);
+
+		/* Set high power gpio - mmc3 need to be detected.
+		   Next wl12xx driver will set this low */
+		rm696_wl1271_set_power(true);
+
+		omap_mux_init_signal("sdmmc2_dat4.sdmmc3_dat0",
+				     OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("sdmmc2_dat5.sdmmc3_dat1",
+				     OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("sdmmc2_dat6.sdmmc3_dat2",
+				     OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("sdmmc2_dat7.sdmmc3_dat3",
+				     OMAP_PIN_INPUT_PULLUP);
+
+		return;
+sdio_err:
+		gpio_free(RM696_WL1271_IRQ_GPIO);
+sdio_err_irq:
+		pr_err("wl1271 sdio board initialisation failed\n");
+		wl1271_pdata.set_power = NULL;
+	} else {
+		pr_info("wl1271 SPI\n");
+
+		ret = gpio_request(RM696_WL1271_POWER_GPIO, "wl1271 power");
+		if (ret < 0)
+			goto spi_err;
+
+		ret = gpio_direction_output(RM696_WL1271_POWER_GPIO, 0);
+		if (ret < 0)
+			goto spi_err_power;
+
+		ret = gpio_request(RM696_WL1271_IRQ_GPIO, "wl1271 irq");
+		if (ret < 0)
+			goto spi_err_power;
+
+		ret = gpio_direction_input(RM696_WL1271_IRQ_GPIO);
+		if (ret < 0)
+			goto spi_err_irq;
+
+		irq = gpio_to_irq(RM696_WL1271_IRQ_GPIO);
+		if (irq < 0)
+			goto spi_err_irq;
+
+		rm696_peripherals_spi_board_info[0].irq = irq;
+
+		spi_register_board_info(rm696_peripherals_spi_board_info,
+				ARRAY_SIZE(rm696_peripherals_spi_board_info));
+
+		return;
+spi_err_irq:
+		gpio_free(RM696_WL1271_IRQ_GPIO);
+spi_err_power:
+		gpio_free(RM696_WL1271_POWER_GPIO);
+spi_err:
+		pr_err("wl1271 spi board initialisation failed\n");
+		wl1271_pdata.set_power = NULL;
+
+	}
+}
 
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
@@ -203,14 +371,23 @@ static struct omap_onenand_platform_data board_onenand_data[] = {
 };
 #endif
 
-/* eMMC */
 static struct omap2_hsmmc_info mmc[] __initdata = {
+/* eMMC */
 	{
 		.name		= "internal",
 		.mmc		= 2,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+	},
+/* WLAN */
+	{
+		.name		= "wl1271",
+		.mmc		= 3,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
 	},
 	{ /* Terminator */ }
 };
@@ -450,6 +627,8 @@ err1:
 
 static void __init rm680_peripherals_init(void)
 {
+	rm680_init_wl1271();
+
 	platform_add_devices(rm680_peripherals_devices,
 				ARRAY_SIZE(rm680_peripherals_devices));
 	rm696_atmel_mxt_init();
@@ -469,6 +648,7 @@ static void __init rm680_init(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
+	pr_info("RM-680/696 board, rev %04x\n", system_rev);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 
