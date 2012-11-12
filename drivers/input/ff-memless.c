@@ -38,7 +38,7 @@ MODULE_AUTHOR("Anssi Hannula <anssi.hannula@gmail.com>");
 MODULE_DESCRIPTION("Force feedback support for memoryless devices");
 
 /* Number of effects handled with memoryless devices */
-#define FF_MEMLESS_EFFECTS	16
+#define FF_MEMLESS_EFFECTS	64
 
 /* Envelope update interval in ms */
 #define FF_ENVELOPE_INTERVAL	50
