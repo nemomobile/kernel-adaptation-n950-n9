@@ -23,6 +23,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/wl12xx.h>
 #include <linux/spi/spi.h>
+#include <linux/cpu.h>
+#include <linux/opp.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -42,17 +44,52 @@
 
 #include <linux/pvr.h>
 #include <plat/mcspi.h>
+#include <plat/omap_device.h>
 
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
 #include "atmel_mxt_config.h"
+#include "pm.h"
 
 #include "dss.h"
 
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
+
+/* CPU table initialization */
+static int __init rm696_opp_init(void)
+{
+	int r = 0;
+	struct device *mpu_dev;
+
+	r = omap3_opp_init();
+	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
+		pr_err("opp default init failed\n");
+		return r;
+	}
+
+	mpu_dev = omap_device_get_by_hwmod_name("mpu");
+	if (IS_ERR(mpu_dev)) {
+		pr_err("no mpu_dev error\n");
+		return -ENODEV;
+	}
+
+	/* Enable MPU 800MHz and lower opps */
+	r = opp_enable(mpu_dev, 800000000);
+	if (r)
+		pr_err("failed to enable higher (800MHz) opp\n");
+
+	/* Enable MPU 1GHz and lower opps */
+	r = opp_enable(mpu_dev, 1000000000);
+	if (r)
+		pr_err("failed to enable higher (1GHz) opp\n");
+
+
+	return 0;
+}
+device_initcall(rm696_opp_init);
 
 
 /* WL1271 SDIO/SPI */
