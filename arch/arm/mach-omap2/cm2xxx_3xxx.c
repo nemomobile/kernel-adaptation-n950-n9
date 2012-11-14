@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
@@ -43,11 +44,13 @@ u32 omap2_cm_read_mod_reg(s16 module, u16 idx)
 {
 	return __raw_readl(cm_base + module + idx);
 }
+EXPORT_SYMBOL(omap2_cm_read_mod_reg);
 
 void omap2_cm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__raw_writel(val, cm_base + module + idx);
 }
+EXPORT_SYMBOL(omap2_cm_write_mod_reg);
 
 /* Read-modify-write a register in a CM module. Caller must lock */
 u32 omap2_cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)

@@ -44,6 +44,8 @@
 #include <plat/control.h>
 #include <plat/mux.h>
 #include <../arch/arm/mach-omap2/cm.h>
+#include <../arch/arm/mach-omap2/prcm-common.h>
+#include <../arch/arm/mach-omap2/cm2xxx_3xxx.h>
 
 #define SSI_MAX_CHANNELS	8
 #define SSI_MAX_GDD_LCH		8
@@ -191,6 +193,7 @@ struct omap_ssi_controller {
 #endif
 };
 
+extern int irq_to_gpio(unsigned irq);
 static inline unsigned int ssi_wakein(struct hsi_port *port)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -205,9 +208,9 @@ static void ssi_disable_dpll3_autoidle(void)
 {
 	u32 v;
 
-	v = cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
 	v &= ~0x7;
-	cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
 }
 
 /*
@@ -217,9 +220,9 @@ static void ssi_enable_dpll3_autoidle(void)
 {
 	u32 v;
 
-	v = cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
 	v |= 1;
-	cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_AUTOIDLE);
 }
 
 static int ssi_for_each_port(struct hsi_controller *ssi, void *data,
@@ -865,6 +868,7 @@ static int ssi_enable_waketasklet(struct omap_ssi_port *omap_port, void *data)
 static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 								void *data)
 {
+#if 0
 	struct omap_ssi_controller *omap_ssi = container_of(nb,
 					struct omap_ssi_controller, fck_nb);
 	struct hsi_controller *ssi = to_hsi_controller(omap_ssi->dev);
@@ -904,6 +908,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
+#endif
 	return NOTIFY_DONE;
 }
 
@@ -1838,8 +1843,8 @@ static void ssi_clk_release(struct device *dev __maybe_unused, void *res)
 {
 	struct ssi_clk_res *r = res;
 
-	if (r->nb)
-		clk_notifier_unregister(r->clk, r->nb);
+//	if (r->nb)
+//		clk_notifier_unregister(r->clk, r->nb);
 	clk_put(r->clk);
 }
 
@@ -1861,7 +1866,7 @@ static struct clk *__init ssi_devm_clk_get(struct device *dev, const char *id,
 	} else {
 		pclk->clk = clk;
 		if (nb) {
-			clk_notifier_register(clk, nb);
+			//clk_notifier_register(clk, nb);
 			pclk->nb = nb;
 		} else {
 			pclk->nb = NULL;
