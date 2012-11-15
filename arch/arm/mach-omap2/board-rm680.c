@@ -94,6 +94,27 @@ static struct hsi_board_info __initdata rm696_ssi_cl[] = {
 		.hsi_id = 0,
 		.port = 0,
 		},
+	[1] =	{
+		.name = "ssi_protocol",
+		.hsi_id = 0,
+		.port = 0,
+		.tx_cfg = {
+			.mode = HSI_MODE_FRAME,
+			.channels = 4,
+			.speed = 96000,
+			.arb_mode = HSI_ARB_RR,
+			},
+		.rx_cfg = {
+			.mode = HSI_MODE_FRAME,
+			.channels = 4,
+			},
+		},
+	[2] =	{
+		.name = "cmt_speech",
+		.hsi_id = 0,
+		.port = 0,
+		},
+
 };
 
 static void __init rm696_ssi_init(void)
