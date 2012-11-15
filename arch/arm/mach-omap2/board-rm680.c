@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/cpu.h>
 #include <linux/opp.h>
+#include <linux/hsi/hsi.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -45,6 +46,7 @@
 #include <linux/pvr.h>
 #include <plat/mcspi.h>
 #include <plat/omap_device.h>
+#include <plat/ssi.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -57,6 +59,33 @@
 
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
+
+/* SSI init data */
+static struct omap_ssi_port_config __initdata rm696_ssi_port_config[] = {
+	[0] =	{
+		.cawake_gpio	= 151,
+		.ready_rx_gpio	= 154,
+		},
+};
+
+static struct omap_ssi_board_config __initdata rm696_ssi_config = {
+	.num_ports = ARRAY_SIZE(rm696_ssi_port_config),
+	.port_config = rm696_ssi_port_config,
+};
+
+static struct hsi_board_info __initdata rm696_ssi_cl[] = {
+	[0] =	{
+		.name = "hsi_char",
+		.hsi_id = 0,
+		.port = 0,
+		},
+};
+
+static void __init rm696_ssi_init(void)
+{
+	omap_ssi_config(&rm696_ssi_config);
+	hsi_register_board_info(rm696_ssi_cl, ARRAY_SIZE(rm696_ssi_cl));
+}
 
 /* CPU table initialization */
 static int __init rm696_opp_init(void)
@@ -672,6 +701,7 @@ static void __init rm680_peripherals_init(void)
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
 	omap_hsmmc_init(mmc);
+	rm696_ssi_init();
 	omap_bt_init(&rm680_bt_config);
 }
 

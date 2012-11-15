@@ -89,11 +89,10 @@ struct gpio_bank {
 #define GPIO_BIT(bank, gpio) (1 << GPIO_INDEX(bank, gpio))
 #define GPIO_MOD_CTRL_BIT	BIT(0)
 
-int irq_to_gpio(struct gpio_bank *bank, unsigned int gpio_irq)
+static int irq_to_gpio(struct gpio_bank *bank, unsigned int gpio_irq)
 {
 	return gpio_irq - bank->irq_base + bank->chip.base;
 }
-EXPORT_SYMBOL(irq_to_gpio);
 
 static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 {

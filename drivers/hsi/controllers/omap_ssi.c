@@ -51,6 +51,17 @@
 #define SSI_MAX_GDD_LCH		8
 #define SSI_BYTES_TO_FRAMES(x) ((((x) - 1) >> 2) + 1)
 
+static inline int irq_to_gpio(unsigned irq)
+{
+	int tmp;
+
+	tmp = irq - IH_GPIO_BASE;
+	if (tmp < OMAP_MAX_GPIO_LINES)
+		return tmp;
+
+	return -EIO;
+}
+
 /**
  * struct ssi_clk_res - Device resource data for the SSI clocks
  * @clk: Pointer to the clock
