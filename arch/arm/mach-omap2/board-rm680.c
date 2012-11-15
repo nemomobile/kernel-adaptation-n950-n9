@@ -26,6 +26,7 @@
 #include <linux/cpu.h>
 #include <linux/opp.h>
 #include <linux/hsi/hsi.h>
+#include <linux/cmt.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -56,6 +57,20 @@
 
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
+
+/* CMT init data */
+static struct cmt_platform_data rm696_cmt_pdata = {
+	.cmt_rst_ind_gpio = 34,
+	.cmt_rst_ind_flags = IRQF_TRIGGER_RISING,
+};
+
+static struct platform_device rm696_cmt_device = {
+	.name = "cmt",
+	.id = -1,
+	.dev = {
+		.platform_data = &rm696_cmt_pdata,
+	},
+};
 
 /* SSI init data */
 static struct omap_ssi_port_config __initdata rm696_ssi_port_config[] = {
@@ -232,6 +247,7 @@ static struct platform_device rm680_vemmc_device = {
 
 static struct platform_device *rm680_peripherals_devices[] __initdata = {
 	&rm680_vemmc_device,
+	&rm696_cmt_device,
 };
 
 
