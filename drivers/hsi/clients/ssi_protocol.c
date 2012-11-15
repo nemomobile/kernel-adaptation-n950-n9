@@ -191,7 +191,7 @@ static void ssip_skb_to_msg(struct sk_buff *skb, struct hsi_msg *msg)
 		sg = sg_next(sg);
 		BUG_ON(!sg);
 		frag = &skb_shinfo(skb)->frags[i];
-		sg_set_page(sg, frag->page, frag->size, frag->page_offset);
+		sg_set_page(sg, frag->page.p, frag->size, frag->page_offset);
 	}
 }
 
