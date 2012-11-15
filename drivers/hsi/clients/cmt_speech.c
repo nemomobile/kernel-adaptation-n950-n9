@@ -33,7 +33,8 @@
 #include <linux/sched.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
-#include <linux/pm_qos_params.h>
+#include <linux/slab.h>
+//#include <linux/pm_qos_params.h>
 #include <linux/hsi/hsi.h>
 #include <linux/hsi/ssip_slave.h>
 #include <linux/cs-protocol.h>
@@ -981,15 +982,15 @@ static int cs_hsi_buf_config(struct cs_hsi_iface *hi,
 
 	if (old_state != hi->iface_state) {
 		if (hi->iface_state == CS_STATE_CONFIGURED) {
-			pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY,
-					       DRIVER_NAME,
-					       CS_QOS_LATENCY_FOR_DATA_USEC);
+			//pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY,
+			//		       DRIVER_NAME,
+			//		       CS_QOS_LATENCY_FOR_DATA_USEC);
 			local_bh_disable();
 			cs_hsi_read_on_data(hi);
 			local_bh_enable();
 		} else if (old_state == CS_STATE_CONFIGURED) {
-			pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
-						  DRIVER_NAME);
+			//pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
+			//			  DRIVER_NAME);
 		}
 	}
 
