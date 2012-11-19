@@ -1032,8 +1032,8 @@ omap_i2c_probe(struct platform_device *pdev)
 
 		/* calculate wakeup latency constraint for MPU */
 		if (dev->set_mpu_wkup_lat != NULL)
-			dev->latency = (1000000 * dev->fifo_size) /
-				       (1000 * speed / 8);
+			dev->latency = min(100, (1000000 * dev->fifo_size) /
+				       (1000 * speed / 8));
 	}
 
 	/* reset ASAP, clearing any IRQs */
