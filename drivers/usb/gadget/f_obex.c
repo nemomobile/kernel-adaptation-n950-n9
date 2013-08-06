@@ -90,7 +90,7 @@ static struct usb_gadget_strings *obex_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static struct usb_interface_descriptor obex_control_intf __initdata = {
+static struct usb_interface_descriptor obex_control_intf  = {
 	.bLength		= sizeof(obex_control_intf),
 	.bDescriptorType	= USB_DT_INTERFACE,
 	.bInterfaceNumber	= 0,
@@ -101,7 +101,7 @@ static struct usb_interface_descriptor obex_control_intf __initdata = {
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_OBEX,
 };
 
-static struct usb_interface_descriptor obex_data_nop_intf __initdata = {
+static struct usb_interface_descriptor obex_data_nop_intf  = {
 	.bLength		= sizeof(obex_data_nop_intf),
 	.bDescriptorType	= USB_DT_INTERFACE,
 	.bInterfaceNumber	= 1,
@@ -111,7 +111,7 @@ static struct usb_interface_descriptor obex_data_nop_intf __initdata = {
 	.bInterfaceClass	= USB_CLASS_CDC_DATA,
 };
 
-static struct usb_interface_descriptor obex_data_intf __initdata = {
+static struct usb_interface_descriptor obex_data_intf  = {
 	.bLength		= sizeof(obex_data_intf),
 	.bDescriptorType	= USB_DT_INTERFACE,
 	.bInterfaceNumber	= 2,
@@ -121,14 +121,14 @@ static struct usb_interface_descriptor obex_data_intf __initdata = {
 	.bInterfaceClass	= USB_CLASS_CDC_DATA,
 };
 
-static struct usb_cdc_header_desc obex_cdc_header_desc __initdata = {
+static struct usb_cdc_header_desc obex_cdc_header_desc  = {
 	.bLength		= sizeof(obex_cdc_header_desc),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubType	= USB_CDC_HEADER_TYPE,
 	.bcdCDC			= cpu_to_le16(0x0120),
 };
 
-static struct usb_cdc_union_desc obex_cdc_union_desc __initdata = {
+static struct usb_cdc_union_desc obex_cdc_union_desc  = {
 	.bLength		= sizeof(obex_cdc_union_desc),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubType	= USB_CDC_UNION_TYPE,
@@ -136,7 +136,7 @@ static struct usb_cdc_union_desc obex_cdc_union_desc __initdata = {
 	.bSlaveInterface0	= 2,
 };
 
-static struct usb_cdc_obex_desc obex_desc __initdata = {
+static struct usb_cdc_obex_desc obex_desc  = {
 	.bLength		= sizeof(obex_desc),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubType	= USB_CDC_OBEX_TYPE,
@@ -145,7 +145,7 @@ static struct usb_cdc_obex_desc obex_desc __initdata = {
 
 /* High-Speed Support */
 
-static struct usb_endpoint_descriptor obex_hs_ep_out_desc __initdata = {
+static struct usb_endpoint_descriptor obex_hs_ep_out_desc  = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 
@@ -154,7 +154,7 @@ static struct usb_endpoint_descriptor obex_hs_ep_out_desc __initdata = {
 	.wMaxPacketSize		= cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor obex_hs_ep_in_desc __initdata = {
+static struct usb_endpoint_descriptor obex_hs_ep_in_desc  = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 
@@ -163,7 +163,7 @@ static struct usb_endpoint_descriptor obex_hs_ep_in_desc __initdata = {
 	.wMaxPacketSize		= cpu_to_le16(512),
 };
 
-static struct usb_descriptor_header *hs_function[] __initdata = {
+static struct usb_descriptor_header *hs_function[]  = {
 	(struct usb_descriptor_header *) &obex_control_intf,
 	(struct usb_descriptor_header *) &obex_cdc_header_desc,
 	(struct usb_descriptor_header *) &obex_desc,
@@ -178,7 +178,7 @@ static struct usb_descriptor_header *hs_function[] __initdata = {
 
 /* Full-Speed Support */
 
-static struct usb_endpoint_descriptor obex_fs_ep_in_desc __initdata = {
+static struct usb_endpoint_descriptor obex_fs_ep_in_desc  = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 
@@ -186,7 +186,7 @@ static struct usb_endpoint_descriptor obex_fs_ep_in_desc __initdata = {
 	.bmAttributes		= USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor obex_fs_ep_out_desc __initdata = {
+static struct usb_endpoint_descriptor obex_fs_ep_out_desc  = {
 	.bLength		= USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType	= USB_DT_ENDPOINT,
 
@@ -194,7 +194,7 @@ static struct usb_endpoint_descriptor obex_fs_ep_out_desc __initdata = {
 	.bmAttributes		= USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_descriptor_header *fs_function[] __initdata = {
+static struct usb_descriptor_header *fs_function[]  = {
 	(struct usb_descriptor_header *) &obex_control_intf,
 	(struct usb_descriptor_header *) &obex_cdc_header_desc,
 	(struct usb_descriptor_header *) &obex_desc,
@@ -272,8 +272,7 @@ static void obex_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init
-obex_bind(struct usb_configuration *c, struct usb_function *f)
+static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_obex		*obex = func_to_obex(f);
@@ -397,7 +396,7 @@ static inline bool can_support_obex(struct usb_configuration *c)
  * handle all the ones it binds.  Caller is also responsible
  * for calling @gserial_cleanup() before module unload.
  */
-int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
+int  obex_bind_config(struct usb_configuration *c, u8 port_num)
 {
 	struct f_obex	*obex;
 	int		status;
