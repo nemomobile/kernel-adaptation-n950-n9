@@ -1,6 +1,6 @@
 #include <linux/module.h>
 #include <linux/utsname.h>
-
+//#include "u_serial.h"
 
 /*
  * kbuild is not very cooperative with respect to linking separately
@@ -14,6 +14,9 @@
 #include "usbstring.c"
 #include "config.c"
 #include "epautoconf.c"
+#include "f_obex.c"
+#include "f_serial.c"
+#include "u_serial.c"
 
 #if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
 #  if defined USB_ETH_RNDIS
@@ -39,6 +42,7 @@ static u8 gfs_hostaddr[ETH_ALEN];
 #  define gether_cleanup() do { } while (0)
 #  define gether_setup(gadget, hostaddr)   ((int)0)
 #endif
+static int obex_bind_configs(struct usb_configuration *c);
 
 #include "f_fs.c"
 
@@ -217,6 +221,7 @@ static int  gfs_init(void)
 {
 	ENTER();
 
+
 	return functionfs_init();
 }
 module_init(gfs_init);
@@ -273,6 +278,12 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	if (WARN_ON(!gfs_ffs_data))
 		return -ENODEV;
+
+	ret = gserial_setup(cdev->gadget, 2);
+	if (unlikely(ret < 0))
+	{
+		goto error_quick;
+	}
 
 	ret = gether_setup(cdev->gadget, gfs_hostaddr);
 	if (unlikely(ret < 0))
@@ -336,12 +347,14 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	if (unlikely(ret < 0))
 		goto error_unbind;
 
+
 	return 0;
 
 error_unbind:
 	functionfs_unbind(gfs_ffs_data);
 error:
 	gether_cleanup();
+	gserial_cleanup();
 error_quick:
 	gfs_ffs_data = NULL;
 	return ret;
@@ -387,6 +400,7 @@ static int __gfs_do_config(struct usb_configuration *c,
 		if (unlikely(ret < 0))
 			return ret;
 	}
+	obex_bind_configs(c);
 
 	ret = functionfs_add(c->cdev, c, gfs_ffs_data);
 	if (unlikely(ret < 0))
@@ -435,3 +449,13 @@ static int gfs_do_generic_config(struct usb_configuration *c)
 	return __gfs_do_config(c, NULL, NULL);
 }
 #endif
+
+static int obex_bind_configs(struct usb_configuration *c)
+{
+	int ret = -1;
+
+	ret = obex_bind_config(c, 0);
+	ret = obex_bind_config(c, 1);
+
+	return ret;
+}
