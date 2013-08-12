@@ -27,6 +27,7 @@
 #include <linux/opp.h>
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
+#include <linux/lis3lv02d.h> 
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -60,6 +61,9 @@
 
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
+
+#define LIS302_IRQ1_GPIO 180
+#define LIS302_IRQ2_GPIO 181  /* Not yet in use */ 
 
 /* CMT init data */
 static struct cmt_platform_data rm696_cmt_pdata = {
@@ -369,6 +373,7 @@ static struct twl4030_gpio_platform_data rm680_gpio_data = {
 static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("VDDI", "display0"),	/* Himalaya */
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
+	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -411,6 +416,7 @@ static struct regulator_init_data rm696_vmmc2_data = {
 
 static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
+	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -453,6 +459,100 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 	},
 };
 
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+static int lis302_setup(void)
+{
+	int err;
+	int irq1 = LIS302_IRQ1_GPIO;
+	int irq2 = LIS302_IRQ2_GPIO;
+
+	/* gpio for interrupt pin 1 */
+	err = gpio_request(irq1, "lis3lv02dl_irq1");
+	if (err) {
+		printk(KERN_ERR "lis3lv02dl: gpio request failed\n");
+		goto out;
+	}
+
+	/* gpio for interrupt pin 2 */
+	err = gpio_request(irq2, "lis3lv02dl_irq2");
+	if (err) {
+		gpio_free(irq1);
+		printk(KERN_ERR "lis3lv02dl: gpio request failed\n");
+		goto out;
+	}
+
+	gpio_direction_input(irq1);
+	gpio_direction_input(irq2);
+
+out:
+	return err;
+}
+
+static int lis302_release(void)
+{
+	gpio_free(LIS302_IRQ1_GPIO);
+	gpio_free(LIS302_IRQ2_GPIO);
+
+	return 0;
+}
+
+#define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
+				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
+				 IH_GPIO_BASE + (nr))
+
+static struct lis3lv02d_platform_data rm696_lis302dl_data = {
+	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
+			  LIS3_CLICK_SINGLE_Z,
+	/* Limits are 0.5g * value */
+	.click_thresh_x = 8,
+	.click_thresh_y = 8,
+	.click_thresh_z = 10,
+	/* Click must be longer than time limit */
+	.click_time_limit = 9,
+	/* Kind of debounce filter */
+	.click_latency	  = 50,
+
+	/* Limits for all axis. millig-value / 18 to get HW values */
+	.wakeup_flags = LIS3_WAKEUP_X_HI | LIS3_WAKEUP_Y_HI,
+	.wakeup_thresh = 8,
+	.wakeup_flags2 =  LIS3_WAKEUP_Z_HI,
+	.wakeup_thresh2 = 10,
+
+	.hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ,
+
+	/* Interrupt line 2 for click detection, line 1 for thresholds */
+	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
+
+#define LIS3_IRQ1_USE_BOTH_EDGES 1
+#define LIS3_IRQ2_USE_BOTH_EDGES 2
+
+	.irq_flags1 = LIS3_IRQ1_USE_BOTH_EDGES,
+	.irq_flags2 = LIS3_IRQ2_USE_BOTH_EDGES,
+	.duration1 = 8,
+	.duration2 = 8,
+
+	.axis_x = LIS3_DEV_X,
+	.axis_y = LIS3_INV_DEV_Y,
+	.axis_z = LIS3_INV_DEV_Z,
+	.setup_resources = lis302_setup,
+	.release_resources = lis302_release,
+	.st_min_limits = {-46, 3, 3},
+	.st_max_limits = {-3, 46, 46},
+	.irq2 = OMAP_GPIO_IRQ(LIS302_IRQ2_GPIO),
+};
+
+#endif
+
+static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("lis3lv02d", 0x1d),
+		.platform_data = &rm696_lis302dl_data,
+		.irq = OMAP_GPIO_IRQ(LIS302_IRQ1_GPIO),
+	},
+#endif
+};
+
 static void __init rm680_i2c_init(void)
 {
 	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB,
@@ -461,7 +561,8 @@ static void __init rm680_i2c_init(void)
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
+			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
 }
 
 #if defined(CONFIG_MTD_ONENAND_OMAP2) || \
