@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 #include <linux/input/atmel_mxt.h>
+#include <linux/input/eci.h>
 #include <linux/platform_device.h>
 #include <linux/omapfb.h>
 #include <linux/regulator/fixed.h>
@@ -27,7 +28,10 @@
 #include <linux/opp.h>
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
-#include <linux/lis3lv02d.h> 
+#include <linux/lis3lv02d.h>
+#include <linux/mfd/wl1273-core.h>
+#include <sound/tpa6130a2-plat.h>
+#include <sound/tlv320dac33-plat.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -46,6 +50,7 @@
 #include <plat/omap-pm.h>
 
 #include <linux/pvr.h>
+#include <linux/printk.h>
 #include <plat/mcspi.h>
 #include <plat/omap_device.h>
 #include <plat/ssi.h>
@@ -59,11 +64,27 @@
 
 #include "dss.h"
 
+#if defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
+	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)
+#include <plat/dfl61-audio.h>
+#include <linux/mfd/twl4030-audio.h>
+#endif
+
 #define ATMEL_MXT_IRQ_GPIO		61
 #define ATMEL_MXT_RESET_GPIO		81
 
 #define LIS302_IRQ1_GPIO 180
-#define LIS302_IRQ2_GPIO 181  /* Not yet in use */ 
+#define LIS302_IRQ2_GPIO 181
+#define RM696_FM_RESET_GPIO1 179
+#define RM696_FM_RESET_GPIO2 178
+#define RM696_FMRX_IRQ_GPIO 43
+
+#define RM696_DAC33_RESET_GPIO 60
+#define RM696_DAC33_IRQ_GPIO 53
+
+#define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
+				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
+				 IH_GPIO_BASE + (nr))
 
 /* CMT init data */
 static struct cmt_platform_data rm696_cmt_pdata = {
@@ -76,6 +97,21 @@ static struct platform_device rm696_cmt_device = {
 	.id = -1,
 	.dev = {
 		.platform_data = &rm696_cmt_pdata,
+	},
+};
+
+static struct eci_platform_data rm696_eci_platform_data = {
+#if	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
+	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)
+	.register_hsmic_event_cb = dfl61_register_hsmic_event_cb,
+	.jack_report = dfl61_jack_report,
+#endif
+};
+
+static struct platform_device rm696_eci_device = {
+	.name	= "ECI_accessory",
+	.dev	= {
+		.platform_data = &rm696_eci_platform_data,
 	},
 };
 
@@ -273,12 +309,6 @@ static struct platform_device rm680_vemmc_device = {
 	},
 };
 
-static struct platform_device *rm680_peripherals_devices[] __initdata = {
-	&rm680_vemmc_device,
-	&rm696_cmt_device,
-};
-
-
 static void __init rm680_init_wl1271(void)
 {
 	int irq, ret;
@@ -370,7 +400,17 @@ static struct twl4030_gpio_platform_data rm680_gpio_data = {
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };
 
+static struct twl4030_codec_data rm680_codec_data;
+
+static struct twl4030_audio_data rm680_audio_data = {
+	.audio_mclk = 38400000,
+	.codec = &rm680_codec_data,	
+	/*FIXME: vibra*/
+};
+
 static struct regulator_consumer_supply rm696_vio_consumers[] = {
+	REGULATOR_SUPPLY("DVDD", "2-0019"),	/* TLV320DAC33 */
+	REGULATOR_SUPPLY("IOVDD", "2-0019"),	/* TLV320DAC33 */	
 	REGULATOR_SUPPLY("VDDI", "display0"),	/* Himalaya */
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
@@ -389,6 +429,35 @@ static struct regulator_init_data rm696_vio_data = {
 	},
 	.num_consumer_supplies		= ARRAY_SIZE(rm696_vio_consumers),
 	.consumer_supplies		= rm696_vio_consumers,
+};
+
+static struct regulator_consumer_supply rm696_vbat_consumers[] = {
+	REGULATOR_SUPPLY("Vled", "2-0039"),	/* APDS990x */
+	REGULATOR_SUPPLY("AVdd", "2-0060"),	/* TPA6140A2 */
+	REGULATOR_SUPPLY("VBat", "3-002b"),	/* PN544 */
+};
+
+static struct regulator_init_data rm696_vbat_data = {
+	.num_consumer_supplies	= ARRAY_SIZE(rm696_vbat_consumers),
+	.consumer_supplies	= rm696_vbat_consumers,
+	.constraints		= {
+		.always_on	= 1,
+	},
+};
+
+static struct fixed_voltage_config rm696_vbat_config = {
+	.supply_name = "vbat",
+	.microvolts = 3700000,
+	.gpio = -1,
+	.init_data = &rm696_vbat_data,
+};
+
+static struct platform_device rm696_vbat = {
+	.name			= "reg-fixed-voltage",
+	.id			= -1,
+	.dev			= {
+		.platform_data	= &rm696_vbat_config,
+	},
 };
 
 /*
@@ -417,6 +486,7 @@ static struct regulator_init_data rm696_vmmc2_data = {
 static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
+	REGULATOR_SUPPLY("v28", "twl5031_aci")
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -433,14 +503,120 @@ static struct regulator_init_data rm696_vaux1_data = {
 	.consumer_supplies		= rm696_vaux1_consumers,
 };
 
+static struct regulator_consumer_supply rm696_vaux4_consumers[] = {
+	REGULATOR_SUPPLY("AVDD", "2-0019"),	/* TLV320DAC33 */	
+};
+
+static struct regulator_init_data rm696_vaux4_data = {
+	.constraints = {
+		.name			= "rm696_vaux4",
+		.min_uV			= 2800000,
+		.max_uV			= 2800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm696_vaux4_consumers),
+	.consumer_supplies		= rm696_vaux4_consumers,
+};
+
+static struct platform_device *rm680_peripherals_devices[] __initdata = {
+	&rm696_vbat,
+	&rm680_vemmc_device,
+	&rm696_cmt_device,
+	&rm696_eci_device,
+};
+
 static struct twl4030_platform_data rm680_twl_data = {
 	.gpio			= &rm680_gpio_data,
+	.audio			= &rm680_audio_data,
 	/* add rest of the children here */
 	/* LDOs */
 	.vio			= &rm696_vio_data,
 	.vmmc2			= &rm696_vmmc2_data,
 	.vaux1			= &rm696_vaux1_data,
+	.vaux4			= &rm696_vaux4_data,
 };
+
+#if defined(CONFIG_RADIO_WL1273) || defined(CONFIG_RADIO_WL1273_MODULE)
+
+static unsigned int wl1273_fm_reset_gpio;
+
+static int rm696_wl1273_fm_request_resources(struct i2c_client *client)
+{
+	if (gpio_request(RM696_FMRX_IRQ_GPIO, "wl1273_fm irq gpio") < 0) {
+		dev_err(&client->dev, "Request IRQ GPIO fails.\n");
+		return -1;
+	}
+
+	if (system_rev < 0x0501)
+		wl1273_fm_reset_gpio = RM696_FM_RESET_GPIO1;
+	else
+		wl1273_fm_reset_gpio = RM696_FM_RESET_GPIO2;
+
+	if (gpio_request(wl1273_fm_reset_gpio, "wl1273_fm reset gpio") < 0) {
+		dev_err(&client->dev, "Request for GPIO %d fails.\n",
+			wl1273_fm_reset_gpio);
+		return -1;
+	}
+
+	if (gpio_direction_output(wl1273_fm_reset_gpio, 0)) {
+		dev_err(&client->dev, "Set GPIO Direction fails.\n");
+		return -1;
+	}
+
+	client->irq = gpio_to_irq(RM696_FMRX_IRQ_GPIO);
+
+	return 0;
+}
+
+static void rm696_wl1273_fm_free_resources(void)
+{
+	gpio_free(RM696_FMRX_IRQ_GPIO);
+	gpio_free(wl1273_fm_reset_gpio);
+}
+
+static void rm696_wl1273_fm_enable(void)
+{
+	gpio_set_value(wl1273_fm_reset_gpio, 1);
+}
+
+static void rm696_wl1273_fm_disable(void)
+{
+	gpio_set_value(wl1273_fm_reset_gpio, 0);
+}
+
+static struct wl1273_fm_platform_data rm696_fm_data = {
+	.request_resources = rm696_wl1273_fm_request_resources,
+	.free_resources = rm696_wl1273_fm_free_resources,
+	.enable = rm696_wl1273_fm_enable,
+	.disable = rm696_wl1273_fm_disable,
+#if defined(CONFIG_SND_SOC_WL1273) || defined(CONFIG_SND_SOC_WL1273_MODULE)
+	.children = WL1273_CODEC_CHILD | WL1273_RADIO_CHILD,
+#else
+	.children = WL1273_RADIO_CHILD,
+#endif
+};
+
+static struct platform_device rm696_wl1273_core_device = {
+	.name		= "dfl61audio-wl1273",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &rm696_fm_data,
+	},
+};
+
+static void __init rm696_wl1273_init(void)
+{
+	platform_device_register(&rm696_wl1273_core_device);
+}
+#else
+
+static void __init rm696_wl1273_init(void)
+{
+}
+#endif
 
 static struct mxt_platform_data atmel_mxt_platform_data = {
 	.reset_gpio = ATMEL_MXT_RESET_GPIO,
@@ -451,12 +627,53 @@ static struct mxt_platform_data atmel_mxt_platform_data = {
 	.config = &atmel_mxt_pyrenees_config,
 };
 
+#if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
+	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
+static struct tlv320dac33_platform_data rm696_dac33_platform_data = {
+	.power_gpio = RM696_DAC33_RESET_GPIO,
+	.mode1_latency = 10000, /* 10ms */
+	/*FIXME there is no mode7lp_latency & fallback_to_bypass_time*/
+	/*.mode7lp_latency = 10000,*/ /* 10ms */ 
+	/*.fallback_to_bypass_time = 40000,*/ /* 40ms */
+	.auto_fifo_config = 1,
+	.keep_bclk = 1,
+	.burst_bclkdiv = 3,
+};
+#endif
+
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+/* We don't have GPIO allocated for the TPA6130A2 amplifier */
+static struct tpa6130a2_platform_data rm696_tpa6130a2_platform_data = {
+	.power_gpio = -1,
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata */= {
 	{
 		/* keep this first */
 		I2C_BOARD_INFO("atmel_mxt", 0x4b),
 		.platform_data	= &atmel_mxt_platform_data,
 	},
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+	{
+		I2C_BOARD_INFO("tpa6140a2", 0x60),
+		.platform_data	= &rm696_tpa6130a2_platform_data,
+	},
+#endif
+
+#if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
+	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
+	{
+		/*keep this third*/
+		I2C_BOARD_INFO("tlv320dac33", 0x19),
+		.platform_data = &rm696_dac33_platform_data,
+	},
+#endif
+
 };
 
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
@@ -495,10 +712,6 @@ static int lis302_release(void)
 
 	return 0;
 }
-
-#define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
-				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
-				 IH_GPIO_BASE + (nr))
 
 static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
@@ -551,13 +764,30 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata *
 		.irq = OMAP_GPIO_IRQ(LIS302_IRQ1_GPIO),
 	},
 #endif
+
+#if defined(CONFIG_RADIO_WL1273) || defined(CONFIG_RADIO_WL1273_MODULE)
+	{
+		I2C_BOARD_INFO(WL1273_FM_DRIVER_NAME, RX71_FM_I2C_ADDR),
+		.platform_data = &rm696_fm_data,
+	},
+#endif
 };
 
 static void __init rm680_i2c_init(void)
 {
+	struct twl4030_codec_data *codec_data;
+
 	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB,
 			      TWL_COMMON_REGULATOR_VDAC |
-			      TWL_COMMON_REGULATOR_VPLL2);
+			      TWL_COMMON_REGULATOR_VPLL2 | TWL_COMMON_PDATA_AUDIO);
+
+	codec_data = rm680_twl_data.audio->codec;
+	codec_data->ramp_delay_value = 2;
+	codec_data->offset_cncl_path = TWL4030_OFFSET_CNCL_SEL_ARX2;
+	codec_data->check_defaults = 0;
+	codec_data->reset_registers = 0;
+	codec_data->digimic_delay = 0;
+	
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
@@ -829,12 +1059,74 @@ err1:
 	return err;
 }
 
+#if defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
+	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)	
+static struct dfl61audio_twl4030_platform_data rm696_twl4030_data;
+
+static struct platform_device rm696_twl4030_device = {
+	.name          = "dfl61audio-twl4030",
+	.id            = -1,
+	.dev            = {
+		.platform_data = &rm696_twl4030_data,
+	},
+};
+
+static int __init rm696_audio_init(void)
+{
+	if (!machine_is_nokia_rm680() && !machine_is_nokia_rm696())
+		return -ENODEV;
+
+	rm696_twl4030_data.audio_config = AUDIO_CONFIG4;
+	rm696_twl4030_data.freq = 38400000;
+
+	platform_device_register(&rm696_twl4030_device);
+	return 0;
+}
+#else
+static inline void __init rm696_audio_init(void)
+{
+}
+#endif
+
+#if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
+	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
+
+static struct platform_device rm696_tlv320dac33_device = {
+	.name          = "dfl61audio-tlv320dac33",
+	.id            = -1,	
+};
+
+static int __init rm696_tlv320dac33_init(void)
+{
+	int r;
+
+	r = gpio_request(RM696_DAC33_IRQ_GPIO, "tlv320dac33 IRQ");
+	if (r < 0) {
+		printk(KERN_ERR "Failed to request IRQ gpio "
+			"for tlv320dac33 chip\n");
+	}
+
+	rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+
+	gpio_direction_input(RM696_DAC33_IRQ_GPIO);
+	
+	platform_device_register(&rm696_tlv320dac33_device);
+
+	return 0;
+}
+#else
+static inline void __init rm696_tlv320dac33_init(void)
+{
+}
+#endif
+
 static void __init rm680_peripherals_init(void)
 {
 	rm680_init_wl1271();
 
 	platform_add_devices(rm680_peripherals_devices,
 				ARRAY_SIZE(rm680_peripherals_devices));
+
 	rm696_atmel_mxt_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
@@ -862,6 +1154,9 @@ static void __init rm680_init(void)
 
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
+	rm696_audio_init();
+	rm696_tlv320dac33_init();
+	rm696_wl1273_init();
 }
 
 static void __init rx680_reserve(void)
