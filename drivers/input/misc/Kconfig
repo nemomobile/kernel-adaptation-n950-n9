@@ -590,4 +590,12 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
 
+config INPUT_VIBRA_SPI
+        tristate "Support for SPI driven Vibra module"
+        help
+          Support for Vibra module that is connected to SPI bus.
+
+          To compile this driver as a module, choose M here: the
+          module will be called vibra_spi.
+
 endif

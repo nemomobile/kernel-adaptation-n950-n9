@@ -24,11 +24,13 @@
 #include <linux/regulator/consumer.h>
 #include <linux/wl12xx.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/vibra.h>
 #include <linux/cpu.h>
 #include <linux/opp.h>
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
 #include <linux/lis3lv02d.h>
+#include <linux/usb/musb.h>
 #include <linux/mfd/wl1273-core.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
@@ -81,6 +83,9 @@
 
 #define RM696_DAC33_RESET_GPIO 60
 #define RM696_DAC33_IRQ_GPIO 53
+
+#define RM696_VIBRA_POWER_GPIO 182
+#define RM696_VIBRA_POWER_UP_TIME 1000 /* usecs */
 
 #define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
 				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
@@ -410,7 +415,7 @@ static struct twl4030_audio_data rm680_audio_data = {
 
 static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("DVDD", "2-0019"),	/* TLV320DAC33 */
-	REGULATOR_SUPPLY("IOVDD", "2-0019"),	/* TLV320DAC33 */	
+	REGULATOR_SUPPLY("IOVDD", "2-0019"),	/* TLV320DAC33 */
 	REGULATOR_SUPPLY("VDDI", "display0"),	/* Himalaya */
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
@@ -773,6 +778,58 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata *
 #endif
 };
 
+static void rm696_vibra_set_power(bool enable)
+{
+	gpio_set_value(RM696_VIBRA_POWER_GPIO, enable);
+	if (enable)
+		usleep_range(RM696_VIBRA_POWER_UP_TIME,
+			     RM696_VIBRA_POWER_UP_TIME + 100);
+}
+
+static struct vibra_spi_platform_data vibra_pdata = {
+	.set_power = rm696_vibra_set_power,
+};
+
+static struct omap2_mcspi_device_config spi_vibra_mcspi_config = {
+	.turbo_mode	= 1,	
+};
+
+static struct spi_board_info rm696_vibra_spi_board_info = {
+	.modalias		= "vibra_spi",
+	.bus_num		= 2,
+	.chip_select		= 0,
+	.max_speed_hz   	= 750000,
+	.mode			= SPI_MODE_0,
+	.controller_data	= &spi_vibra_mcspi_config,
+	.platform_data		= &vibra_pdata,
+};
+
+static void __init rm696_init_vibra(void)
+{
+	int ret;
+
+	/* Vibra has been connected to SPI since S1.1 */
+	if (system_rev < 0x0501)
+		return ;
+
+	ret = gpio_request(RM696_VIBRA_POWER_GPIO, "Vibra amplifier");
+	if (ret < 0)
+		goto error;
+
+	ret = gpio_direction_output(RM696_VIBRA_POWER_GPIO, 0);
+	if (ret < 0)
+		goto err_power;
+
+	spi_register_board_info(&rm696_vibra_spi_board_info, 1);
+	return ;
+
+err_power:
+	gpio_free(RM696_VIBRA_POWER_GPIO);
+error:
+	printk(KERN_ERR "SPI Vibra board initialisation failed\n");
+	vibra_pdata.set_power = NULL;
+}
+
 static void __init rm680_i2c_init(void)
 {
 	struct twl4030_codec_data *codec_data;
@@ -787,7 +844,7 @@ static void __init rm680_i2c_init(void)
 	codec_data->check_defaults = 0;
 	codec_data->reset_registers = 0;
 	codec_data->digimic_delay = 0;
-	
+
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
@@ -1060,7 +1117,7 @@ err1:
 }
 
 #if defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
-	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)	
+	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)
 static struct dfl61audio_twl4030_platform_data rm696_twl4030_data;
 
 static struct platform_device rm696_twl4030_device = {
@@ -1093,7 +1150,7 @@ static inline void __init rm696_audio_init(void)
 
 static struct platform_device rm696_tlv320dac33_device = {
 	.name          = "dfl61audio-tlv320dac33",
-	.id            = -1,	
+	.id            = -1,
 };
 
 static int __init rm696_tlv320dac33_init(void)
@@ -1123,6 +1180,7 @@ static inline void __init rm696_tlv320dac33_init(void)
 static void __init rm680_peripherals_init(void)
 {
 	rm680_init_wl1271();
+	rm696_init_vibra();
 
 	platform_add_devices(rm680_peripherals_devices,
 				ARRAY_SIZE(rm680_peripherals_devices));
