@@ -418,6 +418,7 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("IOVDD", "2-0019"),	/* TLV320DAC33 */
 	REGULATOR_SUPPLY("VDDI", "display0"),	/* Himalaya */
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
+	REGULATOR_SUPPLY("vonenand", "omap2-onenand"), /* OneNAND flash */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
 };
 
@@ -834,9 +835,12 @@ static void __init rm680_i2c_init(void)
 {
 	struct twl4030_codec_data *codec_data;
 
-	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB,
+	omap3_pmic_get_config(&rm680_twl_data,
+			      TWL_COMMON_PDATA_USB |
+			      TWL_COMMON_PDATA_MADC |
+			      TWL_COMMON_PDATA_BCI,
 			      TWL_COMMON_REGULATOR_VDAC |
-			      TWL_COMMON_REGULATOR_VPLL2 | TWL_COMMON_PDATA_AUDIO);
+			      TWL_COMMON_REGULATOR_VPLL2);
 
 	codec_data = rm680_twl_data.audio->codec;
 	codec_data->ramp_delay_value = 2;
@@ -856,8 +860,11 @@ static void __init rm680_i2c_init(void)
 	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
 static struct omap_onenand_platform_data board_onenand_data[] = {
 	{
-		.gpio_irq	= 65,
-		.flags		= ONENAND_SYNC_READWRITE,
+		.cs				= 0,
+		.gpio_irq			= 65,
+		.flags				= ONENAND_SYNC_READWRITE,
+		.regulator_can_sleep		= 1,
+		.skip_initial_unlocking		= 1,
 	}
 };
 #endif
@@ -1199,6 +1206,12 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
+static struct omap_musb_board_data rm696_musb_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode 			= MUSB_PERIPHERAL,
+	.power			= 100,
+};
+
 static void __init rm680_init(void)
 {
 	struct omap_sdrc_params *sdrc_params;
@@ -1210,7 +1223,7 @@ static void __init rm680_init(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
 
-	usb_musb_init(NULL);
+	usb_musb_init(&rm696_musb_data);
 	rm680_peripherals_init();
 	rm696_audio_init();
 	rm696_tlv320dac33_init();
