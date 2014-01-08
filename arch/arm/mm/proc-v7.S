@@ -26,6 +26,9 @@
 #endif
 
 ENTRY(cpu_v7_proc_init)
+    mrc  p15, 0, r0, c1, c0, 1    @ aux ctrl register
+    orr  r0, r0, #0x2      @ L2EN
+    mcr  p15, 0, r0, c1, c0, 1    @ enable L2 cache
 	mov	pc, lr
 ENDPROC(cpu_v7_proc_init)
 
