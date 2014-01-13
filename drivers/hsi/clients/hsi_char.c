@@ -834,7 +834,7 @@ static unsigned int hsi_char_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
-static int hsi_char_ioctl(struct inode *inode, struct file *file,
+static long hsi_char_ioctl(struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	struct hsi_char_channel *channel = file->private_data;
