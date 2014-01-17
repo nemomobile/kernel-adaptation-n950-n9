@@ -32,6 +32,7 @@
 #include <linux/lis3lv02d.h>
 #include <linux/usb/musb.h>
 #include <linux/mfd/wl1273-core.h>
+#include <linux/mfd/aci.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
 
@@ -90,6 +91,9 @@
 #define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
 				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
 				 IH_GPIO_BASE + (nr))
+
+#define RM696_TVOUT_EN_GPIO	40
+#define RM696_JACK_GPIO		(OMAP_MAX_GPIO_LINES + 0)
 
 /* CMT init data */
 static struct cmt_platform_data rm696_cmt_pdata = {
@@ -396,13 +400,43 @@ spi_err:
 	}
 }
 
+/* GPIO0 AvPlugDet */
+#define TWL_GPIOS_HIGH	BIT(0)
+#define TWL_GPIOS_LOW	(BIT(2) | BIT(6) | BIT(8) | BIT(13) | BIT(15))
+
+static int twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
+{
+	int err;
+
+	err = gpio_request(gpio + 1, "TMP303_SOH");
+	if (err) {
+		printk(KERN_ERR "twl4030_gpio: gpio request failed\n");
+		goto out;
+	}
+
+	err = gpio_direction_output(gpio + 1, 0);
+	if (err)
+		printk(KERN_ERR "twl4030_gpio: set gpio direction failed\n");
+
+out:
+	return 0;
+}
+
+static int twlgpio_teardown(struct device *dev, unsigned gpio, unsigned n)
+{
+	gpio_free(gpio + 1);
+	return 0;
+}
+
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
 	.gpio_base		= OMAP_MAX_GPIO_LINES,
 	.irq_base		= TWL4030_GPIO_IRQ_BASE,
 	.irq_end		= TWL4030_GPIO_IRQ_END,
-	.pullups		= BIT(0),
-	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
+	.pullups		= TWL_GPIOS_HIGH,
+	.pulldowns		= TWL_GPIOS_LOW,
+	.setup			= twlgpio_setup,
+	.teardown		= twlgpio_teardown,
 };
 
 static struct twl4030_codec_data rm680_codec_data;
@@ -534,9 +568,69 @@ static struct platform_device *rm680_peripherals_devices[] __initdata = {
 	&rm696_eci_device,
 };
 
+
+
+/* ACI */
+static struct regulator *rm696plug_regulator;
+static bool rm696plug_regulator_enabled;
+static int rm696_plug_resource_reserve(struct device *dev)
+{
+	rm696plug_regulator = regulator_get(dev, "v28");
+	if (IS_ERR(rm696plug_regulator)) {
+		dev_err(dev, "Unable to get v28 regulator for plug switch");
+		return PTR_ERR(rm696plug_regulator);
+	}
+
+	rm696plug_regulator_enabled = 0;
+	return 0;
+}
+
+static int rm696_plug_set_state(struct device *dev, bool plugged)
+{
+	int ret;
+
+	if (rm696plug_regulator_enabled == plugged)
+		return 0;
+
+	if (plugged) {
+		ret = regulator_enable(rm696plug_regulator);
+		if (ret)
+			dev_err(dev, "Failed to enable v28 regulator");
+		else
+			rm696plug_regulator_enabled = 1;
+	} else {
+		ret = regulator_disable(rm696plug_regulator);
+		if (ret)
+			dev_err(dev, "Failed to disable v28 regulator");
+		else
+			rm696plug_regulator_enabled = 0;
+	}
+
+	return ret;
+}
+
+static void rm696_plug_resource_release(void)
+{
+	if (rm696plug_regulator_enabled)
+		regulator_disable(rm696plug_regulator);
+
+	regulator_put(rm696plug_regulator);
+	rm696plug_regulator = NULL;
+}
+
+static struct twl5031_aci_platform_data rm696_aci_data = {
+	.tvout_gpio			= RM696_TVOUT_EN_GPIO,
+	.jack_gpio			= RM696_JACK_GPIO,
+	.avplugdet_plugged		= AVPLUGDET_WHEN_PLUGGED_HIGH,
+	.hw_plug_set_state		= rm696_plug_set_state,
+	.hw_plug_resource_reserve	= rm696_plug_resource_reserve,
+	.hw_plug_resource_release	= rm696_plug_resource_release,
+};
+
 static struct twl4030_platform_data rm680_twl_data = {
 	.gpio			= &rm680_gpio_data,
 	.audio			= &rm680_audio_data,
+	.aci			= &rm696_aci_data,
 	/* add rest of the children here */
 	/* LDOs */
 	.vio			= &rm696_vio_data,
@@ -1184,6 +1278,13 @@ static inline void __init rm696_tlv320dac33_init(void)
 }
 #endif
 
+static void __init rm696_avplugdet_init(void)
+{
+	/* Prior to S0.2, the pin was as in previous platforms */
+	if (system_rev < 0x0200)
+		rm696_aci_data.avplugdet_plugged = AVPLUGDET_WHEN_PLUGGED_LOW;
+}
+
 static void __init rm680_peripherals_init(void)
 {
 	rm680_init_wl1271();
@@ -1193,6 +1294,7 @@ static void __init rm680_peripherals_init(void)
 				ARRAY_SIZE(rm680_peripherals_devices));
 
 	rm696_atmel_mxt_init();
+	rm696_avplugdet_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
 	omap_hsmmc_init(mmc);
