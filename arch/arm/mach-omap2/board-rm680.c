@@ -30,6 +30,7 @@
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
 #include <linux/lis3lv02d.h>
+#include <linux/leds-lp5521.h>
 #include <linux/usb/musb.h>
 #include <linux/mfd/wl1273-core.h>
 #include <linux/mfd/aci.h>
@@ -94,6 +95,8 @@
 
 #define RM696_TVOUT_EN_GPIO	40
 #define RM696_JACK_GPIO		(OMAP_MAX_GPIO_LINES + 0)
+
+#define RM696_LP5521_CHIP_EN_GPIO 41
 
 /* CMT init data */
 static struct cmt_platform_data rm696_cmt_pdata = {
@@ -750,6 +753,59 @@ static struct tpa6130a2_platform_data rm696_tpa6130a2_platform_data = {
 };
 #endif
 
+#if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
+#define RM696_LED_MAX_CURR 130 /* 13 mA */
+#define RM696_LED_DEF_CURR 50 /* 5.0 mA */
+static struct lp5521_led_config rm696_lp5521_led_config[] = {
+	{
+		.chan_nr	= 0,
+		.led_current	= RM696_LED_DEF_CURR,
+		.max_current	= RM696_LED_MAX_CURR,
+	},
+	{
+		.chan_nr	= 1,
+		.led_current	= 0,
+        },
+	{
+		.chan_nr	= 2,
+		.led_current	= 0,
+	}
+};
+
+static int lp5521_setup(void)
+{
+        int err;
+        int gpio = RM696_LP5521_CHIP_EN_GPIO;
+        err = gpio_request(gpio, "lp5521_enable");
+        if (err) {
+                printk(KERN_ERR "lp5521: gpio request failed\n");
+                return err;
+        }
+        gpio_direction_output(gpio, 0);
+        return 0;
+}
+
+static void lp5521_release(void)
+{
+        gpio_free(RM696_LP5521_CHIP_EN_GPIO);
+}
+
+static void lp5521_enable(bool state)
+{
+        gpio_set_value(RM696_LP5521_CHIP_EN_GPIO, !!state);
+}
+
+static struct lp5521_platform_data rm696_lp5521_platform_data = {
+	.led_config		= rm696_lp5521_led_config,
+	.num_channels		= ARRAY_SIZE(rm696_lp5521_led_config),
+	.clock_mode		= LP5521_CLOCK_EXT,
+	.setup_resources	= lp5521_setup,
+	.release_resources	= lp5521_release,
+	.enable			= lp5521_enable,
+	.update_config		= LP5521_PWRSAVE_EN | LP5521_CP_MODE_OFF | LP5521_R_TO_BATT,
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata */= {
 	{
 		/* keep this first */
@@ -772,6 +828,12 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		I2C_BOARD_INFO("tlv320dac33", 0x19),
 		.platform_data = &rm696_dac33_platform_data,
 	},
+#endif
+#if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
+        {
+                I2C_BOARD_INFO("lp5521", 0x32),
+                .platform_data = &rm696_lp5521_platform_data,
+        },
 #endif
 
 };
