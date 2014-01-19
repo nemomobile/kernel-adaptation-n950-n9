@@ -98,6 +98,24 @@
 
 #define RM696_LP5521_CHIP_EN_GPIO 41
 
+static uint32_t rm696_keymap[] = {
+	/* row, col, event */
+	KEY(6, 8, KEY_VOLUMEUP),
+	KEY(7, 8, KEY_VOLUMEDOWN),
+};
+
+static struct matrix_keymap_data rm696_keymap_data = {
+	.keymap			= rm696_keymap,
+	.keymap_size		= ARRAY_SIZE(rm696_keymap),
+};
+
+static struct twl4030_keypad_data rm696_kp_data = {
+	.keymap_data 	= &rm696_keymap_data,
+	.rows		= 8, /* Two last rows are used */
+	.cols		= 8,
+	.rep		= 1,
+};
+
 /* CMT init data */
 static struct cmt_platform_data rm696_cmt_pdata = {
 	.cmt_rst_ind_gpio = 34,
@@ -634,6 +652,7 @@ static struct twl4030_platform_data rm680_twl_data = {
 	.gpio			= &rm680_gpio_data,
 	.audio			= &rm680_audio_data,
 	.aci			= &rm696_aci_data,
+	.keypad			= &rm696_kp_data,
 	/* add rest of the children here */
 	/* LDOs */
 	.vio			= &rm696_vio_data,
