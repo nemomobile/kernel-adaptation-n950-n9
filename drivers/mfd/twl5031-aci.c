@@ -559,7 +559,8 @@ static int twl5031_aci_cmd(u8 task)
 				msecs_to_jiffies(ACI_WAIT_IRQ));
 
 	twl5031_aci_disable_irqs(ACI_INTERNAL);
-	pm_qos_remove_request(&the_aci->qos_request_acicmd);
+	if (pm_qos_request_active(&the_aci->qos_request_acicmd))
+		pm_qos_remove_request(&the_aci->qos_request_acicmd);
 
 	/* meaning timeout */
 	if (the_aci->cmd != NO_ACICMD)
@@ -742,7 +743,8 @@ void static twl5031_emit_buttons(struct twl5031_aci_data *aci, bool force_up)
 	struct eci_data *eci = aci->eci_callback->priv;
 	struct eci_buttons_data *b = &eci->buttons_data;
 
-	pm_qos_remove_request(&aci->qos_request_accint);
+	if (pm_qos_request_active(&aci->qos_request_accint))
+		pm_qos_remove_request(&aci->qos_request_accint);
 	b->buttons = cpu_to_le32(*(u32 *)aci->data.buf);
 
 	if (force_up)
@@ -856,21 +858,14 @@ static void twl5031_send_av_button(struct twl5031_aci_data *aci)
 }
 
 /*
- * This is not a real IRQ handler. It is always running in a
- * thread context.
+ * ACI irq (374)
+ * ACI commands responces, errors or accessory interrupts
  */
-static irqreturn_t twl5031_aci_irq_handler(int irq, void *_aci)
+static irqreturn_t twl5031_aci_irq_thread(int irq, void *_aci)
 {
 	struct twl5031_aci_data *aci = _aci;
 	u16 val;
-
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * This is not a real hard irq context and lockdep mistakenly left
-	 * hardirq disabled.
-	 */
-	local_irq_enable();
-#endif
+	int res;
 
 	val = twl5031_aci_read(TWL5031_ACIIDR_MSB) << 8;
 	val |= twl5031_aci_read(TWL5031_ACIIDR_LSB);
@@ -886,21 +881,6 @@ static irqreturn_t twl5031_aci_irq_handler(int irq, void *_aci)
 
 	mutex_lock(&aci->irqlock);
 	aci->irq_bits |= val;
-	mutex_unlock(&aci->irqlock);
-	return IRQ_WAKE_THREAD;
-}
-
-/*
- * ACI irq (374)
- * ACI commands responces, errors or accessory interrupts
- */
-static irqreturn_t twl5031_aci_irq_thread(int irq, void *_aci)
-{
-	struct twl5031_aci_data *aci = _aci;
-	u16 val;
-	int res;
-
-	mutex_lock(&aci->irqlock);
 	val = aci->irq_bits;
 	aci->irq_bits = 0;
 	mutex_unlock(&aci->irqlock);
@@ -1135,7 +1115,7 @@ static irqreturn_t twl5031_plugdet_irq_handler(int irq, void *_aci)
 
 	dev_dbg(aci->dev, "AvPlugDet interrupt\n");
 
-	avplugdet = gpio_get_value(aci->jack_gpio);
+	avplugdet = gpio_get_value_cansleep(aci->jack_gpio);
 	aci->plugged = (avplugdet == aci->avplugdet_plugged);
 
 	if (aci->plugged) {
@@ -1340,8 +1320,10 @@ static void twl5031_av_plug_on_off(struct twl5031_aci_data *aci)
 		aci->eci_callback->event(ECI_EVENT_PLUG_OUT,
 					 aci->eci_callback->priv);
 		cancel_delayed_work_sync(&aci->wd_work);
-		pm_qos_remove_request(&aci->qos_request_acicmd);
-		pm_qos_remove_request(&aci->qos_request_accint);
+		if (pm_qos_request_active(&aci->qos_request_acicmd))
+			pm_qos_remove_request(&aci->qos_request_acicmd);
+		if (pm_qos_request_active(&aci->qos_request_accint))
+			pm_qos_remove_request(&aci->qos_request_accint);
 
 		mutex_unlock(&aci->acc_block);
 		return;
@@ -1545,8 +1527,9 @@ static void twl5031_wd_work(struct work_struct *ws)
 	aci->task = ACI_TASK_NONE;
 	/* jammed IO read */
 	if (aci->io_read_ongoing) {
-		pm_qos_remove_request(&aci->qos_request_accint);
-		
+		if (pm_qos_request_active(&aci->qos_request_accint))
+			pm_qos_remove_request(&aci->qos_request_accint);
+
 		/*
 		 * Wait until previous communication is over
 		 * and reset aci block
@@ -1818,9 +1801,9 @@ static int __devinit twl5031_aci_probe(struct platform_device *pdev)
 		goto err_misc_register;
 	}
 
-	ret = request_threaded_irq(platform_get_irq(pdev, 0),
-				twl5031_aci_irq_handler,
-			twl5031_aci_irq_thread, 0, dev_name(aci->dev), aci);
+	ret = request_threaded_irq(platform_get_irq(pdev, 0), NULL,
+			twl5031_aci_irq_thread,
+			0, dev_name(aci->dev), aci);
 	if (ret) {
 		dev_err(&pdev->dev, "could not request ACI irq %d: %d\n",
 				platform_get_irq(pdev, 0), __LINE__);
@@ -1957,8 +1940,10 @@ static int __devexit twl5031_aci_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&aci->plug_work);
 	cancel_delayed_work_sync(&aci->wd_work);
 	destroy_workqueue(aci->aci_wq);
-	pm_qos_remove_request(&aci->qos_request_acicmd);
-	pm_qos_remove_request(&aci->qos_request_accint);		
+	if (pm_qos_request_active(&aci->qos_request_acicmd))
+		pm_qos_remove_request(&aci->qos_request_acicmd);
+	if (pm_qos_request_active(&aci->qos_request_accint))
+		pm_qos_remove_request(&aci->qos_request_accint);
 	twl5031_aci_set_av_output(aci, ACI_VIDEO);
 	dfl61_request_hsmicbias(0);
 	twl5031_disable_pullups();
