@@ -197,7 +197,7 @@ static void __init rm696_ssi_init(void)
 static int __init rm696_opp_init(void)
 {
 	int r = 0;
-	struct device *mpu_dev;
+	struct device *mpu_dev, *iva_dev;
 
 	r = omap3_opp_init();
 	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
@@ -206,8 +206,9 @@ static int __init rm696_opp_init(void)
 	}
 
 	mpu_dev = omap_device_get_by_hwmod_name("mpu");
-	if (IS_ERR(mpu_dev)) {
-		pr_err("no mpu_dev error\n");
+	iva_dev = omap_device_get_by_hwmod_name("iva");
+	if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
+		pr_err("no mpu_dev/iva_dev error\n");
 		return -ENODEV;
 	}
 
@@ -221,6 +222,13 @@ static int __init rm696_opp_init(void)
 	if (r)
 		pr_err("failed to enable higher (1GHz) opp\n");
 
+	r = opp_enable(iva_dev, 660000000);
+	if (r)
+		pr_err("failed to enable higher (660MHz) opp on DSP\n");
+	
+	r = opp_enable(iva_dev, 800000000);
+	if (r)
+		pr_err("failed to enable higher (800MHz) opp on DSP\n");
 
 	return 0;
 }
@@ -1408,6 +1416,11 @@ static void __init rm680_init(void)
 
 	usb_musb_init(&rm696_musb_data);
 	rm680_peripherals_init();
+
+	/* Ensure SDRC pins are mux'd for self-refresh */
+	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
+
 	rm696_audio_init();
 	rm696_tlv320dac33_init();
 	rm696_wl1273_init();
