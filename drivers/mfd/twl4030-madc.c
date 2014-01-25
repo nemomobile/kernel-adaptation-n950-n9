@@ -363,66 +363,32 @@ static int twl4030_madc_enable_irq(struct twl4030_madc_data *madc, u8 id)
 	return 0;
 }
 
-/*
- * Disables irq.
- * @madc - pointer to twl4030_madc_data struct
- * @id - irq number to be disabled
- * can take one of TWL4030_MADC_RT, TWL4030_MADC_SW1, TWL4030_MADC_SW2
- * corresponding to RT, SW1, SW2 conversion requests.
- * Returns error if i2c read/write fails.
- */
-static int twl4030_madc_disable_irq(struct twl4030_madc_data *madc, u8 id)
-{
-	u8 val;
-	int ret;
-
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &val, madc->imr_addr);
-	if (ret) {
-		dev_err(madc->dev, "unable to read imr register 0x%X\n",
-			madc->imr_addr);
-		return ret;
-	}
-	val |= (1 << id);
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, val, madc->imr_addr);
-	if (ret) {
-		dev_err(madc->dev,
-			"unable to write imr register 0x%X\n", madc->imr_addr);
-		return ret;
-	}
-
-	return 0;
-}
-
 static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 {
 	struct twl4030_madc_data *madc = _madc;
 	const struct twl4030_madc_conversion_mode *mode;
-	u8 isr_val, imr_val;
+	u8 isr_val;
 	int i, ret, skip_read, skip_complete;
 	u8 disable_buf[3];
 	struct twl4030_madc_request *r;
 
-	mutex_lock(&madc->lock);
 	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &isr_val, madc->isr_addr);
 	if (ret) {
 		dev_err(madc->dev, "unable to read isr register 0x%X\n",
 			madc->isr_addr);
 		goto err_i2c;
 	}
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MADC, &imr_val, madc->imr_addr);
-	if (ret) {
-		dev_err(madc->dev, "unable to read imr register 0x%X\n",
-			madc->imr_addr);
-		goto err_i2c;
+
+	if (~madc->current_imr & isr_val & (1 << TWL4030_MADC_MODE_RT)) {
+		mutex_lock(&madc->imr_lock);
+		madc->current_imr |= 1 << TWL4030_MADC_MODE_RT;
+		twl_i2c_write_u8(TWL4030_MODULE_MADC, madc->current_imr, madc->imr_addr);
+		mutex_unlock(&madc->imr_lock);
 	}
-	isr_val &= ~imr_val;
+
 	for (i = 0; i < TWL4030_MADC_NUM_MODES; i++) {
 		if (!(isr_val & (1 << i)))
 			continue;
-
-		ret = twl4030_madc_disable_irq(madc, i);
-		if (ret < 0)
-			dev_dbg(madc->dev, "Disable interrupt failed%d\n", i);
 
 		skip_read = 0;
 		skip_complete = 0;
@@ -446,10 +412,12 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 					  mode->sel, 2);
 		}
 
+		mutex_lock(&madc->lock);
 		r = madc->active[i];
 
 		/* The request may have been terminated */
 		if (!r) {
+			mutex_unlock(&madc->lock);
 			continue;
 		}
 
@@ -515,9 +483,9 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 
 		if (!skip_complete)
 			twl4030_madc_end_request(r, ret);
+
+		mutex_unlock(&madc->lock);
 	}
-	
-	mutex_unlock(&madc->lock);
 
 	twl4030_madc_process_queues();
 
@@ -1458,7 +1426,7 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 
 	ret = request_threaded_irq(platform_get_irq(pdev, 0), NULL,
 				   twl4030_madc_threaded_irq_handler,
-				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
+				   0, "twl4030_madc", madc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request irq\n");
 		goto err_irq;
