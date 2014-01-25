@@ -1058,15 +1058,25 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED,
+		/* FIXME:
+		 * Setting MMC_CAP_8_BIT_DATA here causes wl1271 to break with message:
+		 * wl1271_sdio mmc2:0001:2 sdio write failed (-84)
+		 */
+		.caps		= MMC_CAP_4_BIT_DATA, 
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
+		.power_saving	= true,
+		.no_off		= true,
+		.vcc_aux_disable_is_sleep	= true,
+		/* FIXME: nomux is present in 2.6 but missing in 3.5 */
+		/* .nomux	= 1,*/
 	},
 /* WLAN */
 	{
 		.name		= "wl1271",
 		.mmc		= 3,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
@@ -1387,7 +1397,13 @@ static void __init rm680_peripherals_init(void)
 	rm696_avplugdet_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
-	omap_hsmmc_init(mmc);
+
+	/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
+	/* if (system_rev > 0x1300) {
+                mmc[0].hw_reset_connected = 1;
+                mmc[0].gpio_hw_reset = 39;
+        }*/
+	omap_hsmmc_init(mmc); 
 	rm696_ssi_init();
 	omap_bt_init(&rm680_bt_config);
 }
