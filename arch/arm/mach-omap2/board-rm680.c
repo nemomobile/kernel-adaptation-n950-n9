@@ -19,6 +19,7 @@
 #include <linux/input/eci.h>
 #include <linux/platform_device.h>
 #include <linux/omapfb.h>
+#include <linux/opp.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
@@ -1403,6 +1404,84 @@ static struct omap_musb_board_data rm696_musb_data = {
 	.power			= 100,
 };
 
+static int __init rm696_set_l3_opp(void)
+{
+	struct device *l3_dev;
+	struct clk *sdrc_ck;
+	int r = 0;
+	int opp1_clk  = 0, opp2_clk = 0;
+	u32 sdrc_rate;
+
+	l3_dev = omap_device_get_by_hwmod_name("l3_main");
+	if (IS_ERR(l3_dev)) {
+		pr_err("no l3_dev error\n");
+		return -ENODEV;
+	}
+
+	/*
+         * Adjust L3 OPPs according to the SDRC frequency initialized
+         * by the boot loader
+         */
+	sdrc_ck = clk_get(NULL, "sdrc_ick");
+        if (sdrc_ck) {
+		sdrc_rate = clk_get_rate(sdrc_ck);
+		switch (sdrc_rate) {
+		case 185000000:
+			opp1_clk = 92500000;
+			opp2_clk = 185000000;
+			break;
+		case 195200000:
+			opp1_clk = 97600000;
+			opp2_clk = 195200000;
+			break;
+		case 200000000:
+			pr_warning("Running device under out of "
+				"spec clocking on L3\n");
+			break;
+		default:
+			pr_warning("Booting with unknown L3 clock\n");
+			break;
+		}
+
+		if (opp1_clk) {
+			/* We need to add new rates*/
+			r = opp_add(l3_dev, opp1_clk, 1000000);
+			r |= opp_add(l3_dev, opp2_clk, 1200000);
+			if (r)
+			{
+				/* We din't succed in adding new rates */
+				pr_warning("failed to add l3 opp\n");
+				goto err1;
+			}
+
+			/* We now have new rates, let's enable them  */
+			r = opp_enable(l3_dev, opp1_clk);
+			r |= opp_enable(l3_dev, opp2_clk);
+			if (r)
+			{
+				/* We didin't succed in enabling rates */
+				pr_warning("failed to enable l3 opp\n");
+				goto err2;
+			}
+
+			/* New rates are added and enabled, let's disable default ones */
+			opp_disable(l3_dev, 100000000);
+			opp_disable(l3_dev, 200000000);
+
+		}
+		clk_put(sdrc_ck);
+	}
+        
+        return 0;
+err2:
+	opp_disable(l3_dev, opp1_clk);
+	opp_disable(l3_dev, opp2_clk);
+err1:
+	clk_put(sdrc_ck);
+	
+	return r;
+}
+
 static void __init rm680_init(void)
 {
 	struct omap_sdrc_params *sdrc_params;
@@ -1413,6 +1492,8 @@ static void __init rm680_init(void)
 
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
+
+	rm696_set_l3_opp();
 
 	usb_musb_init(&rm696_musb_data);
 	rm680_peripherals_init();
