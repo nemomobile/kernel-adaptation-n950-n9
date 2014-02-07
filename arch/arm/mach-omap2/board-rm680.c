@@ -37,6 +37,7 @@
 #include <linux/mfd/aci.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
+#include <linux/i2c/apds990x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -90,14 +91,12 @@
 #define RM696_VIBRA_POWER_GPIO 182
 #define RM696_VIBRA_POWER_UP_TIME 1000 /* usecs */
 
-#define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
-				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
-				 IH_GPIO_BASE + (nr))
-
 #define RM696_TVOUT_EN_GPIO	40
 #define RM696_JACK_GPIO		(OMAP_MAX_GPIO_LINES + 0)
 
 #define RM696_LP5521_CHIP_EN_GPIO 41
+
+#define APDS990X_GPIO 83
 
 static uint32_t rm696_keymap[] = {
 	/* row, col, event */
@@ -556,7 +555,8 @@ static struct regulator_init_data rm696_vmmc2_data = {
 static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
-	REGULATOR_SUPPLY("v28", "twl5031_aci")
+	REGULATOR_SUPPLY("v28", "twl5031_aci"),
+	REGULATOR_SUPPLY("Vdd", "2-0039"),	/* APDS990x */
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -834,12 +834,52 @@ static struct lp5521_platform_data rm696_lp5521_platform_data = {
 };
 #endif
 
+#if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
+static int apds990x_setup(void)
+{
+	int err;
+
+	err = gpio_request_one(APDS990X_GPIO, GPIOF_DIR_IN, "apds990x_irq");
+	if (err)
+		goto fail;
+
+fail:
+	return err;
+}
+
+static int apds990x_release(void)
+{
+	gpio_free(APDS990X_GPIO);
+	return 0;
+}
+
+static struct apds990x_platform_data rm696_apds990x_data = {
+	.cf.ga	 = 168834, /*  41.2194 * 4096 */
+	.cf.cf1	 = 4096,
+	.cf.irf1 = 7824,  /* 1.9102 * 4096 */
+	.cf.cf2	 = 877,  /* 0.2140 * 4096 */
+	.cf.irf2 = 1575,  /* 0.3846 * 4096 */
+	.cf.df	 = 52,
+	.pdrive = APDS_IRLED_CURR_25mA,
+	.setup_resources   = apds990x_setup,
+	.release_resources = apds990x_release,
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata */= {
 	{
 		/* keep this first */
 		I2C_BOARD_INFO("atmel_mxt", 0x4b),
 		.platform_data	= &atmel_mxt_platform_data,
 	},
+
+#if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
+	{
+		/* keep this second */
+		I2C_BOARD_INFO("apds990x", 0x39),
+		.platform_data = &rm696_apds990x_data,
+	},
+#endif
 
 #if	defined(CONFIG_SND_SOC_TPA6130A2) || \
 	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
@@ -857,6 +897,7 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		.platform_data = &rm696_dac33_platform_data,
 	},
 #endif
+	
 #if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
         {
                 I2C_BOARD_INFO("lp5521", 0x32),
@@ -865,6 +906,29 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 #endif
 
 };
+
+#if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
+static void __init rm696_apds990x_init(void)
+{
+	if (system_rev < 0x0300) {
+		rm696_apds990x_data.cf.ga = 19660; /* 0.48 / 10% * 4096 */
+		rm696_apds990x_data.cf.irf1 = 7781;  /* 1.8996 * 4096 */
+		rm696_apds990x_data.cf.cf2 = 1959;  /* 0.4783 * 4096 */
+		rm696_apds990x_data.cf.irf2 = 3669;  /* 0.8957 * 4096 */
+		rm696_apds990x_data.pdrive = APDS_IRLED_CURR_50mA;
+	} else  if (system_rev < 0x1500) {
+		rm696_apds990x_data.cf.ga = 102674; /*  25.067 * 4096 */
+		rm696_apds990x_data.cf.irf1 = 7578;  /* 1.8502 * 4096 */
+		rm696_apds990x_data.cf.cf2 = 1707;  /* 0.4168 * 4096 */
+		rm696_apds990x_data.cf.irf2 = 2975;  /* 0.7264 * 4096 */
+		rm696_apds990x_data.pdrive = APDS_IRLED_CURR_50mA;
+	}
+
+	rm696_peripherals_i2c_board_info_2[1].irq = gpio_to_irq(APDS990X_GPIO);
+}
+#else
+static inline void rm696_apds990x_init(void) {}
+#endif
 
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 static int lis302_setup(void)
@@ -941,7 +1005,6 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 	.release_resources = lis302_release,
 	.st_min_limits = {-46, 3, 3},
 	.st_max_limits = {-3, 46, 46},
-	.irq2 = OMAP_GPIO_IRQ(LIS302_IRQ2_GPIO),
 };
 
 #endif
@@ -949,9 +1012,9 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
+		/* Keep this first */
 		I2C_BOARD_INFO("lis3lv02d", 0x1d),
 		.platform_data = &rm696_lis302dl_data,
-		.irq = OMAP_GPIO_IRQ(LIS302_IRQ1_GPIO),
 	},
 #endif
 
@@ -1032,6 +1095,11 @@ static void __init rm680_i2c_init(void)
 	codec_data->check_defaults = 0;
 	codec_data->reset_registers = 0;
 	codec_data->digimic_delay = 0;
+	
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+	rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+	rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+#endif
 
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
@@ -1394,6 +1462,7 @@ static void __init rm680_peripherals_init(void)
 				ARRAY_SIZE(rm680_peripherals_devices));
 
 	rm696_atmel_mxt_init();
+	rm696_apds990x_init();
 	rm696_avplugdet_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
@@ -1403,7 +1472,7 @@ static void __init rm680_peripherals_init(void)
                 mmc[0].hw_reset_connected = 1;
                 mmc[0].gpio_hw_reset = 39;
         }*/
-	omap_hsmmc_init(mmc); 
+	omap_hsmmc_init(mmc);
 	rm696_ssi_init();
 	omap_bt_init(&rm680_bt_config);
 }
