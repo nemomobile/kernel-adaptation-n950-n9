@@ -38,6 +38,7 @@
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
 #include <linux/i2c/apds990x.h>
+#include <linux/i2c/ak8975.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -483,6 +484,7 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("vonenand", "omap2-onenand"), /* OneNAND flash */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
+	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -557,6 +559,7 @@ static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("v28", "twl5031_aci"),
 	REGULATOR_SUPPLY("Vdd", "2-0039"),	/* APDS990x */
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 */
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -1009,6 +1012,14 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 
 #endif
 
+#if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
+static struct ak8975_platform_data rm696_ak8975_data = {
+.axis_x = AK8975_DEV_Z,
+.axis_y = AK8975_INV_DEV_X,
+.axis_z = AK8975_INV_DEV_Y,
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
@@ -1022,6 +1033,13 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata *
 	{
 		I2C_BOARD_INFO(WL1273_FM_DRIVER_NAME, RX71_FM_I2C_ADDR),
 		.platform_data = &rm696_fm_data,
+	},
+#endif
+
+#if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
+	{
+		I2C_BOARD_INFO("ak8975", 0x0f),
+		.platform_data = &rm696_ak8975_data,
 	},
 #endif
 };
