@@ -774,7 +774,7 @@ static int __devinit pn544_probe(struct i2c_client *client,
 	}
 
 	r = request_threaded_irq(client->irq, NULL, pn544_irq_thread_fn,
-				 IRQF_TRIGGER_RISING, PN544_DRIVER_NAME,
+				 IRQF_TRIGGER_RISING | IRQF_ONESHOT, PN544_DRIVER_NAME,
 				 info);
 	if (r < 0) {
 		dev_err(&client->dev, "Unable to register IRQ handler\n");

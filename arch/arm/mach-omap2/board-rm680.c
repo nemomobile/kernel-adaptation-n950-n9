@@ -39,6 +39,7 @@
 #include <sound/tlv320dac33-plat.h>
 #include <linux/i2c/apds990x.h>
 #include <linux/i2c/ak8975.h>
+#include <linux/nfc/pn544.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -85,6 +86,10 @@
 #define RM696_FM_RESET_GPIO1 179
 #define RM696_FM_RESET_GPIO2 178
 #define RM696_FMRX_IRQ_GPIO 43
+
+#define NFC_HOST_INT_GPIO 76
+#define NFC_ENABLE_GPIO 77
+#define NFC_FW_RESET_GPIO 78
 
 #define RM696_DAC33_RESET_GPIO 60
 #define RM696_DAC33_IRQ_GPIO 53
@@ -485,6 +490,7 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("vonenand", "omap2-onenand"), /* OneNAND flash */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
+	REGULATOR_SUPPLY("Vdd_IO", "3-002b"),	/* PN544 */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -500,6 +506,25 @@ static struct regulator_init_data rm696_vio_data = {
 	},
 	.num_consumer_supplies		= ARRAY_SIZE(rm696_vio_consumers),
 	.consumer_supplies		= rm696_vio_consumers,
+};
+
+static struct regulator_consumer_supply rm696_vsim_consumers[] = {
+	REGULATOR_SUPPLY("VSim", "3-002b"),	/* PN544 */
+};
+
+static struct regulator_init_data rm696_vsim_data = {
+	.constraints =	{
+		.name			= "rm696_vsim",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS
+					| REGULATOR_CHANGE_MODE,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm696_vsim_consumers),
+	.consumer_supplies		= rm696_vsim_consumers,
 };
 
 static struct regulator_consumer_supply rm696_vbat_consumers[] = {
@@ -669,6 +694,7 @@ static struct twl4030_platform_data rm680_twl_data = {
 	/* LDOs */
 	.vio			= &rm696_vio_data,
 	.vmmc2			= &rm696_vmmc2_data,
+	.vsim			= &rm696_vsim_data,
 	.vaux1			= &rm696_vaux1_data,
 	.vaux4			= &rm696_vaux4_data,
 };
@@ -1020,12 +1046,108 @@ static struct ak8975_platform_data rm696_ak8975_data = {
 };
 #endif
 
+#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+static int rm696_pn544_nfc_request_resources(struct i2c_client *client)
+{
+	int ret;
+	ret = gpio_request(NFC_HOST_INT_GPIO, "NFC INT");
+	if (ret) {
+		dev_err(&client->dev, "Request NFC INT GPIO fails %d\n", ret);
+		return -1;
+	}
+	ret = gpio_direction_input(NFC_HOST_INT_GPIO);
+	if (ret) {
+		dev_err(&client->dev, "Set GPIO Direction fails %d\n", ret);
+		goto err_int;
+	}
+
+	ret = gpio_request(NFC_ENABLE_GPIO, "NFC Enable");
+	if (ret) {
+		dev_err(&client->dev,
+			"Request for NFC Enable GPIO fails %d\n", ret);
+		goto err_int;
+	}
+	ret = gpio_direction_output(NFC_ENABLE_GPIO, 0);
+	if (ret) {
+		dev_err(&client->dev, "Set GPIO Direction fails %d\n", ret);
+		goto err_enable;
+	}
+
+	ret = gpio_request(NFC_FW_RESET_GPIO, "NFC FW Reset");
+	if (ret) {
+		dev_err(&client->dev,
+			"Request for NFC FW Reset GPIO fails %d\n", ret);
+		goto err_enable;
+	}
+	ret = gpio_direction_output(NFC_FW_RESET_GPIO, 0);
+	if (ret) {
+		dev_err(&client->dev, "Set GPIO Direction fails %d\n", ret);
+		goto err_fw;
+	}
+
+	return 0;
+err_fw:
+	gpio_free(NFC_FW_RESET_GPIO);
+err_enable:
+	gpio_free(NFC_ENABLE_GPIO);
+err_int:
+	gpio_free(NFC_HOST_INT_GPIO);
+	return -1;
+}
+
+static void rm696_pn544_nfc_free_resources(void)
+{
+	gpio_free(NFC_HOST_INT_GPIO);
+	gpio_free(NFC_ENABLE_GPIO);
+	gpio_free(NFC_FW_RESET_GPIO);
+}
+
+static void rm696_pn544_nfc_enable(int fw)
+{
+	gpio_set_value(NFC_FW_RESET_GPIO, fw ? 1 : 0);
+	msleep(PN544_GPIO4VEN_TIME);
+	gpio_set_value(NFC_ENABLE_GPIO, 1);
+}
+
+static int rm696_pn544_nfc_test(void)
+{
+	int a, b;
+	rm696_pn544_nfc_enable(0);
+	a = gpio_get_value(NFC_FW_RESET_GPIO);
+	rm696_pn544_nfc_enable(1);
+	b = gpio_get_value(NFC_FW_RESET_GPIO);
+
+	return (a == 0) && (b == 1);
+}
+
+static void rm696_pn544_nfc_disable(void)
+{
+	gpio_set_value(NFC_ENABLE_GPIO, 0);
+}
+
+static struct pn544_nfc_platform_data rm696_nfc_data = {
+	.request_resources = rm696_pn544_nfc_request_resources,
+	.free_resources = rm696_pn544_nfc_free_resources,
+	.enable = rm696_pn544_nfc_enable,
+	.test = rm696_pn544_nfc_test,
+	.disable = rm696_pn544_nfc_disable,
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
 		/* Keep this first */
 		I2C_BOARD_INFO("lis3lv02d", 0x1d),
 		.platform_data = &rm696_lis302dl_data,
+	},
+#endif
+
+#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+	{
+		/* Keep this second */
+		I2C_BOARD_INFO(PN544_DRIVER_NAME, 0x2b),
+		.platform_data = &rm696_nfc_data,
 	},
 #endif
 
@@ -1117,6 +1239,10 @@ static void __init rm680_i2c_init(void)
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
 	rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+#endif
+
+#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+	rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
 #endif
 
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
