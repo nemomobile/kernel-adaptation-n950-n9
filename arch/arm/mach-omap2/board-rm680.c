@@ -491,6 +491,9 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
 	REGULATOR_SUPPLY("Vdd_IO", "3-002b"),	/* PN544 */
+	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("Vbat", "3-01fa"),	/* BCM4751_GPS */
+	REGULATOR_SUPPLY("Vddio", "3-01fa"),	/* BCM4751_GPS */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -601,8 +604,47 @@ static struct regulator_init_data rm696_vaux1_data = {
 	.consumer_supplies		= rm696_vaux1_consumers,
 };
 
+static struct regulator_consumer_supply rm696_vaux2_consumers[] = {
+	REGULATOR_SUPPLY("VDD_CSIPHY1", "omap3isp"),	/* OMAP ISP */
+	REGULATOR_SUPPLY("VDD_CSIPHY2", "omap3isp"),	/* OMAP ISP */
+};
+
+static struct regulator_init_data rm696_vaux2_data = {
+	.constraints = {
+		.name			= "rm696_vaux2",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm696_vaux2_consumers),
+	.consumer_supplies		= rm696_vaux2_consumers,
+};
+
+static struct regulator_consumer_supply rm696_vaux3_consumers[] = {
+	REGULATOR_SUPPLY("VANA", "2-0037"),	/* Main Camera Sensor */
+	REGULATOR_SUPPLY("VANA", "2-000e"),	/* Main Camera Lens */
+	REGULATOR_SUPPLY("VANA", "2-0010"),	/* Front Camera */
+};
+
+static struct regulator_init_data rm696_vaux3_data = {
+	.constraints = {
+		.name			= "rm696_vaux3",
+		.min_uV			= 2800000,
+		.max_uV			= 2800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm696_vaux3_consumers),
+	.consumer_supplies		= rm696_vaux3_consumers,
+};
+
 static struct regulator_consumer_supply rm696_vaux4_consumers[] = {
-	REGULATOR_SUPPLY("AVDD", "2-0019"),	/* TLV320DAC33 */	
+	REGULATOR_SUPPLY("AVDD", "2-0019"),	/* TLV320DAC33 */
 };
 
 static struct regulator_init_data rm696_vaux4_data = {
@@ -696,6 +738,8 @@ static struct twl4030_platform_data rm680_twl_data = {
 	.vmmc2			= &rm696_vmmc2_data,
 	.vsim			= &rm696_vsim_data,
 	.vaux1			= &rm696_vaux1_data,
+	.vaux2			= &rm696_vaux2_data,
+	.vaux3			= &rm696_vaux3_data,
 	.vaux4			= &rm696_vaux4_data,
 };
 
