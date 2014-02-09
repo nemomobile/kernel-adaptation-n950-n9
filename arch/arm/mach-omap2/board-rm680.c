@@ -40,6 +40,7 @@
 #include <linux/i2c/apds990x.h>
 #include <linux/i2c/ak8975.h>
 #include <linux/nfc/pn544.h>
+#include <linux/i2c/bcm4751-gps.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -103,6 +104,10 @@
 #define RM696_LP5521_CHIP_EN_GPIO 41
 
 #define APDS990X_GPIO 83
+
+#define RM696_BCM4751_GPS_IRQ_GPIO 95
+#define RM696_BCM4751_GPS_ENABLE_GPIO 94
+#define RM696_BCM4751_GPS_WAKEUP_GPIO 91
 
 static uint32_t rm696_keymap[] = {
 	/* row, col, event */
@@ -492,8 +497,8 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
 	REGULATOR_SUPPLY("Vdd_IO", "3-002b"),	/* PN544 */
 	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1"),
-	REGULATOR_SUPPLY("Vbat", "3-01fa"),	/* BCM4751_GPS */
-	REGULATOR_SUPPLY("Vddio", "3-01fa"),	/* BCM4751_GPS */
+	REGULATOR_SUPPLY("Vbat", "3-a1fa"),	/* BCM4751_GPS */
+	REGULATOR_SUPPLY("Vddio", "3-a1fa"),	/* BCM4751_GPS */
 };
 
 static struct regulator_init_data rm696_vio_data = {
@@ -1178,6 +1183,120 @@ static struct pn544_nfc_platform_data rm696_nfc_data = {
 };
 #endif
 
+#if defined(CONFIG_BCM4751_GPS) || defined(CONFIG_BCM4751_GPS_MODULE)
+static int bcm4751_gps_setup(struct i2c_client *client)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+	int err;
+
+	/* GPS IRQ */
+	err = gpio_request(data->gpio_irq, "GPS_IRQ");
+	if (err) {
+		dev_err(&client->dev,
+				"Failed to request GPIO%d (HOST_REQ)\n",
+				data->gpio_irq);
+		return err;
+	}
+	err = gpio_direction_input(data->gpio_irq);
+	if (err) {
+		dev_err(&client->dev, "Failed to change direction\n");
+		goto clean_gpio_irq;
+	}
+
+	client->irq = gpio_to_irq(data->gpio_irq);
+
+	/* Request GPIO for NSHUTDOWN == GPS_ENABLE */
+	err = gpio_request(data->gpio_enable, "GPS Enable");
+	if (err < 0) {
+		dev_err(&client->dev,
+				"Failed to request GPIO%d (GPS_ENABLE)\n",
+				data->gpio_enable);
+		goto clean_gpio_irq;
+	}
+	err = gpio_direction_output(data->gpio_enable, 0);
+	if (err) {
+		dev_err(&client->dev, "Failed to change direction\n");
+		goto clean_gpio_en;
+	}
+
+	/* Request GPIO for GPS WAKEUP */
+	err = gpio_request(data->gpio_wakeup, "GPS Wakeup");
+	if (err < 0) {
+		dev_err(&client->dev,
+				"Failed to request GPIO%d (GPS_WAKEUP)\n",
+				data->gpio_wakeup);
+		goto clean_gpio_en;
+	}
+	err = gpio_direction_output(data->gpio_wakeup, 0);
+	if (err) {
+		dev_err(&client->dev, "Failed to change direction\n");
+		goto clean_gpio_wakeup;
+	}
+
+	return 0;
+
+clean_gpio_wakeup:
+	gpio_free(data->gpio_wakeup);
+
+clean_gpio_en:
+	gpio_free(data->gpio_enable);
+
+clean_gpio_irq:
+	gpio_free(data->gpio_irq);
+
+	return err;
+}
+
+static void bcm4751_gps_cleanup(struct i2c_client *client)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+
+	gpio_free(data->gpio_irq);
+	gpio_free(data->gpio_wakeup);
+	gpio_free(data->gpio_enable);
+}
+
+static int bcm4751_gps_show_gpio_irq(struct i2c_client *client)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+
+	return gpio_get_value(data->gpio_irq);
+}
+
+static void bcm4751_gps_enable(struct i2c_client *client)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+
+	gpio_set_value(data->gpio_enable, 1);
+}
+
+static void bcm4751_gps_disable(struct i2c_client *client)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+
+	gpio_set_value(data->gpio_enable, 0);
+}
+
+static void bcm4751_gps_wakeup_ctrl(struct i2c_client *client, int value)
+{
+	struct bcm4751_gps_data *data = i2c_get_clientdata(client);
+
+	gpio_set_value(data->gpio_wakeup, value);
+}
+
+static struct bcm4751_gps_platform_data rm696_bcm4751_gps_platform_data = {
+	.gps_gpio_irq		= RM696_BCM4751_GPS_IRQ_GPIO,
+	.gps_gpio_enable	= RM696_BCM4751_GPS_ENABLE_GPIO,
+	.gps_gpio_wakeup	= RM696_BCM4751_GPS_WAKEUP_GPIO,
+	.setup			= bcm4751_gps_setup,
+	.cleanup		= bcm4751_gps_cleanup,
+	.enable			= bcm4751_gps_enable,
+	.disable		= bcm4751_gps_disable,
+	.wakeup_ctrl		= bcm4751_gps_wakeup_ctrl,
+	.show_irq		= bcm4751_gps_show_gpio_irq
+};
+#endif
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
@@ -1208,6 +1327,15 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata *
 		.platform_data = &rm696_ak8975_data,
 	},
 #endif
+
+#if defined(CONFIG_BCM4751_GPS) || defined(CONFIG_BCM4751_GPS_MODULE)
+	{
+		I2C_BOARD_INFO("bcm4751-gps", 0x1fa),
+		.platform_data = &rm696_bcm4751_gps_platform_data,
+		.flags = I2C_CLIENT_TEN,
+	},
+#endif
+
 };
 
 static void rm696_vibra_set_power(bool enable)
