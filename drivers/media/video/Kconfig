@@ -472,9 +472,6 @@ comment "Camera sensor devices"
 config VIDEO_APTINA_PLL
 	tristate
 
-config VIDEO_SMIAPP_PLL
-	tristate
-
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -559,8 +556,6 @@ config VIDEO_S5K6AA
 	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
 	  camera sensor with an embedded SoC image signal processor.
 
-source "drivers/media/video/smiapp/Kconfig"
-
 comment "Flash devices"
 
 config VIDEO_ADP1653
@@ -621,6 +616,21 @@ config VIDEO_M52790
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
+ 
+config VIDEO_AD58XX
+	tristate "AD58xx lens driver support"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_SMIAPP_POWER
+	---help---
+	  This is a driver for the ADI SMIA++ VCM lens device.
+	  It is used for example in some Nokia Camera Modules
+
+config VIDEO_SMIAPP
+	tristate "Generic driver for SMIA++/SMIA camera modules"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_SMIAPP_POWER
+	---help---
+	This is a generic driver for SMIA++/SMIA camera modules.
 
 endmenu # encoder / decoder chips
 
@@ -968,6 +978,16 @@ config VIDEO_OMAP3_DEBUG
 	depends on VIDEO_OMAP3
 	---help---
 	  Enable debug messages on OMAP 3 camera controller driver.
+
+config VIDEO_SMIAPP_POWER
+	tristate "SMIA++ power handling helper"
+	---help---
+	  SMIA++ sensors have two components in them: the sensor itself
+	  and a voice coil driver for the lens focusing. These are driven by
+	  different drivers but are on the same power supply. There is a
+	  minimum power off time that must be ensured for the sensor to reset
+	  properly. If the sensor driver is powered off and the lens driver
+	  is powered on right away, this driver enforces a delay between them.
 
 config SOC_CAMERA
 	tristate "SoC camera support"
