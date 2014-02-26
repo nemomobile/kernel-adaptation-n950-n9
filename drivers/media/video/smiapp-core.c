@@ -218,6 +218,8 @@ static int smiapp_get_ctrl(struct v4l2_ctrl *ctrl)
 	struct smiapp_sensor *sensor =
 		container_of(ctrl->handler, struct smiapp_sensor, ctrl_handler);
 	const struct smia_mode *mode = &sensor->current_reglist->mode;
+	static const int S = 8;
+	unsigned int pixelclk;
 
 	switch (ctrl->id) {
 	case V4L2_CID_MODE_FRAME_WIDTH:
@@ -241,6 +243,13 @@ static int smiapp_get_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MODE_OPSYSCLOCK:
 		ctrl->cur.val = mode->opsys_clock;
+		break;
+	case V4L2_CID_PIXEL_RATE:
+		pixelclk = mode->window_width
+			* (((mode->pixel_clock + (1 << S) - 1) >> S) + mode->width - 1)
+			/ mode->width;
+		pixelclk <<= S;
+		ctrl->val64 = pixelclk;
 		break;
 	}
 	return 0;
@@ -479,12 +488,11 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 	sensor->ctrls[SMIAPP_CTRL_VFLIP] =
 		v4l2_ctrl_new_std(&sensor->ctrl_handler, &smiapp_ctrl_ops,
 				  V4L2_CID_VFLIP, 0, 1, 1, 0);
-
-	sensor->ctrls[SMIAPP_CTRL_PXIEL_RATE] =
+	
+	sensor->ctrls[SMIAPP_CTRL_PIXEL_RATE] =
 		v4l2_ctrl_new_std(&sensor->ctrl_handler, &smiapp_ctrl_ops,
-				  V4L2_CID_PIXEL_RATE, sensor->platform_data->ext_clk,
-				  sensor->platform_data->ext_clk, 1, sensor->platform_data->ext_clk);
-
+				  V4L2_CID_PIXEL_RATE, 0, 0, 1, 0);	
+	
 	/* V4L2_CID_MODE_* */
 	for (i = 0; i < ARRAY_SIZE(smiapp_mode_ctrls); ++i)
 		v4l2_ctrl_new_custom(&sensor->ctrl_handler,
@@ -498,6 +506,9 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 			sensor->ctrl_handler.error);
 		return sensor->ctrl_handler.error;
 	}
+
+	sensor->ctrls[SMIAPP_CTRL_PIXEL_RATE]->flags = V4L2_CTRL_FLAG_READ_ONLY 
+							| V4L2_CTRL_FLAG_VOLATILE ;
 
 	v4l2_ctrl_cluster(2, &sensor->ctrls[SMIAPP_CTRL_HFLIP]);
 
@@ -1275,6 +1286,57 @@ smiapp_sysfs_ident_read(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(ident, S_IRUGO, smiapp_sysfs_ident_read, NULL);
 
+static ssize_t
+smiapp_sysfs_test_read(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	u32 tmp;
+	int ret, nbytes;
+
+	ret = smia_i2c_read_reg(client, SMIA_REG_16BIT, 0x0600, &tmp);
+	if (ret) {
+		dev_err(&client->dev, "smia_i2c_read_reg error\n");
+		return ret;
+	}
+	
+	nbytes = snprintf(buf, PAGE_SIZE, "test_pattern_mode: %d",
+			  tmp);
+	
+	return nbytes;
+}
+
+static ssize_t
+smiapp_sysfs_test_write(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct v4l2_subdev *subdev = i2c_get_clientdata(to_i2c_client(dev));
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	int ret, value;
+
+	if (sscanf(buf, "%d", &value) != 1) {
+		printk(KERN_ERR "Only numeric 0-4 is valid\n");
+		return -EINVAL;
+	}
+
+	if (value >= 0 && value <=4) {
+		ret = smia_i2c_write_reg(client, SMIA_REG_16BIT, 0x0600, value);
+		if (ret) {
+			dev_err(&client->dev, "smia_i2c_write_reg error\n");
+			return ret;
+		}
+	}
+	else {
+		printk(KERN_ERR "Only numeric 0-4 is valid\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(test, S_IWUSR | S_IRUGO, smiapp_sysfs_test_read, smiapp_sysfs_test_write);
+
 /*
  * Informational entries in sysfs
  * 1. mode
@@ -1293,6 +1355,8 @@ static void smiapp_sysfs_entries_create(struct smiapp_sensor *sensor)
 		dev_info(&client->dev, "sysfs ident entry failed\n");
 	else
 		sensor->sysfs_ident = 1;
+	if (device_create_file(&client->dev, &dev_attr_test) != 0)
+		dev_info(&client->dev, "sysfs test entry failed\n");
 }
 
 static void smiapp_sysfs_entries_remove(struct smiapp_sensor *sensor)
@@ -1304,6 +1368,8 @@ static void smiapp_sysfs_entries_remove(struct smiapp_sensor *sensor)
 
 	if (sensor->sysfs_ident)
 		device_remove_file(&client->dev, &dev_attr_ident);
+
+	device_remove_file(&client->dev, &dev_attr_test);
 }
 
 /* -----------------------------------------------------------------------------
