@@ -32,8 +32,6 @@
  *
  */
 
-#define DEBUG
-
 #include <linux/i2c.h>
 #include <linux/version.h>
 #include <linux/sysfs.h>
