@@ -223,26 +223,26 @@ static int smiapp_get_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_MODE_FRAME_WIDTH:
-		ctrl->cur.val = mode->width;
+		ctrl->val = mode->width;
 		break;
 	case V4L2_CID_MODE_FRAME_HEIGHT:
-		ctrl->cur.val = sensor->format.height +
+		ctrl->val = sensor->format.height +
 			sensor->ctrls[SMIAPP_CTRL_VBLANK]->val;
 		break;
 	case V4L2_CID_MODE_VISIBLE_WIDTH:
-		ctrl->cur.val = mode->window_width;
+		ctrl->val = mode->window_width;
 		break;
 	case V4L2_CID_MODE_VISIBLE_HEIGHT:
-		ctrl->cur.val = mode->window_height;
+		ctrl->val = mode->window_height;
 		break;
 	case V4L2_CID_MODE_PIXELCLOCK:
-		ctrl->cur.val = mode->pixel_clock;
+		ctrl->val = mode->pixel_clock;
 		break;
 	case V4L2_CID_MODE_SENSITIVITY:
-		ctrl->cur.val = mode->sensitivity;
+		ctrl->val = mode->sensitivity;
 		break;
 	case V4L2_CID_MODE_OPSYSCLOCK:
-		ctrl->cur.val = mode->opsys_clock;
+		ctrl->val = mode->opsys_clock;
 		break;
 	case V4L2_CID_PIXEL_RATE:
 		pixelclk = mode->window_width
