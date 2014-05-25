@@ -1700,10 +1700,11 @@ static long ccdc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return ret;
 }
 
+#define V4L2_EVENT_OMAP3ISP_HS_VS_NOKIA	(V4L2_EVENT_OMAP3ISP_CLASS | 0x4)
 static int ccdc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				struct v4l2_event_subscription *sub)
 {
-	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+	if ((sub->type != V4L2_EVENT_FRAME_SYNC) && (sub->type != V4L2_EVENT_OMAP3ISP_HS_VS_NOKIA))
 		return -EINVAL;
 
 	/* line number is zero at frame start */
