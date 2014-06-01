@@ -2481,6 +2481,17 @@ struct v4l2_event {
 	__u32				reserved[8];
 };
 
+struct v4l2_event_Nokia {
+	__u32				type;
+	union {
+		__u8			data[64];
+	} u;
+	__u32				pending;
+	__u32				sequence;
+	struct timespec			timestamp;
+	__u32				reserved[9];
+};
+
 #define V4L2_EVENT_SUB_FL_SEND_INITIAL		(1 << 0)
 #define V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK	(1 << 1)
 
@@ -2634,6 +2645,7 @@ struct v4l2_create_buffers {
 #define	VIDIOC_S_DV_TIMINGS	_IOWR('V', 87, struct v4l2_dv_timings)
 #define	VIDIOC_G_DV_TIMINGS	_IOWR('V', 88, struct v4l2_dv_timings)
 #define	VIDIOC_DQEVENT		 _IOR('V', 89, struct v4l2_event)
+#define	VIDIOC_DQEVENT_NOKIA	 _IOR('V', 89, struct v4l2_event_Nokia)
 #define	VIDIOC_SUBSCRIBE_EVENT	 _IOW('V', 90, struct v4l2_event_subscription)
 #define	VIDIOC_UNSUBSCRIBE_EVENT _IOW('V', 91, struct v4l2_event_subscription)
 
