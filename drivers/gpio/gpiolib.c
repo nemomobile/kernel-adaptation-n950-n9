@@ -545,9 +545,20 @@ static ssize_t gpio_active_low_store(struct device *dev,
 static const DEVICE_ATTR(active_low, 0644,
 		gpio_active_low_show, gpio_active_low_store);
 
+static ssize_t gpio_name_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+       const struct gpio_desc  *desc = dev_get_drvdata(dev);
+
+       return sprintf(buf, "%s\n", desc->label);
+}
+
+static DEVICE_ATTR(name, 0444, gpio_name_show, NULL);
+
 static const struct attribute *gpio_attrs[] = {
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+	&dev_attr_name.attr,
 	NULL,
 };
 
