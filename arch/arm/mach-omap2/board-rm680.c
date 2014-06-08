@@ -2420,13 +2420,25 @@ void __init rm696_camera_init(void)
 		       __func__);
 }
 
+static inline void board_serial_init(void)
+{
+	struct omap_board_data bdata;
+
+	bdata.flags = 0;
+	bdata.pads = NULL;
+	bdata.pads_cnt = 0;
+
+	bdata.id = 2; //UART3
+	omap_serial_init_port(&bdata, NULL);
+}
+
 static void __init rm680_init(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
 	pr_info("RM-680/696 board, rev %04x\n", system_rev);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_serial_init();
+	board_serial_init();
 
 	sdrc_params = nokia_get_sdram_timings();
 	omap_sdrc_init(sdrc_params, sdrc_params);
