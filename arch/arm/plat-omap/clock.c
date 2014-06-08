@@ -21,6 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/cpufreq.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <plat/clock.h>
 
@@ -29,6 +30,78 @@ static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
+static LIST_HEAD(clk_notifier_list);
+
+/*
+ * _clk_free_notifier_chain - safely remove struct clk_notifier
+ * @cn: struct clk_notifier *
+ *
+ * Removes the struct clk_notifier @cn from the clk_notifier_list and
+ * frees it.
+ */
+static void _clk_free_notifier_chain(struct clk_notifier *cn)
+{
+	list_del(&cn->node);
+	kfree(cn);
+}
+
+/*
+ * omap_clk_notify - call clk notifier chain
+ * @clk: struct clk * that is changing rate
+ * @msg: clk notifier type (i.e., CLK_POST_RATE_CHANGE; see mach/clock.h)
+ * @old_rate: old rate
+ * @new_rate: new rate
+ *
+ * Triggers a notifier call chain on the post-clk-rate-change notifier
+ * for clock 'clk'.  Passes a pointer to the struct clk and the
+ * previous and current rates to the notifier callback.  Intended to be
+ * called by internal clock code only.  No return value.
+ */
+static void omap_clk_notify(struct clk *clk, unsigned long msg)
+{
+	struct clk_notifier *cn;
+	struct clk_notifier_data cnd;
+
+	cnd.clk = clk;
+	cnd.rate = clk->rate;
+
+	list_for_each_entry(cn, &clk_notifier_list, node) {
+		if (cn->clk == clk) {
+			blocking_notifier_call_chain(&cn->notifier_head, msg,
+						     &cnd);
+			break;
+		}
+	}
+}
+
+/*
+ * omap_clk_notify_downstream - trigger clock change notifications
+ * @clk: struct clk * to start the notifications with
+ * @msg: notifier msg - see "Clk notifier callback types" in mach/clock.h
+ *
+ * Call clock change notifiers on clocks starting with @clk and including
+ * all of @clk's downstream children clocks.  Returns NOTIFY_DONE.
+ */
+static int omap_clk_notify_downstream(struct clk *clk, unsigned long msg)
+{
+	struct clk *child;
+	int ret;
+
+	if (!clk->notifier_count)
+		return NOTIFY_DONE;
+
+	omap_clk_notify(clk, msg);
+
+	if (list_empty(&clk->children))
+		return NOTIFY_DONE;
+
+	list_for_each_entry_reverse(child, &clk->children, sibling) {
+		ret = omap_clk_notify_downstream(child, msg);
+		if (ret)
+			break;
+	}
+	return ret;
+}
 
 /*
  * Standard clock functions defined in include/linux/clk.h
@@ -121,18 +194,31 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long flags;
 	int ret = -EINVAL;
+	int msg;
 
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	if (!arch_clock || !arch_clock->clk_set_rate)
-		return ret;
+	mutex_lock(&clocks_mutex);
+
+	if (clk->notifier_count)
+		omap_clk_notify_downstream(clk, CLK_PRE_RATE_CHANGE);
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	ret = arch_clock->clk_set_rate(clk, rate);
-	if (ret == 0)
+	if (arch_clock->clk_set_rate)
+		ret = arch_clock->clk_set_rate(clk, rate);
+	if (ret == 0) {
+		if (clk->recalc)
+			clk->rate = clk->recalc(clk);
 		propagate_rate(clk);
+	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
+
+	msg = (ret) ? CLK_ABORT_RATE_CHANGE : CLK_POST_RATE_CHANGE;
+
+	omap_clk_notify_downstream(clk, msg);
+
+	mutex_unlock(&clocks_mutex);
 
 	return ret;
 }
@@ -142,21 +228,34 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	unsigned long flags;
 	int ret = -EINVAL;
+	int msg;
 
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
-	if (!arch_clock || !arch_clock->clk_set_parent)
-		return ret;
+	mutex_lock(&clocks_mutex);
+
+	if (clk->notifier_count)
+		omap_clk_notify_downstream(clk, CLK_PRE_RATE_CHANGE);
 
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->usecount == 0) {
-		ret = arch_clock->clk_set_parent(clk, parent);
-		if (ret == 0)
+		if (arch_clock->clk_set_parent)
+			ret = arch_clock->clk_set_parent(clk, parent);
+		if (ret == 0) {
+			if (clk->recalc)
+				clk->rate = clk->recalc(clk);
 			propagate_rate(clk);
+		}
 	} else
 		ret = -EBUSY;
 	spin_unlock_irqrestore(&clockfw_lock, flags);
+
+	msg = (ret) ? CLK_ABORT_RATE_CHANGE : CLK_POST_RATE_CHANGE;
+
+	omap_clk_notify_downstream(clk, msg);
+
+	mutex_unlock(&clocks_mutex);
 
 	return ret;
 }
@@ -401,6 +500,121 @@ struct clk dummy_ck = {
 /*
  *
  */
+
+/* Clk notifier implementation */
+
+/*
+ * clk_notifier_register - add a clock parameter change notifier
+ * @clk: struct clk * to watch
+ * @nb: struct notifier_block * with callback info
+ *
+ * Request notification for changes to the clock 'clk'.  This uses a
+ * blocking notifier.  Callback code must not call into the clock
+ * framework, as clocks_mutex is held.  Pre-notifier callbacks will be
+ * passed the previous and new rate of the clock.
+ *
+ * clk_notifier_register() must be called from process
+ * context.  Returns -EINVAL if called with null arguments, -ENOMEM
+ * upon allocation failure; otherwise, passes along the return value
+ * of blocking_notifier_chain_register().
+ */
+int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
+{
+	struct clk_notifier *cn = NULL, *cn_new = NULL;
+	int r;
+	struct clk *clkp;
+
+	if (!clk || !nb)
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+
+	list_for_each_entry(cn, &clk_notifier_list, node)
+		if (cn->clk == clk)
+			break;
+
+	if (cn->clk != clk) {
+		cn_new = kzalloc(sizeof(struct clk_notifier), GFP_KERNEL);
+		if (!cn_new) {
+			r = -ENOMEM;
+			goto cnr_out;
+		};
+
+		cn_new->clk = clk;
+		BLOCKING_INIT_NOTIFIER_HEAD(&cn_new->notifier_head);
+
+		list_add(&cn_new->node, &clk_notifier_list);
+		cn = cn_new;
+	}
+
+	r = blocking_notifier_chain_register(&cn->notifier_head, nb);
+	if (!IS_ERR_VALUE(r)) {
+		clkp = clk;
+		do {
+			clkp->notifier_count++;
+		} while ((clkp = clkp->parent));
+	} else {
+		if (cn_new)
+			_clk_free_notifier_chain(cn);
+	}
+
+cnr_out:
+	mutex_unlock(&clocks_mutex);
+
+	return r;
+}
+EXPORT_SYMBOL(clk_notifier_register);
+
+/*
+ * clk_notifier_unregister - remove a clock change notifier
+ * @clk: struct clk *
+ * @nb: struct notifier_block * with callback info
+ *
+ * Request no further notification for changes to clock 'clk'.
+ * Returns -EINVAL if called with null arguments; otherwise, passes
+ * along the return value of blocking_notifier_chain_unregister().
+ */
+int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
+{
+	struct clk_notifier *cn = NULL;
+	struct clk *clkp;
+	int r = -EINVAL;
+
+	if (!clk || !nb)
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+
+	list_for_each_entry(cn, &clk_notifier_list, node)
+		if (cn->clk == clk)
+			break;
+
+	if (cn->clk != clk) {
+		r = -ENOENT;
+		goto cnu_out;
+	};
+
+	r = blocking_notifier_chain_unregister(&cn->notifier_head, nb);
+	if (!IS_ERR_VALUE(r)) {
+		clkp = clk;
+		do {
+			clkp->notifier_count--;
+		} while ((clkp = clkp->parent));
+	}
+
+	/*
+	 * XXX ugh, layering violation.  There should be some
+	 * support in the notifier code for this.
+	 */
+	if (!cn->notifier_head.head)
+		_clk_free_notifier_chain(cn);
+
+cnu_out:
+	mutex_unlock(&clocks_mutex);
+
+	return r;
+}
+EXPORT_SYMBOL(clk_notifier_unregister);
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 /*
