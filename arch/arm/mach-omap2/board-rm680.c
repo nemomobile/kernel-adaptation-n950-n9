@@ -1497,7 +1497,7 @@ static struct nokia_dsi_panel_data rm696_panel_data = {
 		.offset = 0,
 		.height = 854,
 	},
-	.rotate = 0,
+	.rotate = 1,
 };
 
 static struct omap_dss_device rm696_dsi_display_data = {
@@ -1598,9 +1598,9 @@ static struct omapfb_platform_data rm696_omapfb_data = {
 		.region[0] = {
 			.format_used = true,
 			.format = OMAPFB_COLOR_ARGB32,
-			.size = PAGE_ALIGN(856 * 480 * 4 * 3),
-			.xres_virtual = 480,
-			.yres_virtual = 856 * 3,
+			.size = PAGE_ALIGN(856 * 512 * 4 * 3),
+			.xres_virtual = 856,
+			.yres_virtual = 512 * 3,
 		}
 	}
 };
@@ -2460,7 +2460,7 @@ static void __init rm680_init(void)
 
 static void __init rx680_reserve(void)
 {
-	omap_vram_set_sdram_vram(PAGE_ALIGN(856 * 480 * 4 * 3) +
+	omap_vram_set_sdram_vram(PAGE_ALIGN(856 * 512 * 4 * 3) +
 			PAGE_ALIGN(1280 * 720 * 4 * 6), 0);
 	omap_reserve();
 }
