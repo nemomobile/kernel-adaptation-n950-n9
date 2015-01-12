@@ -31,7 +31,8 @@
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
 #include <linux/lis3lv02d.h>
-#include <linux/leds-lp5521.h>
+#include <linux/leds-lp5521.h> //RM696
+#include <linux/leds-lp5523.h> //RM680
 #include <linux/usb/musb.h>
 #include <linux/mfd/wl1273-core.h>
 #include <linux/mfd/aci.h>
@@ -848,6 +849,80 @@ static void __init rm696_wl1273_init(void)
 }
 #endif
 
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+#define RM680_LED_MAX_CURR 130 /* 13 mA */
+#define RM680_LED_DEF_CURR 50  /* 5.0 mA */
+static struct lp5523_led_config rm680_lp5523_led_config[] = {
+	{
+		.chan_nr	= 0,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 1,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 2,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 3,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 4,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 5,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 6,
+		.led_current    = 0,
+	}, {
+		.chan_nr	= 7,
+		.led_current    = 0,
+	}, {
+		.chan_nr	= 8,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}
+};
+
+static int lp5523_setup(void)
+{
+	int err;
+	int gpio = RM680_LP5523_CHIP_EN_GPIO;
+	err = gpio_request(gpio, "lp5523_enable");
+	if (err) {
+		printk(KERN_ERR "lp5523: gpio request failed\n");
+		return err;
+	}
+	gpio_direction_output(gpio, 0);
+	return 0;
+}
+
+static void lp5523_release(void)
+{
+	gpio_free(RM680_LP5523_CHIP_EN_GPIO);
+}
+
+static void lp5523_enable(bool state)
+{
+	gpio_set_value(RM680_LP5523_CHIP_EN_GPIO, !!state);
+}
+
+static struct lp5523_platform_data rm680_lp5523_platform_data = {
+	.led_config	= rm680_lp5523_led_config,
+	.num_channels	= ARRAY_SIZE(rm680_lp5523_led_config),
+	.clock_mode	= LP5523_CLOCK_EXT,
+	.setup_resources   = lp5523_setup,
+	.release_resources = lp5523_release,
+	.enable		   = lp5523_enable,
+};
+#endif
+
 static struct mxt_platform_data rm696_atmel_mxt_platform_data = {
 	.reset_gpio = ATMEL_MXT_RESET_GPIO,
 	.int_gpio = ATMEL_MXT_IRQ_GPIO,
@@ -1022,15 +1097,6 @@ static struct i2c_board_info rm680_peripherals_i2c_board_info_2[] /*__initdata *
 		.platform_data	= &rm680_atmel_mxt_platform_data,
 	},
 
-#if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
-	{
-		/* keep this second */
-		//TODO: rm680 doesn't have this device
-		I2C_BOARD_INFO("apds990x", 0x39),
-		.platform_data = &rm696_apds990x_data,
-	},
-#endif
-
 #if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
 	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
 	{
@@ -1048,11 +1114,11 @@ static struct i2c_board_info rm680_peripherals_i2c_board_info_2[] /*__initdata *
 	},
 #endif
 
-#if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
-        {
-                I2C_BOARD_INFO("lp5521", 0x32),
-                .platform_data = &rm696_lp5521_platform_data,
-        },
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+	{
+		I2C_BOARD_INFO("lp5523", 0x32),
+		.platform_data  = &rm680_lp5523_platform_data,
+	},
 #endif
 
 };
@@ -2081,7 +2147,7 @@ static int __init rm696_tlv320dac33_init(void)
 	if (!board_is_rm680()) {
 		rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
 	} else {
-		rm680_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+		rm680_peripherals_i2c_board_info_2[1].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
 	}
 
 	gpio_direction_input(RM696_DAC33_IRQ_GPIO);
