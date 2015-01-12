@@ -38,10 +38,18 @@
 #include <linux/mfd/aci.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
+
+//ALS / PS
 #include <linux/i2c/apds990x.h> //RM696
+#include <linux/i2c/bhsfh.h> //RM680
+
+//MAGNETOMETERS
 #include <linux/i2c/ak8975.h> //RM696
-#include <linux/nfc/pn544.h> //RM696
 #include <linux/i2c/ak8974.h> //RM680
+
+//NFC
+#include <linux/nfc/pn544.h> //RM696
+
 #include <linux/i2c/bcm4751-gps.h>
 
 #include <asm/mach/arch.h>
@@ -557,6 +565,34 @@ static struct regulator_init_data rm696_vsim_data = {
 	.consumer_supplies		= rm696_vsim_consumers,
 };
 
+static struct regulator_consumer_supply rm680_vbat_consumers[] = {
+	REGULATOR_SUPPLY("Vleds", "2-0038"),	/* BHSFH */
+	REGULATOR_SUPPLY("AVdd", "2-0060"),	/* TPA6140A2 */
+};
+
+static struct regulator_init_data rm680_vbat_data = {
+	.num_consumer_supplies	= ARRAY_SIZE(rm680_vbat_consumers),
+	.consumer_supplies	= rm680_vbat_consumers,
+	.constraints		= {
+		.always_on	= 1,
+	},
+};
+
+static struct fixed_voltage_config rm680_vbat_config = {
+	.supply_name = "vbat",
+	.microvolts = 3700000,
+	.gpio = -1,
+	.init_data = &rm680_vbat_data,
+};
+
+static struct platform_device rm680_vbat = {
+	.name			= "reg-fixed-voltage",
+	.id			= -1,
+	.dev			= {
+		.platform_data	= &rm680_vbat_config,
+	},
+};
+
 static struct regulator_consumer_supply rm696_vbat_consumers[] = {
 	REGULATOR_SUPPLY("Vled", "2-0039"),	/* APDS990x */
 	REGULATOR_SUPPLY("AVdd", "2-0060"),	/* TPA6140A2 */
@@ -609,12 +645,34 @@ static struct regulator_init_data rm696_vmmc2_data = {
 	.consumer_supplies		= rm696_vmmc2_consumers,
 };
 
+static struct regulator_consumer_supply rm680_vaux1_consumers[] = {
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8974 */
+	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
+	REGULATOR_SUPPLY("Vcc", "2-0038"),	/* BHSFH */
+	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
+	REGULATOR_SUPPLY("v28", "twl5031_aci"),
+};
+
 static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("v28", "twl5031_aci"),
 	REGULATOR_SUPPLY("Vdd", "2-0039"),	/* APDS990x */
-	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 on RM696, AK8974 on RM680 */
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 on RM696 */
+};
+
+static struct regulator_init_data rm680_vaux1_data = {
+	.constraints = {
+		.name			= "rm680_vaux1",
+		.min_uV			= 2800000,
+		.max_uV			= 2800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm680_vaux1_consumers),
+	.consumer_supplies		= rm680_vaux1_consumers,
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -689,12 +747,18 @@ static struct regulator_init_data rm696_vaux4_data = {
 };
 
 static struct platform_device *rm680_peripherals_devices[] __initdata = {
-	&rm696_vbat,
+	&rm680_vbat,
 	&rm680_vemmc_device,
 	&rm696_cmt_device,
 	&rm696_eci_device,
 };
 
+static struct platform_device *rm696_peripherals_devices[] __initdata = {
+	&rm696_vbat,
+	&rm680_vemmc_device,
+	&rm696_cmt_device,
+	&rm696_eci_device,
+};
 
 
 /* ACI */
@@ -755,6 +819,22 @@ static struct twl5031_aci_platform_data rm696_aci_data = {
 };
 
 static struct twl4030_platform_data rm680_twl_data = {
+	.gpio			= &rm680_gpio_data,
+	.audio			= &rm680_audio_data,
+	.aci			= &rm696_aci_data,
+	.keypad			= &rm696_kp_data,
+	/* add rest of the children here */
+	/* LDOs */
+	.vio			= &rm696_vio_data,
+	.vmmc2			= &rm696_vmmc2_data,
+	.vsim			= &rm696_vsim_data,
+	.vaux1			= &rm680_vaux1_data,
+	.vaux2			= &rm696_vaux2_data,
+	.vaux3			= &rm696_vaux3_data,
+	.vaux4			= &rm696_vaux4_data,
+};
+
+static struct twl4030_platform_data rm696_twl_data = {
 	.gpio			= &rm680_gpio_data,
 	.audio			= &rm680_audio_data,
 	.aci			= &rm696_aci_data,
@@ -847,6 +927,41 @@ static void __init rm696_wl1273_init(void)
 static void __init rm696_wl1273_init(void)
 {
 }
+#endif
+
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+static int bhsfh_setup(void)
+{
+	int err;
+	int irq = BHSFH_GPIO;
+
+	/* gpio for interrupt pin */
+	err = gpio_request(irq, "bhsfh_irq");
+	if (err) {
+		printk(KERN_ERR "bhsfh: gpio request failed\n");
+		goto fail;
+	}
+
+	gpio_direction_input(irq);
+
+fail:
+	return err;
+}
+
+static int bhsfh_release(void)
+{
+	gpio_free(BHSFH_GPIO);
+	return 0;
+}
+
+static struct bhsfh_platform_data rm680_bhsfh_data = {
+	.leds		   = BHSFH_LED1,
+	.led_max_curr	   = BHSFH_LED_100mA,
+	.led_def_curr	   = BHSFH_LED_50mA,
+	.glass_attenuation = (16384 * 385) / 100, /* about 3.85x filtering */
+	.setup_resources   = bhsfh_setup,
+	.release_resources = bhsfh_release,
+};
 #endif
 
 #if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
@@ -1097,10 +1212,18 @@ static struct i2c_board_info rm680_peripherals_i2c_board_info_2[] /*__initdata *
 		.platform_data	= &rm680_atmel_mxt_platform_data,
 	},
 
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+	{
+		/* keep this second */
+		I2C_BOARD_INFO("bh1770glc", 0x38),
+		.platform_data = &rm680_bhsfh_data,
+	},
+#endif
+
 #if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
 	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
 	{
-		/*keep this third*/
+		/*keep this second*/
 		I2C_BOARD_INFO("tlv320dac33", 0x19),
 		.platform_data = &rm696_dac33_platform_data,
 	},
@@ -1622,44 +1745,56 @@ static void __init rm680_i2c_init(void)
 {
 	struct twl4030_codec_data *codec_data;
 
-	omap3_pmic_get_config(&rm680_twl_data,
-			      TWL_COMMON_PDATA_USB |
-			      TWL_COMMON_PDATA_MADC |
-			      TWL_COMMON_PDATA_BCI,
-			      TWL_COMMON_REGULATOR_VDAC |
-			      TWL_COMMON_REGULATOR_VPLL2);
+	if (!board_is_rm680()) {
+		omap3_pmic_get_config(&rm696_twl_data,
+				      TWL_COMMON_PDATA_USB |
+				      TWL_COMMON_PDATA_MADC |
+				      TWL_COMMON_PDATA_BCI,
+				      TWL_COMMON_REGULATOR_VDAC |
+				      TWL_COMMON_REGULATOR_VPLL2);
 
-	codec_data = rm680_twl_data.audio->codec;
+		codec_data = rm696_twl_data.audio->codec;
+	} else {
+		omap3_pmic_get_config(&rm680_twl_data,
+				      TWL_COMMON_PDATA_USB |
+				      TWL_COMMON_PDATA_MADC |
+				      TWL_COMMON_PDATA_BCI,
+				      TWL_COMMON_REGULATOR_VDAC |
+				      TWL_COMMON_REGULATOR_VPLL2);
+
+		codec_data = rm680_twl_data.audio->codec;
+	}
 	codec_data->ramp_delay_value = 2;
 	codec_data->offset_cncl_path = TWL4030_OFFSET_CNCL_SEL_ARX2;
 	codec_data->check_defaults = 0;
 	codec_data->reset_registers = 0;
 	codec_data->digimic_delay = 0;
-	
-#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+
 	if (!board_is_rm680()) {
+#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+		rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
+#endif
+
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 		rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
 		rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
-	} else {
-		rm680_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
-		rm680_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
-	}
 #endif
-
-#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
-	if (!board_is_rm680()) {	
-		rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
-	}
-#endif
-
-	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
-	
-	if (!board_is_rm680()) {
+		omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm696_twl_data);
 		omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
 					ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
 		omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
 				      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
 	} else {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+		rm680_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+		rm680_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+#endif
+
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+		rm680_peripherals_i2c_board_info_2[1].irq = gpio_to_irq(BHSFH_GPIO);
+#endif
+
+		omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 		omap_register_i2c_bus(2, 400, rm680_peripherals_i2c_board_info_2,
 					ARRAY_SIZE(rm680_peripherals_i2c_board_info_2));
 		omap_register_i2c_bus(3, 400, rm680_peripherals_i2c_board_info_3,
@@ -2147,7 +2282,7 @@ static int __init rm696_tlv320dac33_init(void)
 	if (!board_is_rm680()) {
 		rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
 	} else {
-		rm680_peripherals_i2c_board_info_2[1].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+		rm680_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
 	}
 
 	gpio_direction_input(RM696_DAC33_IRQ_GPIO);
@@ -2174,8 +2309,13 @@ static void __init rm680_peripherals_init(void)
 	rm680_init_wl1271();
 	rm696_init_vibra();
 
-	platform_add_devices(rm680_peripherals_devices,
-				ARRAY_SIZE(rm680_peripherals_devices));
+	if (!board_is_rm680()) {
+		platform_add_devices(rm696_peripherals_devices,
+					ARRAY_SIZE(rm696_peripherals_devices));
+	} else {
+		platform_add_devices(rm680_peripherals_devices,
+					ARRAY_SIZE(rm680_peripherals_devices));
+	}
 
 	rm696_atmel_mxt_init();
 	

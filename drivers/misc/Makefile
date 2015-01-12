@@ -2,6 +2,8 @@
 # Makefile for misc devices that really don't fit anywhere else.
 #
 
+bhsfh-objs  := bhsfh_core.o bhsfh_als.o bhsfh_ps.o
+
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
 obj-$(CONFIG_AD525X_DPOT_I2C)	+= ad525x_dpot-i2c.o
@@ -54,4 +56,5 @@ obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
 obj-$(CONFIG_INTEL_MEI)		+= mei/
 obj-$(CONFIG_SENSORS_AK8975)	+= ak8975.o
 obj-$(CONFIG_SENSORS_AK8974)	+= ak8974.o
+obj-$(CONFIG_BHSFH)		+= bhsfh.o
 obj-$(CONFIG_BCM4751_GPS)	+= bcm4751-gps.o
