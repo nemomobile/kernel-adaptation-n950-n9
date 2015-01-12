@@ -38,8 +38,8 @@
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
 #include <linux/i2c/apds990x.h>
-#include <linux/i2c/ak8975.h>
-#include <linux/nfc/pn544.h>
+#include <linux/i2c/ak8975.h> //RM696
+#include <linux/nfc/pn544.h> //RM696
 #include <linux/i2c/bcm4751-gps.h>
 
 #include <asm/mach/arch.h>
@@ -111,9 +111,11 @@
 #define RM696_TVOUT_EN_GPIO	40
 #define RM696_JACK_GPIO		(OMAP_MAX_GPIO_LINES + 0)
 
-#define RM696_LP5521_CHIP_EN_GPIO 41
+#define RM696_LP5521_CHIP_EN_GPIO 41 //RM696
+#define RM680_LP5523_CHIP_EN_GPIO 41 //RM680
 
-#define APDS990X_GPIO 83
+#define APDS990X_GPIO 83 //RM696
+#define BHSFH_GPIO 83 //RM680
 
 #define RM696_BCM4751_GPS_IRQ_GPIO 95
 #define RM696_BCM4751_GPS_ENABLE_GPIO 94
@@ -512,7 +514,7 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("vonenand", "omap2-onenand"), /* OneNAND flash */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
-	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
+	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 on RM696, AK8974 on RM680 */
 	REGULATOR_SUPPLY("Vdd_IO", "3-002b"),	/* PN544 */
 	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1"),
 	REGULATOR_SUPPLY("Vbat", "3-a1fa"),	/* BCM4751_GPS */
@@ -610,7 +612,7 @@ static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("v28", "twl5031_aci"),
 	REGULATOR_SUPPLY("Vdd", "2-0039"),	/* APDS990x */
-	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 */
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 on RM696, AK8974 on RM680 */
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -1107,9 +1109,9 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 
 #if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
 static struct ak8975_platform_data rm696_ak8975_data = {
-.axis_x = AK8975_DEV_Z,
-.axis_y = AK8975_INV_DEV_X,
-.axis_z = AK8975_INV_DEV_Y,
+	.axis_x = AK8975_DEV_Z,
+	.axis_y = AK8975_INV_DEV_X,
+	.axis_z = AK8975_INV_DEV_Y,
 };
 #endif
 
@@ -1500,6 +1502,20 @@ static struct nokia_dsi_panel_data rm696_panel_data = {
 	.rotate = 1,
 };
 
+static struct nokia_dsi_panel_data rm680_panel_data = {
+	.name = "himalaya",
+	.reset_gpio = 87,
+	.use_ext_te = true,
+	.ext_te_gpio = 62,
+	.esd_timeout = 5000,
+	.ulps_timeout = 500,
+	.partial_area = {
+		.offset = 5,
+		.height = 854,
+	},
+	.rotate = 3,
+};
+
 static struct omap_dss_device rm696_dsi_display_data = {
 	.type = OMAP_DISPLAY_TYPE_DSI,
 	.name = "lcd",
@@ -1548,6 +1564,52 @@ static struct omap_dss_device rm696_dsi_display_data = {
 	.data = &rm696_panel_data,
 };
 
+static struct omap_dss_device rm680_dsi_display_data = {
+	.type = OMAP_DISPLAY_TYPE_DSI,
+	.name = "lcd",
+	.driver_name = "panel-nokia-dsi",
+	.phy.dsi = {
+		.clk_lane = 2,
+		.clk_pol = 0,
+		.data1_lane = 1,
+		.data1_pol = 0,
+		.data2_lane = 3,
+		.data2_pol = 0,
+	},
+
+	.clocks = {
+		.dss = {
+			.fck_div = 5,
+		},
+
+		.dispc = {
+			/* LCK 170.88 MHz */
+			.lck_div = 1,
+			/* PCK 42.72 MHz */
+			.pck_div = 4,
+
+			.fclk_from_dsi_pll = false,
+		},
+
+		.dsi = {
+			/* DDR CLK 256.32 MHz */
+			.regn = 10,
+			.regm = 267,
+			/* DISPC FCLK 170.88 MHz */
+			.regm3 = 6,
+			/* DSI FCLK 170.88 MHz */
+			.regm4 = 6,
+
+			/* LP CLK 7.767 MHz */
+			.lp_clk_div = 11,
+
+			.fclk_from_dsi_pll = false,
+		},
+	},
+
+	.data = &rm680_panel_data,
+};
+
 static int rm696_tv_enable(struct omap_dss_device *dssdev)
 {
 	if (dssdev->reset_gpio != -1)
@@ -1578,10 +1640,21 @@ static struct omap_dss_device *rm696_dss_devices[] = {
 	&rm696_tv_display_data,
 };
 
+static struct omap_dss_device *rm680_dss_devices[] = {
+	&rm680_dsi_display_data,
+	&rm696_tv_display_data, //same as on RM696
+};
+
 static struct omap_dss_board_info rm696_dss_data = {
 	.num_devices = ARRAY_SIZE(rm696_dss_devices),
 	.devices = rm696_dss_devices,
 	.default_device = &rm696_dsi_display_data,
+};
+
+static struct omap_dss_board_info rm680_dss_data = {
+	.num_devices = ARRAY_SIZE(rm680_dss_devices),
+	.devices = rm680_dss_devices,
+	.default_device = &rm680_dsi_display_data,
 };
 
 struct platform_device rm696_dss_device = {
@@ -1589,6 +1662,14 @@ struct platform_device rm696_dss_device = {
 	.id            = -1,
 	.dev            = {
 		.platform_data = &rm696_dss_data,
+	},
+};
+
+struct platform_device rm680_dss_device = {
+	.name          = "omapdss",
+	.id            = -1,
+	.dev            = {
+		.platform_data = &rm680_dss_data,
 	},
 };
 
@@ -1641,6 +1722,9 @@ static struct platform_device rm696_sgx_device = {
 static int __init rm696_video_init(void)
 {
 	int r;
+
+	if (board_is_rm680())
+		return 0;
 
 	omap_setup_dss_device(&rm696_dss_device);
 
@@ -1695,6 +1779,72 @@ err0:
 }
 
 subsys_initcall(rm696_video_init);
+
+static int __init rm680_video_init(void)
+{
+	int r;
+
+	if (!board_is_rm680())
+		return 0;
+
+	if (system_rev < 0x0420) {
+		pr_err("RM-680 display is supported only on HWID 0420 and " \
+				"higher\n");
+		r = -ENODEV;
+		goto err0;
+	}
+
+	omap_setup_dss_device(&rm680_dss_device);
+
+	r = gpio_request(rm680_panel_data.reset_gpio, "himalaya reset");
+	if (r < 0)
+		goto err0;
+
+	r = gpio_direction_output(rm680_panel_data.reset_gpio, 1);
+	
+	rm680_dss_data.default_device = rm680_dss_devices[0];
+
+	/* TV */
+	if (rm696_tv_display_data.reset_gpio != -1) { //same as on RM696
+		r = gpio_request(rm696_tv_display_data.reset_gpio,
+				 "TV-out enable");
+		if (r < 0)
+			goto err1;
+
+		r = gpio_direction_output(rm696_tv_display_data.reset_gpio, 0);
+		if (r < 0)
+			goto err2;
+	}
+
+	r = platform_device_register(&rm680_dss_device);
+	if (r < 0)
+		goto err2;
+
+	omapfb_set_platform_data(&rm696_omapfb_data); // same as on RM696
+
+	r = platform_device_register(&rm696_sgx_device); //same as on RM696
+	if (r < 0)
+		goto err3;
+
+	return 0;
+
+err3:
+	platform_device_unregister(&rm696_dss_device);
+err2:
+	if (rm696_tv_display_data.reset_gpio != -1) {
+		gpio_free(rm696_tv_display_data.reset_gpio);
+		rm696_tv_display_data.reset_gpio = -1;
+	}
+err1:
+	gpio_free(rm680_panel_data.reset_gpio);
+	rm680_panel_data.reset_gpio = -1;
+err0:
+	pr_err("%s failed (%d)\n", __func__, r);
+
+	return r;
+}
+
+subsys_initcall(rm680_video_init);
 
 static int __init rm696_atmel_mxt_init(void)
 {
@@ -1790,25 +1940,30 @@ static void __init rm696_avplugdet_init(void)
 static void __init rm680_peripherals_init(void)
 {
 	rm680_init_wl1271();
-	rm696_init_vibra();
+	
+	/*if (!board_is_rm680()) {*/
+		rm696_init_vibra();
 
-	platform_add_devices(rm680_peripherals_devices,
-				ARRAY_SIZE(rm680_peripherals_devices));
+		platform_add_devices(rm680_peripherals_devices,
+					ARRAY_SIZE(rm680_peripherals_devices));
 
-	rm696_atmel_mxt_init();
-	rm696_apds990x_init();
-	rm696_avplugdet_init();
-	rm680_i2c_init();
-	gpmc_onenand_init(board_onenand_data);
+		rm696_atmel_mxt_init();
+		rm696_apds990x_init();
+		rm696_avplugdet_init();
+		rm680_i2c_init();
+		gpmc_onenand_init(board_onenand_data);
 
-	/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
-	/* if (system_rev > 0x1300) {
-                mmc[0].hw_reset_connected = 1;
-                mmc[0].gpio_hw_reset = 39;
-        }*/
-	omap_hsmmc_init(mmc);
-	rm696_ssi_init();
-	omap_bt_init(&rm680_bt_config);
+		/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
+		/* if (system_rev > 0x1300) {
+			mmc[0].hw_reset_connected = 1;
+			mmc[0].gpio_hw_reset = 39;
+		}*/
+		omap_hsmmc_init(mmc);
+		rm696_ssi_init();
+		omap_bt_init(&rm680_bt_config);
+	/*} else {
+		
+	}*/
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -2420,6 +2575,11 @@ void __init rm696_camera_init(void)
 		       __func__);
 }
 
+void __init rm680_camera_init(void)
+{
+	//TODO
+}  
+
 static inline void board_serial_init(void)
 {
 	struct omap_board_data bdata;
@@ -2447,7 +2607,11 @@ static void __init rm680_init(void)
 
 	usb_musb_init(&rm696_musb_data);
 	rm680_peripherals_init();
-	rm696_camera_init();
+	if (!board_is_rm680()) {
+		rm696_camera_init();
+	} else {
+		rm680_camera_init();
+	}
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
