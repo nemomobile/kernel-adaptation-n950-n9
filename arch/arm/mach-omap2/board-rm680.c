@@ -37,9 +37,10 @@
 #include <linux/mfd/aci.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
-#include <linux/i2c/apds990x.h>
+#include <linux/i2c/apds990x.h> //RM696
 #include <linux/i2c/ak8975.h> //RM696
 #include <linux/nfc/pn544.h> //RM696
+#include <linux/i2c/ak8974.h> //RM680
 #include <linux/i2c/bcm4751-gps.h>
 
 #include <asm/mach/arch.h>
@@ -1194,6 +1195,27 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 
 #endif
 
+#if defined(CONFIG_SENSORS_AK8974) || defined(CONFIG_SENSORS_AK8974_MODULE)
+static struct ak8974_platform_data rm680_ak8974_data = {
+	.axis_x = AK8974_DEV_X,
+	.axis_y = AK8974_INV_DEV_Y,
+	.axis_z = AK8974_INV_DEV_Z,
+};
+
+static inline void __init rm680_init_ak8974(void)
+{
+	if (board_is_rm680() && system_rev < 0x0400) {
+		rm680_ak8974_data.axis_x = AK8974_DEV_Y;
+		rm680_ak8974_data.axis_y = AK8974_DEV_X;
+		rm680_ak8974_data.axis_z = AK8974_INV_DEV_Z;
+	}
+}
+#else
+static inline void __init rm680_init_ak8974(void)
+{
+}
+#endif
+
 #if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
 static struct ak8975_platform_data rm696_ak8975_data = {
 	.axis_x = AK8975_DEV_Z,
@@ -1413,12 +1435,10 @@ static struct i2c_board_info rm680_peripherals_i2c_board_info_3[] /*__initdata *
 	},
 #endif
 
-#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+#if defined(CONFIG_SENSORS_AK8974) || defined(CONFIG_SENSORS_AK8974_MODULE)
 	{
-		//TODO: REMOVE, NOT NEEDED IN RM680
-		/* Keep this second */
-		I2C_BOARD_INFO(PN544_DRIVER_NAME, 0x2b),
-		.platform_data = &rm696_nfc_data,
+		I2C_BOARD_INFO("ak8974", 0x0f),
+		.platform_data = &rm680_ak8974_data,
 	},
 #endif
 
@@ -1426,14 +1446,6 @@ static struct i2c_board_info rm680_peripherals_i2c_board_info_3[] /*__initdata *
 	{
 		I2C_BOARD_INFO(WL1273_FM_DRIVER_NAME, RX71_FM_I2C_ADDR),
 		.platform_data = &rm696_fm_data,
-	},
-#endif
-
-#if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
-	{
-		//TODO: REPLACE WITH AK8974
-		I2C_BOARD_INFO("ak8975", 0x0f),
-		.platform_data = &rm696_ak8975_data,
 	},
 #endif
 
@@ -1569,7 +1581,9 @@ static void __init rm680_i2c_init(void)
 #endif
 
 #if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
-	rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
+	if (!board_is_rm680()) {	
+		rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
+	}
 #endif
 
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
@@ -2092,30 +2106,32 @@ static void __init rm696_avplugdet_init(void)
 static void __init rm680_peripherals_init(void)
 {
 	rm680_init_wl1271();
+	rm696_init_vibra();
+
+	platform_add_devices(rm680_peripherals_devices,
+				ARRAY_SIZE(rm680_peripherals_devices));
+
+	rm696_atmel_mxt_init();
 	
-	/*if (!board_is_rm680()) {*/
-		rm696_init_vibra();
-
-		platform_add_devices(rm680_peripherals_devices,
-					ARRAY_SIZE(rm680_peripherals_devices));
-
-		rm696_atmel_mxt_init();
+	if (!board_is_rm680()) {
 		rm696_apds990x_init();
-		rm696_avplugdet_init();
-		rm680_i2c_init();
-		gpmc_onenand_init(board_onenand_data);
+	} else {
+		rm680_init_ak8974();	
+	}
 
-		/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
-		/* if (system_rev > 0x1300) {
-			mmc[0].hw_reset_connected = 1;
-			mmc[0].gpio_hw_reset = 39;
-		}*/
-		omap_hsmmc_init(mmc);
-		rm696_ssi_init();
-		omap_bt_init(&rm680_bt_config);
-	/*} else {
-		
+	rm696_avplugdet_init();
+	rm680_i2c_init();
+	gpmc_onenand_init(board_onenand_data);
+
+	/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
+	/* if (system_rev > 0x1300) {
+		mmc[0].hw_reset_connected = 1;
+		mmc[0].gpio_hw_reset = 39;
 	}*/
+
+	omap_hsmmc_init(mmc);
+	rm696_ssi_init();
+	omap_bt_init(&rm680_bt_config);
 }
 
 #ifdef CONFIG_OMAP_MUX
