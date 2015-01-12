@@ -1116,6 +1116,45 @@ static int lis302_release(void)
 	return 0;
 }
 
+#define LIS3_IRQ1_USE_BOTH_EDGES 1
+#define LIS3_IRQ2_USE_BOTH_EDGES 2
+
+static struct lis3lv02d_platform_data rm680_lis302dl_data = {
+	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
+			  LIS3_CLICK_SINGLE_Z,
+	/* Limits are 0.5g * value */
+	.click_thresh_x = 8,
+	.click_thresh_y = 8,
+	.click_thresh_z = 10,
+	/* Click must be longer than time limit */
+	.click_time_limit = 9,
+	/* Kind of debounce filter */
+	.click_latency	  = 50,
+
+	/* Limits for all axis. millig-value / 18 to get HW values */
+	.wakeup_flags = LIS3_WAKEUP_X_HI | LIS3_WAKEUP_Y_HI,
+	.wakeup_thresh = 8,
+	.wakeup_flags2 =  LIS3_WAKEUP_Z_HI,
+	.wakeup_thresh2 = 10,
+
+	.hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ,
+
+	/* Interrupt line 2 for click detection, line 1 for thresholds */
+	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
+	.irq_flags1 = LIS3_IRQ1_USE_BOTH_EDGES, /* Both edges trigs WU irq */
+	.irq_flags2 = LIS3_IRQ2_USE_BOTH_EDGES,	
+	.duration1 = 8,
+	.duration2 = 8,
+
+	.axis_x = LIS3_INV_DEV_Y,
+	.axis_y = LIS3_INV_DEV_X,
+	.axis_z = LIS3_INV_DEV_Z,
+	.setup_resources = lis302_setup,
+	.release_resources = lis302_release,
+	.st_min_limits = {-32, 3, 3},
+	.st_max_limits = {-3, 32, 32},
+};
+
 static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
 			  LIS3_CLICK_SINGLE_Z,
@@ -1138,9 +1177,6 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 
 	/* Interrupt line 2 for click detection, line 1 for thresholds */
 	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
-
-#define LIS3_IRQ1_USE_BOTH_EDGES 1
-#define LIS3_IRQ2_USE_BOTH_EDGES 2
 
 	.irq_flags1 = LIS3_IRQ1_USE_BOTH_EDGES,
 	.irq_flags2 = LIS3_IRQ2_USE_BOTH_EDGES,
@@ -1368,6 +1404,49 @@ static struct bcm4751_gps_platform_data rm696_bcm4751_gps_platform_data = {
 };
 #endif
 
+static struct i2c_board_info rm680_peripherals_i2c_board_info_3[] /*__initdata */= {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+	{
+		/* Keep this first */
+		I2C_BOARD_INFO("lis3lv02d", 0x1d),
+		.platform_data = &rm680_lis302dl_data,
+	},
+#endif
+
+#if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
+	{
+		//TODO: REMOVE, NOT NEEDED IN RM680
+		/* Keep this second */
+		I2C_BOARD_INFO(PN544_DRIVER_NAME, 0x2b),
+		.platform_data = &rm696_nfc_data,
+	},
+#endif
+
+#if defined(CONFIG_RADIO_WL1273) || defined(CONFIG_RADIO_WL1273_MODULE)
+	{
+		I2C_BOARD_INFO(WL1273_FM_DRIVER_NAME, RX71_FM_I2C_ADDR),
+		.platform_data = &rm696_fm_data,
+	},
+#endif
+
+#if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
+	{
+		//TODO: REPLACE WITH AK8974
+		I2C_BOARD_INFO("ak8975", 0x0f),
+		.platform_data = &rm696_ak8975_data,
+	},
+#endif
+
+#if defined(CONFIG_BCM4751_GPS) || defined(CONFIG_BCM4751_GPS_MODULE)
+	{
+		I2C_BOARD_INFO("bcm4751-gps", 0x1fa),
+		.platform_data = &rm696_bcm4751_gps_platform_data,
+		.flags = I2C_CLIENT_TEN,
+	},
+#endif
+
+};
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
@@ -1480,9 +1559,13 @@ static void __init rm680_i2c_init(void)
 	codec_data->digimic_delay = 0;
 	
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
-	rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
-	//TODO: initialize rm680's structure if needed
-	rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+	if (!board_is_rm680()) {
+		rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+		rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+	} else {
+		rm680_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+		rm680_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+	}
 #endif
 
 #if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
@@ -1494,13 +1577,14 @@ static void __init rm680_i2c_init(void)
 	if (!board_is_rm680()) {
 		omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
 					ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
+		omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
+				      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
 	} else {
 		omap_register_i2c_bus(2, 400, rm680_peripherals_i2c_board_info_2,
 					ARRAY_SIZE(rm680_peripherals_i2c_board_info_2));
+		omap_register_i2c_bus(3, 400, rm680_peripherals_i2c_board_info_3,
+				      ARRAY_SIZE(rm680_peripherals_i2c_board_info_3));
 	}
-
-	omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
-			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
 }
 
 #if defined(CONFIG_MTD_ONENAND_OMAP2) || \
