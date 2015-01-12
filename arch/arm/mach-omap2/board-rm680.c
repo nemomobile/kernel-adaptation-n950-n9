@@ -102,8 +102,8 @@
 #define NFC_ENABLE_GPIO 77
 #define NFC_FW_RESET_GPIO 78
 
-#define RM696_DAC33_RESET_GPIO 60
-#define RM696_DAC33_IRQ_GPIO 53
+#define RM696_DAC33_RESET_GPIO 60 //same for RM680
+#define RM696_DAC33_IRQ_GPIO 53 //same for RM680
 
 #define RM696_VIBRA_POWER_GPIO 182
 #define RM696_VIBRA_POWER_UP_TIME 1000 /* usecs */
@@ -847,13 +847,22 @@ static void __init rm696_wl1273_init(void)
 }
 #endif
 
-static struct mxt_platform_data atmel_mxt_platform_data = {
+static struct mxt_platform_data rm696_atmel_mxt_platform_data = {
 	.reset_gpio = ATMEL_MXT_RESET_GPIO,
 	.int_gpio = ATMEL_MXT_IRQ_GPIO,
 	.rlimit_min_interval_us = 7000,
 	.rlimit_bypass_time_us = 25000,
 	.wakeup_interval_ms = 50,
 	.config = &atmel_mxt_pyrenees_config,
+};
+
+static struct mxt_platform_data rm680_atmel_mxt_platform_data = {
+	.reset_gpio = ATMEL_MXT_RESET_GPIO,
+	.int_gpio = ATMEL_MXT_IRQ_GPIO,
+	.rlimit_min_interval_us = 7000,
+	.rlimit_bypass_time_us = 25000,
+	.wakeup_interval_ms = 50,
+	.config = &atmel_mxt_himalaya_config,
 };
 
 #if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
@@ -968,7 +977,7 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 	{
 		/* keep this first */
 		I2C_BOARD_INFO("atmel_mxt", 0x4b),
-		.platform_data	= &atmel_mxt_platform_data,
+		.platform_data	= &rm696_atmel_mxt_platform_data,
 	},
 
 #if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
@@ -976,14 +985,6 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		/* keep this second */
 		I2C_BOARD_INFO("apds990x", 0x39),
 		.platform_data = &rm696_apds990x_data,
-	},
-#endif
-
-#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
-	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
-	{
-		I2C_BOARD_INFO("tpa6140a2", 0x60),
-		.platform_data	= &rm696_tpa6130a2_platform_data,
 	},
 #endif
 
@@ -995,7 +996,57 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		.platform_data = &rm696_dac33_platform_data,
 	},
 #endif
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+	{
+		I2C_BOARD_INFO("tpa6140a2", 0x60),
+		.platform_data	= &rm696_tpa6130a2_platform_data,
+	},
+#endif
 	
+#if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
+        {
+                I2C_BOARD_INFO("lp5521", 0x32),
+                .platform_data = &rm696_lp5521_platform_data,
+        },
+#endif
+
+};
+
+static struct i2c_board_info rm680_peripherals_i2c_board_info_2[] /*__initdata */= {
+	{
+		/* keep this first */
+		I2C_BOARD_INFO("atmel_mxt", 0x4b),
+		.platform_data	= &rm680_atmel_mxt_platform_data,
+	},
+
+#if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
+	{
+		/* keep this second */
+		//TODO: rm680 doesn't have this device
+		I2C_BOARD_INFO("apds990x", 0x39),
+		.platform_data = &rm696_apds990x_data,
+	},
+#endif
+
+#if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
+	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
+	{
+		/*keep this third*/
+		I2C_BOARD_INFO("tlv320dac33", 0x19),
+		.platform_data = &rm696_dac33_platform_data,
+	},
+#endif
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+	{
+		I2C_BOARD_INFO("tpa6140a2", 0x60),
+		.platform_data	= &rm696_tpa6130a2_platform_data,
+	},
+#endif
+
 #if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
         {
                 I2C_BOARD_INFO("lp5521", 0x32),
@@ -1430,6 +1481,7 @@ static void __init rm680_i2c_init(void)
 	
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+	//TODO: initialize rm680's structure if needed
 	rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
 #endif
 
@@ -1438,8 +1490,15 @@ static void __init rm680_i2c_init(void)
 #endif
 
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
-	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
-			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
+	
+	if (!board_is_rm680()) {
+		omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
+					ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
+	} else {
+		omap_register_i2c_bus(2, 400, rm680_peripherals_i2c_board_info_2,
+					ARRAY_SIZE(rm680_peripherals_i2c_board_info_2));
+	}
+
 	omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
 			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
 }
@@ -1859,7 +1918,11 @@ static int __init rm696_atmel_mxt_init(void)
 	if (err)
 		goto err2;
 
-	rm696_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);
+	if (!board_is_rm680()) {
+		rm696_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);
+	} else {
+		rm680_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);	
+	}
 
 	return 0;
 err2:
@@ -1868,6 +1931,7 @@ err1:
 
 	return err;
 }
+
 
 #if defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
 	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)
@@ -1916,7 +1980,11 @@ static int __init rm696_tlv320dac33_init(void)
 			"for tlv320dac33 chip\n");
 	}
 
-	rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	if (!board_is_rm680()) {
+		rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	} else {
+		rm680_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	}
 
 	gpio_direction_input(RM696_DAC33_IRQ_GPIO);
 	
