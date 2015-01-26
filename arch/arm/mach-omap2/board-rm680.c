@@ -31,15 +31,25 @@
 #include <linux/hsi/hsi.h>
 #include <linux/cmt.h>
 #include <linux/lis3lv02d.h>
-#include <linux/leds-lp5521.h>
+#include <linux/leds-lp5521.h> //RM696
+#include <linux/leds-lp5523.h> //RM680
 #include <linux/usb/musb.h>
 #include <linux/mfd/wl1273-core.h>
 #include <linux/mfd/aci.h>
 #include <sound/tpa6130a2-plat.h>
 #include <sound/tlv320dac33-plat.h>
-#include <linux/i2c/apds990x.h>
-#include <linux/i2c/ak8975.h>
-#include <linux/nfc/pn544.h>
+
+//ALS / PS
+#include <linux/i2c/apds990x.h> //RM696
+#include <linux/i2c/bhsfh.h> //RM680
+
+//MAGNETOMETERS
+#include <linux/i2c/ak8975.h> //RM696
+#include <linux/i2c/ak8974.h> //RM680
+
+//NFC
+#include <linux/nfc/pn544.h> //RM696
+
 #include <linux/i2c/bcm4751-gps.h>
 
 #include <asm/mach/arch.h>
@@ -102,8 +112,8 @@
 #define NFC_ENABLE_GPIO 77
 #define NFC_FW_RESET_GPIO 78
 
-#define RM696_DAC33_RESET_GPIO 60
-#define RM696_DAC33_IRQ_GPIO 53
+#define RM696_DAC33_RESET_GPIO 60 //same for RM680
+#define RM696_DAC33_IRQ_GPIO 53 //same for RM680
 
 #define RM696_VIBRA_POWER_GPIO 182
 #define RM696_VIBRA_POWER_UP_TIME 1000 /* usecs */
@@ -111,9 +121,11 @@
 #define RM696_TVOUT_EN_GPIO	40
 #define RM696_JACK_GPIO		(OMAP_MAX_GPIO_LINES + 0)
 
-#define RM696_LP5521_CHIP_EN_GPIO 41
+#define RM696_LP5521_CHIP_EN_GPIO 41 //RM696
+#define RM680_LP5523_CHIP_EN_GPIO 41 //RM680
 
-#define APDS990X_GPIO 83
+#define APDS990X_GPIO 83 //RM696
+#define BHSFH_GPIO 83 //RM680
 
 #define RM696_BCM4751_GPS_IRQ_GPIO 95
 #define RM696_BCM4751_GPS_ENABLE_GPIO 94
@@ -512,7 +524,7 @@ static struct regulator_consumer_supply rm696_vio_consumers[] = {
 	REGULATOR_SUPPLY("Vdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("vonenand", "omap2-onenand"), /* OneNAND flash */
 	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),	/* LIS302 */
-	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 */
+	REGULATOR_SUPPLY("DVdd", "3-000f"),	/* AK8975 on RM696, AK8974 on RM680 */
 	REGULATOR_SUPPLY("Vdd_IO", "3-002b"),	/* PN544 */
 	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1"),
 	REGULATOR_SUPPLY("Vbat", "3-a1fa"),	/* BCM4751_GPS */
@@ -551,6 +563,34 @@ static struct regulator_init_data rm696_vsim_data = {
 	},
 	.num_consumer_supplies		= ARRAY_SIZE(rm696_vsim_consumers),
 	.consumer_supplies		= rm696_vsim_consumers,
+};
+
+static struct regulator_consumer_supply rm680_vbat_consumers[] = {
+	REGULATOR_SUPPLY("Vleds", "2-0038"),	/* BHSFH */
+	REGULATOR_SUPPLY("AVdd", "2-0060"),	/* TPA6140A2 */
+};
+
+static struct regulator_init_data rm680_vbat_data = {
+	.num_consumer_supplies	= ARRAY_SIZE(rm680_vbat_consumers),
+	.consumer_supplies	= rm680_vbat_consumers,
+	.constraints		= {
+		.always_on	= 1,
+	},
+};
+
+static struct fixed_voltage_config rm680_vbat_config = {
+	.supply_name = "vbat",
+	.microvolts = 3700000,
+	.gpio = -1,
+	.init_data = &rm680_vbat_data,
+};
+
+static struct platform_device rm680_vbat = {
+	.name			= "reg-fixed-voltage",
+	.id			= -1,
+	.dev			= {
+		.platform_data	= &rm680_vbat_config,
+	},
 };
 
 static struct regulator_consumer_supply rm696_vbat_consumers[] = {
@@ -605,12 +645,34 @@ static struct regulator_init_data rm696_vmmc2_data = {
 	.consumer_supplies		= rm696_vmmc2_consumers,
 };
 
+static struct regulator_consumer_supply rm680_vaux1_consumers[] = {
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8974 */
+	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
+	REGULATOR_SUPPLY("Vcc", "2-0038"),	/* BHSFH */
+	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
+	REGULATOR_SUPPLY("v28", "twl5031_aci"),
+};
+
 static struct regulator_consumer_supply rm696_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("AVdd", "2-004b"),	/* Atmel mxt */
 	REGULATOR_SUPPLY("Vdd", "3-001d"),	/* LIS302 */
 	REGULATOR_SUPPLY("v28", "twl5031_aci"),
 	REGULATOR_SUPPLY("Vdd", "2-0039"),	/* APDS990x */
-	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 */
+	REGULATOR_SUPPLY("AVdd", "3-000f"),	/* AK8975 on RM696 */
+};
+
+static struct regulator_init_data rm680_vaux1_data = {
+	.constraints = {
+		.name			= "rm680_vaux1",
+		.min_uV			= 2800000,
+		.max_uV			= 2800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(rm680_vaux1_consumers),
+	.consumer_supplies		= rm680_vaux1_consumers,
 };
 
 static struct regulator_init_data rm696_vaux1_data = {
@@ -685,12 +747,18 @@ static struct regulator_init_data rm696_vaux4_data = {
 };
 
 static struct platform_device *rm680_peripherals_devices[] __initdata = {
-	&rm696_vbat,
+	&rm680_vbat,
 	&rm680_vemmc_device,
 	&rm696_cmt_device,
 	&rm696_eci_device,
 };
 
+static struct platform_device *rm696_peripherals_devices[] __initdata = {
+	&rm696_vbat,
+	&rm680_vemmc_device,
+	&rm696_cmt_device,
+	&rm696_eci_device,
+};
 
 
 /* ACI */
@@ -751,6 +819,22 @@ static struct twl5031_aci_platform_data rm696_aci_data = {
 };
 
 static struct twl4030_platform_data rm680_twl_data = {
+	.gpio			= &rm680_gpio_data,
+	.audio			= &rm680_audio_data,
+	.aci			= &rm696_aci_data,
+	.keypad			= &rm696_kp_data,
+	/* add rest of the children here */
+	/* LDOs */
+	.vio			= &rm696_vio_data,
+	.vmmc2			= &rm696_vmmc2_data,
+	.vsim			= &rm696_vsim_data,
+	.vaux1			= &rm680_vaux1_data,
+	.vaux2			= &rm696_vaux2_data,
+	.vaux3			= &rm696_vaux3_data,
+	.vaux4			= &rm696_vaux4_data,
+};
+
+static struct twl4030_platform_data rm696_twl_data = {
 	.gpio			= &rm680_gpio_data,
 	.audio			= &rm680_audio_data,
 	.aci			= &rm696_aci_data,
@@ -845,13 +929,131 @@ static void __init rm696_wl1273_init(void)
 }
 #endif
 
-static struct mxt_platform_data atmel_mxt_platform_data = {
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+static int bhsfh_setup(void)
+{
+	int err;
+	int irq = BHSFH_GPIO;
+
+	/* gpio for interrupt pin */
+	err = gpio_request(irq, "bhsfh_irq");
+	if (err) {
+		printk(KERN_ERR "bhsfh: gpio request failed\n");
+		goto fail;
+	}
+
+	gpio_direction_input(irq);
+
+fail:
+	return err;
+}
+
+static int bhsfh_release(void)
+{
+	gpio_free(BHSFH_GPIO);
+	return 0;
+}
+
+static struct bhsfh_platform_data rm680_bhsfh_data = {
+	.leds		   = BHSFH_LED1,
+	.led_max_curr	   = BHSFH_LED_100mA,
+	.led_def_curr	   = BHSFH_LED_50mA,
+	.glass_attenuation = (16384 * 385) / 100, /* about 3.85x filtering */
+	.setup_resources   = bhsfh_setup,
+	.release_resources = bhsfh_release,
+};
+#endif
+
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+#define RM680_LED_MAX_CURR 130 /* 13 mA */
+#define RM680_LED_DEF_CURR 50  /* 5.0 mA */
+static struct lp5523_led_config rm680_lp5523_led_config[] = {
+	{
+		.chan_nr	= 0,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 1,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 2,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 3,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 4,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 5,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}, {
+		.chan_nr	= 6,
+		.led_current    = 0,
+	}, {
+		.chan_nr	= 7,
+		.led_current    = 0,
+	}, {
+		.chan_nr	= 8,
+		.led_current    = RM680_LED_DEF_CURR,
+		.max_current    = RM680_LED_MAX_CURR,
+	}
+};
+
+static int lp5523_setup(void)
+{
+	int err;
+	int gpio = RM680_LP5523_CHIP_EN_GPIO;
+	err = gpio_request(gpio, "lp5523_enable");
+	if (err) {
+		printk(KERN_ERR "lp5523: gpio request failed\n");
+		return err;
+	}
+	gpio_direction_output(gpio, 0);
+	return 0;
+}
+
+static void lp5523_release(void)
+{
+	gpio_free(RM680_LP5523_CHIP_EN_GPIO);
+}
+
+static void lp5523_enable(bool state)
+{
+	gpio_set_value(RM680_LP5523_CHIP_EN_GPIO, !!state);
+}
+
+static struct lp5523_platform_data rm680_lp5523_platform_data = {
+	.led_config	= rm680_lp5523_led_config,
+	.num_channels	= ARRAY_SIZE(rm680_lp5523_led_config),
+	.clock_mode	= LP5523_CLOCK_EXT,
+	.setup_resources   = lp5523_setup,
+	.release_resources = lp5523_release,
+	.enable		   = lp5523_enable,
+};
+#endif
+
+static struct mxt_platform_data rm696_atmel_mxt_platform_data = {
 	.reset_gpio = ATMEL_MXT_RESET_GPIO,
 	.int_gpio = ATMEL_MXT_IRQ_GPIO,
 	.rlimit_min_interval_us = 7000,
 	.rlimit_bypass_time_us = 25000,
 	.wakeup_interval_ms = 50,
 	.config = &atmel_mxt_pyrenees_config,
+};
+
+static struct mxt_platform_data rm680_atmel_mxt_platform_data = {
+	.reset_gpio = ATMEL_MXT_RESET_GPIO,
+	.int_gpio = ATMEL_MXT_IRQ_GPIO,
+	.rlimit_min_interval_us = 7000,
+	.rlimit_bypass_time_us = 25000,
+	.wakeup_interval_ms = 50,
+	.config = &atmel_mxt_himalaya_config,
 };
 
 #if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
@@ -966,7 +1168,7 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 	{
 		/* keep this first */
 		I2C_BOARD_INFO("atmel_mxt", 0x4b),
-		.platform_data	= &atmel_mxt_platform_data,
+		.platform_data	= &rm696_atmel_mxt_platform_data,
 	},
 
 #if defined(CONFIG_SENSORS_APDS990X) || defined(CONFIG_SENSORS_APDS990X_MODULE)
@@ -974,14 +1176,6 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		/* keep this second */
 		I2C_BOARD_INFO("apds990x", 0x39),
 		.platform_data = &rm696_apds990x_data,
-	},
-#endif
-
-#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
-	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
-	{
-		I2C_BOARD_INFO("tpa6140a2", 0x60),
-		.platform_data	= &rm696_tpa6130a2_platform_data,
 	},
 #endif
 
@@ -993,12 +1187,61 @@ static struct i2c_board_info rm696_peripherals_i2c_board_info_2[] /*__initdata *
 		.platform_data = &rm696_dac33_platform_data,
 	},
 #endif
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+	{
+		I2C_BOARD_INFO("tpa6140a2", 0x60),
+		.platform_data	= &rm696_tpa6130a2_platform_data,
+	},
+#endif
 	
 #if defined(CONFIG_LEDS_LP5521) || defined(CONFIG_LEDS_LP5521_MODULE)
         {
                 I2C_BOARD_INFO("lp5521", 0x32),
                 .platform_data = &rm696_lp5521_platform_data,
         },
+#endif
+
+};
+
+static struct i2c_board_info rm680_peripherals_i2c_board_info_2[] /*__initdata */= {
+	{
+		/* keep this first */
+		I2C_BOARD_INFO("atmel_mxt", 0x4b),
+		.platform_data	= &rm680_atmel_mxt_platform_data,
+	},
+
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+	{
+		/* keep this second */
+		I2C_BOARD_INFO("bh1770glc", 0x38),
+		.platform_data = &rm680_bhsfh_data,
+	},
+#endif
+
+#if	defined(CONFIG_SND_SOC_TLV320DAC33) || \
+	defined(CONFIG_SND_SOC_TLV320DAC33_MODULE)
+	{
+		/*keep this second*/
+		I2C_BOARD_INFO("tlv320dac33", 0x19),
+		.platform_data = &rm696_dac33_platform_data,
+	},
+#endif
+
+#if	defined(CONFIG_SND_SOC_TPA6130A2) || \
+	defined(CONFIG_SND_SOC_TPA6130A2_MODULE)
+	{
+		I2C_BOARD_INFO("tpa6140a2", 0x60),
+		.platform_data	= &rm696_tpa6130a2_platform_data,
+	},
+#endif
+
+#if defined(CONFIG_LEDS_LP5523) || defined(CONFIG_LEDS_LP5523_MODULE)
+	{
+		I2C_BOARD_INFO("lp5523", 0x32),
+		.platform_data  = &rm680_lp5523_platform_data,
+	},
 #endif
 
 };
@@ -1063,6 +1306,45 @@ static int lis302_release(void)
 	return 0;
 }
 
+#define LIS3_IRQ1_USE_BOTH_EDGES 1
+#define LIS3_IRQ2_USE_BOTH_EDGES 2
+
+static struct lis3lv02d_platform_data rm680_lis302dl_data = {
+	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
+			  LIS3_CLICK_SINGLE_Z,
+	/* Limits are 0.5g * value */
+	.click_thresh_x = 8,
+	.click_thresh_y = 8,
+	.click_thresh_z = 10,
+	/* Click must be longer than time limit */
+	.click_time_limit = 9,
+	/* Kind of debounce filter */
+	.click_latency	  = 50,
+
+	/* Limits for all axis. millig-value / 18 to get HW values */
+	.wakeup_flags = LIS3_WAKEUP_X_HI | LIS3_WAKEUP_Y_HI,
+	.wakeup_thresh = 8,
+	.wakeup_flags2 =  LIS3_WAKEUP_Z_HI,
+	.wakeup_thresh2 = 10,
+
+	.hipass_ctrl = LIS3_HIPASS_CUTFF_2HZ,
+
+	/* Interrupt line 2 for click detection, line 1 for thresholds */
+	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
+	.irq_flags1 = LIS3_IRQ1_USE_BOTH_EDGES, /* Both edges trigs WU irq */
+	.irq_flags2 = LIS3_IRQ2_USE_BOTH_EDGES,	
+	.duration1 = 8,
+	.duration2 = 8,
+
+	.axis_x = LIS3_INV_DEV_Y,
+	.axis_y = LIS3_INV_DEV_X,
+	.axis_z = LIS3_INV_DEV_Z,
+	.setup_resources = lis302_setup,
+	.release_resources = lis302_release,
+	.st_min_limits = {-32, 3, 3},
+	.st_max_limits = {-3, 32, 32},
+};
+
 static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 	.click_flags	= LIS3_CLICK_SINGLE_X | LIS3_CLICK_SINGLE_Y |
 			  LIS3_CLICK_SINGLE_Z,
@@ -1086,9 +1368,6 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 	/* Interrupt line 2 for click detection, line 1 for thresholds */
 	.irq_cfg = LIS3_IRQ2_CLICK | LIS3_IRQ1_FF_WU_12,
 
-#define LIS3_IRQ1_USE_BOTH_EDGES 1
-#define LIS3_IRQ2_USE_BOTH_EDGES 2
-
 	.irq_flags1 = LIS3_IRQ1_USE_BOTH_EDGES,
 	.irq_flags2 = LIS3_IRQ2_USE_BOTH_EDGES,
 	.duration1 = 8,
@@ -1105,11 +1384,32 @@ static struct lis3lv02d_platform_data rm696_lis302dl_data = {
 
 #endif
 
+#if defined(CONFIG_SENSORS_AK8974) || defined(CONFIG_SENSORS_AK8974_MODULE)
+static struct ak8974_platform_data rm680_ak8974_data = {
+	.axis_x = AK8974_DEV_X,
+	.axis_y = AK8974_INV_DEV_Y,
+	.axis_z = AK8974_INV_DEV_Z,
+};
+
+static inline void __init rm680_init_ak8974(void)
+{
+	if (board_is_rm680() && system_rev < 0x0400) {
+		rm680_ak8974_data.axis_x = AK8974_DEV_Y;
+		rm680_ak8974_data.axis_y = AK8974_DEV_X;
+		rm680_ak8974_data.axis_z = AK8974_INV_DEV_Z;
+	}
+}
+#else
+static inline void __init rm680_init_ak8974(void)
+{
+}
+#endif
+
 #if defined(CONFIG_SENSORS_AK8975) || defined(CONFIG_SENSORS_AK8975_MODULE)
 static struct ak8975_platform_data rm696_ak8975_data = {
-.axis_x = AK8975_DEV_Z,
-.axis_y = AK8975_INV_DEV_X,
-.axis_z = AK8975_INV_DEV_Y,
+	.axis_x = AK8975_DEV_Z,
+	.axis_y = AK8975_INV_DEV_X,
+	.axis_z = AK8975_INV_DEV_Y,
 };
 #endif
 
@@ -1315,6 +1615,39 @@ static struct bcm4751_gps_platform_data rm696_bcm4751_gps_platform_data = {
 };
 #endif
 
+static struct i2c_board_info rm680_peripherals_i2c_board_info_3[] /*__initdata */= {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+	{
+		/* Keep this first */
+		I2C_BOARD_INFO("lis3lv02d", 0x1d),
+		.platform_data = &rm680_lis302dl_data,
+	},
+#endif
+
+#if defined(CONFIG_SENSORS_AK8974) || defined(CONFIG_SENSORS_AK8974_MODULE)
+	{
+		I2C_BOARD_INFO("ak8974", 0x0f),
+		.platform_data = &rm680_ak8974_data,
+	},
+#endif
+
+#if defined(CONFIG_RADIO_WL1273) || defined(CONFIG_RADIO_WL1273_MODULE)
+	{
+		I2C_BOARD_INFO(WL1273_FM_DRIVER_NAME, RX71_FM_I2C_ADDR),
+		.platform_data = &rm696_fm_data,
+	},
+#endif
+
+#if defined(CONFIG_BCM4751_GPS) || defined(CONFIG_BCM4751_GPS_MODULE)
+	{
+		I2C_BOARD_INFO("bcm4751-gps", 0x1fa),
+		.platform_data = &rm696_bcm4751_gps_platform_data,
+		.flags = I2C_CLIENT_TEN,
+	},
+#endif
+
+};
+
 static struct i2c_board_info rm696_peripherals_i2c_board_info_3[] /*__initdata */= {
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
 	{
@@ -1412,34 +1745,61 @@ static void __init rm680_i2c_init(void)
 {
 	struct twl4030_codec_data *codec_data;
 
-	omap3_pmic_get_config(&rm680_twl_data,
-			      TWL_COMMON_PDATA_USB |
-			      TWL_COMMON_PDATA_MADC |
-			      TWL_COMMON_PDATA_BCI,
-			      TWL_COMMON_REGULATOR_VDAC |
-			      TWL_COMMON_REGULATOR_VPLL2);
+	if (!board_is_rm680()) {
+		omap3_pmic_get_config(&rm696_twl_data,
+				      TWL_COMMON_PDATA_USB |
+				      TWL_COMMON_PDATA_MADC |
+				      TWL_COMMON_PDATA_BCI,
+				      TWL_COMMON_REGULATOR_VDAC |
+				      TWL_COMMON_REGULATOR_VPLL2);
 
-	codec_data = rm680_twl_data.audio->codec;
+		codec_data = rm696_twl_data.audio->codec;
+	} else {
+		omap3_pmic_get_config(&rm680_twl_data,
+				      TWL_COMMON_PDATA_USB |
+				      TWL_COMMON_PDATA_MADC |
+				      TWL_COMMON_PDATA_BCI,
+				      TWL_COMMON_REGULATOR_VDAC |
+				      TWL_COMMON_REGULATOR_VPLL2);
+
+		codec_data = rm680_twl_data.audio->codec;
+	}
 	codec_data->ramp_delay_value = 2;
 	codec_data->offset_cncl_path = TWL4030_OFFSET_CNCL_SEL_ARX2;
 	codec_data->check_defaults = 0;
 	codec_data->reset_registers = 0;
 	codec_data->digimic_delay = 0;
-	
-#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
-	rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
-	rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
-#endif
 
+	if (!board_is_rm680()) {
 #if defined(CONFIG_PN544_NFC) || defined(CONFIG_PN544_NFC_MODULE)
-	rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
+		rm696_peripherals_i2c_board_info_3[1].irq = gpio_to_irq(NFC_HOST_INT_GPIO);
 #endif
 
-	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
-	omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
-			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
-	omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
-			      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+		rm696_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+		rm696_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+#endif
+		omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm696_twl_data);
+		omap_register_i2c_bus(2, 400, rm696_peripherals_i2c_board_info_2,
+					ARRAY_SIZE(rm696_peripherals_i2c_board_info_2));
+		omap_register_i2c_bus(3, 400, rm696_peripherals_i2c_board_info_3,
+				      ARRAY_SIZE(rm696_peripherals_i2c_board_info_3));
+	} else {
+#if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
+		rm680_lis302dl_data.irq2 = gpio_to_irq(LIS302_IRQ2_GPIO);
+		rm680_peripherals_i2c_board_info_3[0].irq = gpio_to_irq(LIS302_IRQ1_GPIO);
+#endif
+
+#if defined(CONFIG_BHSFH) || defined(CONFIG_BHSFH_MODULE)
+		rm680_peripherals_i2c_board_info_2[1].irq = gpio_to_irq(BHSFH_GPIO);
+#endif
+
+		omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
+		omap_register_i2c_bus(2, 400, rm680_peripherals_i2c_board_info_2,
+					ARRAY_SIZE(rm680_peripherals_i2c_board_info_2));
+		omap_register_i2c_bus(3, 400, rm680_peripherals_i2c_board_info_3,
+				      ARRAY_SIZE(rm680_peripherals_i2c_board_info_3));
+	}
 }
 
 #if defined(CONFIG_MTD_ONENAND_OMAP2) || \
@@ -1500,6 +1860,20 @@ static struct nokia_dsi_panel_data rm696_panel_data = {
 	.rotate = 1,
 };
 
+static struct nokia_dsi_panel_data rm680_panel_data = {
+	.name = "himalaya",
+	.reset_gpio = 87,
+	.use_ext_te = true,
+	.ext_te_gpio = 62,
+	.esd_timeout = 5000,
+	.ulps_timeout = 500,
+	.partial_area = {
+		.offset = 5,
+		.height = 854,
+	},
+	.rotate = 3,
+};
+
 static struct omap_dss_device rm696_dsi_display_data = {
 	.type = OMAP_DISPLAY_TYPE_DSI,
 	.name = "lcd",
@@ -1548,6 +1922,52 @@ static struct omap_dss_device rm696_dsi_display_data = {
 	.data = &rm696_panel_data,
 };
 
+static struct omap_dss_device rm680_dsi_display_data = {
+	.type = OMAP_DISPLAY_TYPE_DSI,
+	.name = "lcd",
+	.driver_name = "panel-nokia-dsi",
+	.phy.dsi = {
+		.clk_lane = 2,
+		.clk_pol = 0,
+		.data1_lane = 1,
+		.data1_pol = 0,
+		.data2_lane = 3,
+		.data2_pol = 0,
+	},
+
+	.clocks = {
+		.dss = {
+			.fck_div = 5,
+		},
+
+		.dispc = {
+			/* LCK 170.88 MHz */
+			.lck_div = 1,
+			/* PCK 42.72 MHz */
+			.pck_div = 4,
+
+			.fclk_from_dsi_pll = false,
+		},
+
+		.dsi = {
+			/* DDR CLK 256.32 MHz */
+			.regn = 10,
+			.regm = 267,
+			/* DISPC FCLK 170.88 MHz */
+			.regm3 = 6,
+			/* DSI FCLK 170.88 MHz */
+			.regm4 = 6,
+
+			/* LP CLK 7.767 MHz */
+			.lp_clk_div = 11,
+
+			.fclk_from_dsi_pll = false,
+		},
+	},
+
+	.data = &rm680_panel_data,
+};
+
 static int rm696_tv_enable(struct omap_dss_device *dssdev)
 {
 	if (dssdev->reset_gpio != -1)
@@ -1578,10 +1998,21 @@ static struct omap_dss_device *rm696_dss_devices[] = {
 	&rm696_tv_display_data,
 };
 
+static struct omap_dss_device *rm680_dss_devices[] = {
+	&rm680_dsi_display_data,
+	&rm696_tv_display_data, //same as on RM696
+};
+
 static struct omap_dss_board_info rm696_dss_data = {
 	.num_devices = ARRAY_SIZE(rm696_dss_devices),
 	.devices = rm696_dss_devices,
 	.default_device = &rm696_dsi_display_data,
+};
+
+static struct omap_dss_board_info rm680_dss_data = {
+	.num_devices = ARRAY_SIZE(rm680_dss_devices),
+	.devices = rm680_dss_devices,
+	.default_device = &rm680_dsi_display_data,
 };
 
 struct platform_device rm696_dss_device = {
@@ -1589,6 +2020,14 @@ struct platform_device rm696_dss_device = {
 	.id            = -1,
 	.dev            = {
 		.platform_data = &rm696_dss_data,
+	},
+};
+
+struct platform_device rm680_dss_device = {
+	.name          = "omapdss",
+	.id            = -1,
+	.dev            = {
+		.platform_data = &rm680_dss_data,
 	},
 };
 
@@ -1641,6 +2080,9 @@ static struct platform_device rm696_sgx_device = {
 static int __init rm696_video_init(void)
 {
 	int r;
+
+	if (board_is_rm680())
+		return 0;
 
 	omap_setup_dss_device(&rm696_dss_device);
 
@@ -1696,6 +2138,72 @@ err0:
 
 subsys_initcall(rm696_video_init);
 
+static int __init rm680_video_init(void)
+{
+	int r;
+
+	if (!board_is_rm680())
+		return 0;
+
+	if (system_rev < 0x0420) {
+		pr_err("RM-680 display is supported only on HWID 0420 and " \
+				"higher\n");
+		r = -ENODEV;
+		goto err0;
+	}
+
+	omap_setup_dss_device(&rm680_dss_device);
+
+	r = gpio_request(rm680_panel_data.reset_gpio, "himalaya reset");
+	if (r < 0)
+		goto err0;
+
+	r = gpio_direction_output(rm680_panel_data.reset_gpio, 1);
+	
+	rm680_dss_data.default_device = rm680_dss_devices[0];
+
+	/* TV */
+	if (rm696_tv_display_data.reset_gpio != -1) { //same as on RM696
+		r = gpio_request(rm696_tv_display_data.reset_gpio,
+				 "TV-out enable");
+		if (r < 0)
+			goto err1;
+
+		r = gpio_direction_output(rm696_tv_display_data.reset_gpio, 0);
+		if (r < 0)
+			goto err2;
+	}
+
+	r = platform_device_register(&rm680_dss_device);
+	if (r < 0)
+		goto err2;
+
+	omapfb_set_platform_data(&rm696_omapfb_data); // same as on RM696
+
+	r = platform_device_register(&rm696_sgx_device); //same as on RM696
+	if (r < 0)
+		goto err3;
+
+	return 0;
+
+err3:
+	platform_device_unregister(&rm696_dss_device);
+err2:
+	if (rm696_tv_display_data.reset_gpio != -1) {
+		gpio_free(rm696_tv_display_data.reset_gpio);
+		rm696_tv_display_data.reset_gpio = -1;
+	}
+err1:
+	gpio_free(rm680_panel_data.reset_gpio);
+	rm680_panel_data.reset_gpio = -1;
+err0:
+	pr_err("%s failed (%d)\n", __func__, r);
+
+	return r;
+}
+
+subsys_initcall(rm680_video_init);
+
 static int __init rm696_atmel_mxt_init(void)
 {
 	int err;
@@ -1709,7 +2217,11 @@ static int __init rm696_atmel_mxt_init(void)
 	if (err)
 		goto err2;
 
-	rm696_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);
+	if (!board_is_rm680()) {
+		rm696_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);
+	} else {
+		rm680_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(ATMEL_MXT_IRQ_GPIO);	
+	}
 
 	return 0;
 err2:
@@ -1718,6 +2230,7 @@ err1:
 
 	return err;
 }
+
 
 #if defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) || \
 	defined(CONFIG_SND_OMAP_SOC_DFL61_TWL4030_MODULE)
@@ -1766,7 +2279,11 @@ static int __init rm696_tlv320dac33_init(void)
 			"for tlv320dac33 chip\n");
 	}
 
-	rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	if (!board_is_rm680()) {
+		rm696_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	} else {
+		rm680_peripherals_i2c_board_info_2[2].irq = gpio_to_irq(RM696_DAC33_IRQ_GPIO);
+	}
 
 	gpio_direction_input(RM696_DAC33_IRQ_GPIO);
 	
@@ -1792,20 +2309,32 @@ static void __init rm680_peripherals_init(void)
 	rm680_init_wl1271();
 	rm696_init_vibra();
 
-	platform_add_devices(rm680_peripherals_devices,
-				ARRAY_SIZE(rm680_peripherals_devices));
+	if (!board_is_rm680()) {
+		platform_add_devices(rm696_peripherals_devices,
+					ARRAY_SIZE(rm696_peripherals_devices));
+	} else {
+		platform_add_devices(rm680_peripherals_devices,
+					ARRAY_SIZE(rm680_peripherals_devices));
+	}
 
 	rm696_atmel_mxt_init();
-	rm696_apds990x_init();
+	
+	if (!board_is_rm680()) {
+		rm696_apds990x_init();
+	} else {
+		rm680_init_ak8974();	
+	}
+
 	rm696_avplugdet_init();
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
 
 	/* FIXME: gpio_hw_reset is present in 2.6 but missing in 3.5 */
 	/* if (system_rev > 0x1300) {
-                mmc[0].hw_reset_connected = 1;
-                mmc[0].gpio_hw_reset = 39;
-        }*/
+		mmc[0].hw_reset_connected = 1;
+		mmc[0].gpio_hw_reset = 39;
+	}*/
+
 	omap_hsmmc_init(mmc);
 	rm696_ssi_init();
 	omap_bt_init(&rm680_bt_config);
@@ -2420,6 +2949,11 @@ void __init rm696_camera_init(void)
 		       __func__);
 }
 
+void __init rm680_camera_init(void)
+{
+	//TODO
+}  
+
 static inline void board_serial_init(void)
 {
 	struct omap_board_data bdata;
@@ -2447,7 +2981,11 @@ static void __init rm680_init(void)
 
 	usb_musb_init(&rm696_musb_data);
 	rm680_peripherals_init();
-	rm696_camera_init();
+	if (!board_is_rm680()) {
+		rm696_camera_init();
+	} else {
+		rm680_camera_init();
+	}
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
