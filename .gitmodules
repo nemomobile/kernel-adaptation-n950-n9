@@ -1,0 +1,3 @@
+[submodule "kernel-adaptation-n950-n9"]
+	path = kernel-adaptation-n950-n9
+	url = https://github.com/nemomobile/kernel-adaptation-n950-n9.git
