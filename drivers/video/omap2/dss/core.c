@@ -69,9 +69,10 @@ MODULE_PARM_DESC(def_disp_name, "default display name");
  * boot up, by bootloader.
  * Parameter full name is omapdss.def_disp_enabled.
  */
-static unsigned int def_disp_enabled;
+static unsigned int def_disp_enabled=0;
+/* FIXME ubiboot passes omapdss.def_disp_enabled=1 but that prevents kernel from booting
 module_param(def_disp_enabled, bool, 0);
-MODULE_PARM_DESC(def_disp_enabled, "default display is enabled");
+MODULE_PARM_DESC(def_disp_enabled, "default display is enabled");*/
 
 #ifdef DEBUG
 unsigned int dss_debug;

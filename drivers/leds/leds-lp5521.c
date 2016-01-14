@@ -164,6 +164,7 @@ static int lp5521_set_engine_mode(struct lp5521_engine *engine, u8 mode)
 	struct i2c_client *client = chip->client;
 	int ret;
 	u8 engine_state;
+	u8 enable;
 
 	/* Only transition between RUN and DIRECT mode are handled here */
 	if (mode == LP5521_CMD_LOAD)
@@ -171,6 +172,20 @@ static int lp5521_set_engine_mode(struct lp5521_engine *engine, u8 mode)
 
 	if (mode == LP5521_CMD_DISABLED)
 		mode = LP5521_CMD_DIRECT;
+
+	if (mode == LP5521_CMD_RUN) {
+		/* Refresh EXEC status for current engine */
+		ret = lp5521_read(client, LP5521_REG_ENABLE, &enable);
+		if (ret < 0)
+			return ret;
+
+		enable &= ~(engine->engine_mask);
+		enable |= LP5521_EXEC_RUN & engine->engine_mask;
+
+		ret = lp5521_write(client, LP5521_REG_ENABLE, enable);
+		/* Consecutive writes to ENABLE requires 500us margin */
+		usleep_range(1000, 2000);
+	}
 
 	ret = lp5521_read(client, LP5521_REG_OP_MODE, &engine_state);
 	if (ret < 0)
@@ -359,8 +374,8 @@ static int lp5521_do_store_load(struct lp5521_engine *engine,
 	while ((offset < len - 1) && (i < LP5521_PROGRAM_LENGTH)) {
 		/* separate sscanfs because length is working only for %s */
 		ret = sscanf(buf + offset, "%2s%n ", c, &nrchars);
-		if (ret != 2)
-			goto fail;
+		//if (ret != 2)
+		//	goto fail;
 		ret = sscanf(c, "%2x", &cmd);
 		if (ret != 1)
 			goto fail;

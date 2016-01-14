@@ -133,6 +133,12 @@
 #define twl_has_bci()	false
 #endif
 
+#if defined(CONFIG_TWL5031_ACI) || defined(CONFIG_TWL5031_ACI_MODULE)
+#define twl_has_aci()	true
+#else
+#define twl_has_aci()	false
+#endif
+
 /* Triton Core internal information (BEGIN) */
 
 /* Last - for index max*/
@@ -343,6 +349,54 @@ static struct twl_mapping twl6030_map[] = {
 
 /*----------------------------------------------------------------------*/
 
+/* memory shadow for ACI/ECI register bank */
+#define TWL5031_ECI_REGISTER_NUMBER	11
+static u8 twl5031_eci_registers[TWL5031_ECI_REGISTER_NUMBER];
+static bool buggy_eci;
+
+static int twl_i2c_simple_write(struct twl_client *twl, u8 *value,
+						u8 reg, unsigned num_bytes)
+{
+	struct i2c_msg *msg;
+
+	/*
+	 * [MSG1]: fill the register address data
+	 * fill the data Tx buffer
+	 */
+	msg = &twl->xfer_msg[0];
+	msg->addr = twl->address;
+	msg->len = num_bytes + 1;
+	msg->flags = 0;
+	msg->buf = value;
+	/* over write the first byte of buffer with the register address */
+	*value = reg;
+
+	return i2c_transfer(twl->client->adapter, twl->xfer_msg, 1);
+}
+
+static int twl_i2c_simple_read(struct twl_client *twl, u8 *value,
+						u8 reg, unsigned num_bytes)
+{
+	u8 val;
+	struct i2c_msg *msg;
+
+	/* [MSG1] fill the register address data */
+	msg = &twl->xfer_msg[0];
+	msg->addr = twl->address;
+	msg->len = 1;
+	msg->flags = 0;	/* Read the register value */
+	val = reg;
+	msg->buf = &val;
+	/* [MSG2] fill the data rx buffer */
+	msg = &twl->xfer_msg[1];
+	msg->addr = twl->address;
+	msg->flags = I2C_M_RD;	/* Read the register value */
+	msg->len = num_bytes;	/* only n bytes */
+	msg->buf = value;
+	
+	return i2c_transfer(twl->client->adapter, twl->xfer_msg, 2);
+}
+
 /* Exported Functions */
 
 /**
@@ -359,10 +413,11 @@ static struct twl_mapping twl6030_map[] = {
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
-	int ret;
+	int ret = 0;
 	int sid;
-	struct twl_client *twl;
-	struct i2c_msg *msg;
+	u8 address;
+	bool buggy_regs;
+	struct twl_client *twl, *aci;
 
 	if (unlikely(mod_no > TWL_MODULE_LAST)) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
@@ -372,6 +427,8 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		pr_err("%s: not initialized\n", DRIVER_NAME);
 		return -EPERM;
 	}
+	sid = twl_map[TWL5031_MODULE_ACCESSORY].sid;
+	aci = &twl_modules[sid];
 	sid = twl_map[mod_no].sid;
 	if (unlikely(sid == SUB_CHIP_ID_INVAL)) {
 		pr_err("%s: module %d is not part of the pmic\n",
@@ -380,19 +437,59 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	}
 	twl = &twl_modules[sid];
 
+	address = twl_map[mod_no].base + reg;
+	buggy_regs = buggy_eci && ((address >= 0x74 && address <= 0x7E));
+
+	if (buggy_regs)
+		reg = address - 0x74;
+
 	mutex_lock(&twl->xfer_lock);
+
 	/*
-	 * [MSG1]: fill the register address data
-	 * fill the data Tx buffer
+	 * REVISIT: Workaround for hardware bug in ACI/ECI module address
+	 * decodification. Any writes on 0x74-0x7E of any address group
+	 * will affect same ACI/ECI registers.
+	 * Here it masks ACI/ECI IRQs.
 	 */
-	msg = &twl->xfer_msg[0];
-	msg->addr = twl->address;
-	msg->len = num_bytes + 1;
-	msg->flags = 0;
-	msg->buf = value;
-	/* over write the first byte of buffer with the register address */
-	*value = twl_map[mod_no].base + reg;
-	ret = i2c_transfer(twl->client->adapter, twl->xfer_msg, 1);
+	if (buggy_regs && (mod_no != TWL5031_MODULE_ACCESSORY)) {
+		u8 buff[5] = { 0, 0xFF, 0xFF, 0xFF, 0xFF };
+
+		/* Shadow ACI/ECI interrupts */
+		ret = twl_i2c_simple_write(aci, buff, 0x79, 4);
+	}
+
+	/* Perform desired write */
+	if (ret >= 0)
+		ret = twl_i2c_simple_write(twl, value, address, num_bytes);
+
+	/* Update our ACI/ECI bank register memory shadow if needed */
+	if (buggy_regs && (ret >= 0) && (mod_no == TWL5031_MODULE_ACCESSORY)) {
+		size_t size;
+
+		size = num_bytes;
+		if (size + reg > TWL5031_ECI_REGISTER_NUMBER)
+			size = TWL5031_ECI_REGISTER_NUMBER - reg;
+		memcpy(twl5031_eci_registers + reg, value + 1, size);
+	}
+
+	/*
+	 * REVISIT: Workaround for hardware bug in ACI/ECI module address
+	 * decodification. Any writes on 0x74-0x7E of any address group
+	 * will affect same ACI/ECI registers.
+	 * Here it restores affected ACI/ECI register.
+	 */
+	if (buggy_regs && (ret >= 0) && (mod_no != TWL5031_MODULE_ACCESSORY)) {
+		u8 buff[5] = { 0 };
+
+		/* Restore register on module 0x4A */
+		buff[1] = twl5031_eci_registers[reg];
+		ret = twl_i2c_simple_write(aci, buff, address, 1);
+		/* Restore interrupts flags (0x79:0x7C) in ACI/ECI module */
+		memcpy(buff + 1, twl5031_eci_registers + 5, 4);
+		if (ret >= 0)
+			ret = twl_i2c_simple_write(aci, buff, 0x79, 4);
+	}
+
 	mutex_unlock(&twl->xfer_lock);
 
 	/* i2c_transfer returns number of messages transferred */
@@ -421,11 +518,10 @@ EXPORT_SYMBOL(twl_i2c_write);
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
 	int ret;
-	u8 val;
+	u8 address;
 	int sid;
 	struct twl_client *twl;
-	struct i2c_msg *msg;
-
+	
 	if (unlikely(mod_no > TWL_MODULE_LAST)) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
@@ -441,22 +537,10 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		return -EINVAL;
 	}
 	twl = &twl_modules[sid];
+	address = twl_map[mod_no].base + reg;
 
 	mutex_lock(&twl->xfer_lock);
-	/* [MSG1] fill the register address data */
-	msg = &twl->xfer_msg[0];
-	msg->addr = twl->address;
-	msg->len = 1;
-	msg->flags = 0;	/* Read the register value */
-	val = twl_map[mod_no].base + reg;
-	msg->buf = &val;
-	/* [MSG2] fill the data rx buffer */
-	msg = &twl->xfer_msg[1];
-	msg->addr = twl->address;
-	msg->flags = I2C_M_RD;	/* Read the register value */
-	msg->len = num_bytes;	/* only n bytes */
-	msg->buf = value;
-	ret = i2c_transfer(twl->client->adapter, twl->xfer_msg, 2);
+	ret = twl_i2c_simple_read(twl, value, address, num_bytes);
 	mutex_unlock(&twl->xfer_lock);
 
 	/* i2c_transfer returns number of messages transferred */
@@ -867,6 +951,14 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			return PTR_ERR(child);
 	}
 
+	if (twl_has_aci() && (features & TWL5031)) {
+		child = add_child(2, "twl5031_aci",
+				pdata->aci, sizeof(*pdata->aci),
+				true, irq_base + 6, 0);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
 	/* twl4030 regulators */
 	if (twl_has_regulator() && twl_class_is_4030()) {
 		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1,
@@ -1205,6 +1297,40 @@ static void clocks_init(struct device *dev,
 /*----------------------------------------------------------------------*/
 
 
+static int twl5031_probe_eci_bug(void)
+{
+	int e = 0;
+	u8 buff[4];
+
+	/* Unlock it first */
+	e = twl_i2c_write_u8(TWL4030_MODULE_INTBR, 0x49, 0x97);
+	if (e)
+		return e;
+
+	e = twl_i2c_read(TWL4030_MODULE_INTBR, buff, 0x00, 4);
+	if (e)
+		return e;
+
+	/* twl5031 silicon rev. ES 1.0 and ES 1.1 have ACI/ECI bug */
+	buggy_eci = (buff[0] == 0x2f && buff[1] == 0x80 &&
+			(buff[3] == 0x1b || buff[3] == 0x0b));
+
+	if (buggy_eci) {
+		struct twl_client *aci;
+		int sid;
+
+		sid = twl_map[TWL5031_MODULE_ACCESSORY].sid;
+		aci = &twl_modules[sid];
+		e = twl_i2c_simple_read(aci, 
+				twl5031_eci_registers, 0x74,
+				TWL5031_ECI_REGISTER_NUMBER);
+		if (e == 2)
+			e = 0;
+	}
+
+	return e;
+}
+
 static int twl_remove(struct i2c_client *client)
 {
 	unsigned i, num_slaves;
@@ -1347,6 +1473,11 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		status = of_platform_populate(node, NULL, NULL, &client->dev);
 	if (status)
 		status = add_children(pdata, irq_base, id->driver_data);
+
+	if (status < 0)
+		goto fail;
+
+	status = twl5031_probe_eci_bug();
 
 fail:
 	if (status < 0)

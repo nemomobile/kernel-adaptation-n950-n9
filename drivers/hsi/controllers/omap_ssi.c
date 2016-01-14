@@ -51,17 +51,6 @@
 #define SSI_MAX_GDD_LCH		8
 #define SSI_BYTES_TO_FRAMES(x) ((((x) - 1) >> 2) + 1)
 
-static inline int irq_to_gpio(unsigned irq)
-{
-	int tmp;
-
-	tmp = irq - IH_GPIO_BASE;
-	if (tmp < OMAP_MAX_GPIO_LINES)
-		return tmp;
-
-	return -EIO;
-}
-
 /**
  * struct ssi_clk_res - Device resource data for the SSI clocks
  * @clk: Pointer to the clock
@@ -143,6 +132,7 @@ struct omap_ssi_port {
 	struct list_head	brkqueue;
 	unsigned int		irq;
 	int			wake_irq;
+	int			wake_gpio;
 	struct tasklet_struct	pio_tasklet;
 	struct tasklet_struct	wake_tasklet;
 	unsigned int		wktest:1; /* FIXME: HACK to be removed */
@@ -204,12 +194,10 @@ struct omap_ssi_controller {
 #endif
 };
 
-extern int irq_to_gpio(unsigned irq);
 static inline unsigned int ssi_wakein(struct hsi_port *port)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
-
-	return gpio_get_value(irq_to_gpio(omap_port->wake_irq));
+	return gpio_get_value(omap_port->wake_gpio);
 }
 
 /*
@@ -879,7 +867,6 @@ static int ssi_enable_waketasklet(struct omap_ssi_port *omap_port, void *data)
 static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 								void *data)
 {
-#if 0
 	struct omap_ssi_controller *omap_ssi = container_of(nb,
 					struct omap_ssi_controller, fck_nb);
 	struct hsi_controller *ssi = to_hsi_controller(omap_ssi->dev);
@@ -919,7 +906,6 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-#endif
 	return NOTIFY_DONE;
 }
 
@@ -1694,7 +1680,7 @@ static int __init ssi_port_irq(struct hsi_port *port,
 	tasklet_init(&omap_port->pio_tasklet, ssi_pio_tasklet,
 							(unsigned long)port);
 	err = devm_request_irq(&pd->dev, omap_port->irq, ssi_pio_isr,
-						IRQF_DISABLED, irq->name, port);
+						0, irq->name, port);
 	if (err < 0)
 		dev_err(&port->device, "Request IRQ %d failed (%d)\n",
 							omap_port->irq, err);
@@ -1719,10 +1705,11 @@ static int __init ssi_wake_irq(struct hsi_port *port,
 		return 0;
 	}
 	omap_port->wake_irq = irq->start;
+	omap_port->wake_gpio = irq->end;
 	tasklet_init(&omap_port->wake_tasklet, ssi_wake_tasklet,
 							(unsigned long)port);
 	err = devm_request_irq(&pd->dev, omap_port->wake_irq, ssi_wake_isr,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 							irq->name, port);
 	if (err < 0)
 		dev_err(&port->device, "Request Wake in IRQ %d failed %d\n",
@@ -1854,8 +1841,8 @@ static void ssi_clk_release(struct device *dev __maybe_unused, void *res)
 {
 	struct ssi_clk_res *r = res;
 
-//	if (r->nb)
-//		clk_notifier_unregister(r->clk, r->nb);
+	if (r->nb)
+		clk_notifier_unregister(r->clk, r->nb);
 	clk_put(r->clk);
 }
 
@@ -1877,7 +1864,7 @@ static struct clk *__init ssi_devm_clk_get(struct device *dev, const char *id,
 	} else {
 		pclk->clk = clk;
 		if (nb) {
-			//clk_notifier_register(clk, nb);
+			clk_notifier_register(clk, nb);
 			pclk->nb = nb;
 		} else {
 			pclk->nb = NULL;
@@ -1922,7 +1909,7 @@ static int __init ssi_add_controller(struct hsi_controller *ssi,
 	tasklet_init(&omap_ssi->gdd_tasklet, ssi_gdd_tasklet,
 							(unsigned long)ssi);
 	err = devm_request_irq(&pd->dev, omap_ssi->gdd_irq, ssi_gdd_isr,
-						IRQF_DISABLED, irq->name, ssi);
+						0, irq->name, ssi);
 	if (err < 0) {
 		dev_err(&ssi->device, "Request GDD IRQ %d failed (%d)",
 							omap_ssi->gdd_irq, err);

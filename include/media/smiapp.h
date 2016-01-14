@@ -3,8 +3,8 @@
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
- * Copyright (C) 2011--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Copyright (C) 2010 Nokia Corporation
+ * Contact: Vimarsh Zutshi <vimarsh.zutshi@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,18 +25,14 @@
 #ifndef __SMIAPP_H_
 #define __SMIAPP_H_
 
+#include <media/smiapp-regs.h>
 #include <media/v4l2-subdev.h>
 
 #define SMIAPP_NAME		"smiapp"
+#define SMIA_NAME		"smia"
 
 #define SMIAPP_DFL_I2C_ADDR	(0x20 >> 1) /* Default I2C Address */
 #define SMIAPP_ALT_I2C_ADDR	(0x6e >> 1) /* Alternate I2C Address */
-
-#define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK	0
-#define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE	1
-#define SMIAPP_CSI_SIGNALLING_MODE_CSI2			2
-
-#define SMIAPP_NO_XSHUTDOWN	-1
 
 /*
  * Sometimes due to board layout considerations the camera module can be
@@ -47,6 +43,20 @@
 enum smiapp_module_board_orient {
 	SMIAPP_MODULE_BOARD_ORIENT_0 = 0,
 	SMIAPP_MODULE_BOARD_ORIENT_180,
+};
+
+/*
+ * struct smiapp_module_ident - SMIA/SMIA++ module identification
+ */
+struct smiapp_module_ident {
+	/* mandatory info */
+	u32 manu_id;		/* module manufacturer id */
+	u32 model_id;		/* module model id */
+	char *name;
+
+	/* non mandatory info */
+	u32 sensor_manu_id;	/* sensor manufacturer id */
+	u32 sensor_model_id;	/* sensor model id */
 };
 
 struct smiapp_flash_strobe_parms {
@@ -68,17 +78,23 @@ struct smiapp_platform_data {
 	unsigned int nvm_size;			/* bytes */
 	unsigned int ext_clk;			/* sensor external clk */
 
-	unsigned int lanes;		/* Number of CSI-2 lanes */
-	u8 csi_signalling_mode;		/* SMIAPP_CSI_SIGNALLING_MODE_* */
-	const s64 *op_sys_clock;
-
 	enum smiapp_module_board_orient module_board_orient;
 
 	struct smiapp_flash_strobe_parms *strobe_setup;
 
+	/*
+	 * Allow the platform to provide a module identification
+	 * function to cover the possibility of having to do a
+	 * non-standard module identification
+	 */
+	const struct smiapp_module_ident *
+	(*identify_module)(const struct smiapp_module_ident *ident_in);
+
+	void (*csi_configure)(struct v4l2_subdev *sd, struct smia_mode *mode);
 	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
-	char *ext_clk_name;
-	int xshutdown;			/* gpio or SMIAPP_NO_XSHUTDOWN */
+	int (*set_xshutdown)(struct v4l2_subdev *sd, u8 set);
+	int (*get_analog_gain_limits)(const struct smiapp_module_ident *ident,
+				      u32 *min, u32 *max, u32 *step);
 };
 
 #endif /* __SMIAPP_H_  */

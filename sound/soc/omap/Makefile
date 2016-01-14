@@ -26,6 +26,9 @@ snd-soc-omap3beagle-objs := omap3beagle.o
 snd-soc-zoom2-objs := zoom2.o
 snd-soc-igep0020-objs := igep0020.o
 snd-soc-omap-hdmi-card-objs := omap-hdmi-card.o
+snd-soc-dfl61-twl4030-objs := dfl61-twl4030.o
+snd-soc-dfl61-wl1273-objs := dfl61-wl1273.o
+snd-soc-dfl61-tlv320dac33-objs := dfl61-tlv320dac33.o
 
 obj-$(CONFIG_SND_OMAP_SOC_N810) += snd-soc-n810.o
 obj-$(CONFIG_SND_OMAP_SOC_RX51) += snd-soc-rx51.o
@@ -42,3 +45,6 @@ obj-$(CONFIG_SND_OMAP_SOC_OMAP3_BEAGLE) += snd-soc-omap3beagle.o
 obj-$(CONFIG_SND_OMAP_SOC_ZOOM2) += snd-soc-zoom2.o
 obj-$(CONFIG_SND_OMAP_SOC_IGEP0020) += snd-soc-igep0020.o
 obj-$(CONFIG_SND_OMAP_SOC_OMAP_HDMI) += snd-soc-omap-hdmi-card.o
+obj-$(CONFIG_SND_OMAP_SOC_DFL61_TWL4030) += snd-soc-dfl61-twl4030.o
+obj-$(CONFIG_SND_OMAP_SOC_DFL61_WL1273) += snd-soc-dfl61-wl1273.o
+obj-$(CONFIG_SND_OMAP_SOC_DFL61_TLV320DAC33) += snd-soc-dfl61-tlv320dac33.o

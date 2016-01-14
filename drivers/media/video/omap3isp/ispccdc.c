@@ -1408,11 +1408,13 @@ static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 	return rval;
 }
 
+#define V4L2_EVENT_OMAP3ISP_HS_VS_NOKIA	(V4L2_EVENT_OMAP3ISP_CLASS | 0x4)
 static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
 	struct video_device *vdev = ccdc->subdev.devnode;
 	struct v4l2_event event;
+	struct v4l2_event event_Nokia;
 
 	/* Frame number propagation */
 	atomic_inc(&pipe->frame_number);
@@ -1422,6 +1424,11 @@ static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 	event.u.frame_sync.frame_sequence = atomic_read(&pipe->frame_number);
 
 	v4l2_event_queue(vdev, &event);
+
+	memset(&event_Nokia, 0, sizeof(event_Nokia));
+	event_Nokia.type = V4L2_EVENT_OMAP3ISP_HS_VS_NOKIA;
+
+	v4l2_event_queue(vdev, &event_Nokia);
 }
 
 /*
@@ -1703,7 +1710,7 @@ static long ccdc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ccdc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				struct v4l2_event_subscription *sub)
 {
-	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+	if ((sub->type != V4L2_EVENT_FRAME_SYNC) && (sub->type != V4L2_EVENT_OMAP3ISP_HS_VS_NOKIA))
 		return -EINVAL;
 
 	/* line number is zero at frame start */

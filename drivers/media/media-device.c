@@ -210,6 +210,10 @@ static long media_device_setup_link(struct media_device *mdev,
 	return ret;
 }
 
+#define MEDIA_IOC_DEVICE_INFO_NOKIA	_IOWR('M', 1, struct media_device_info)
+#define MEDIA_IOC_ENUM_ENTITIES_NOKIA	_IOWR('M', 2, struct media_entity_desc)
+#define MEDIA_IOC_ENUM_LINKS_NOKIA	_IOWR('M', 3, struct media_links_enum)
+#define MEDIA_IOC_SETUP_LINK_NOKIA	_IOWR('M', 4, struct media_link_desc)
 static long media_device_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
@@ -219,16 +223,19 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case MEDIA_IOC_DEVICE_INFO:
+	case MEDIA_IOC_DEVICE_INFO_NOKIA:
 		ret = media_device_get_info(dev,
 				(struct media_device_info __user *)arg);
 		break;
 
 	case MEDIA_IOC_ENUM_ENTITIES:
+	case MEDIA_IOC_ENUM_ENTITIES_NOKIA:
 		ret = media_device_enum_entities(dev,
 				(struct media_entity_desc __user *)arg);
 		break;
 
 	case MEDIA_IOC_ENUM_LINKS:
+	case MEDIA_IOC_ENUM_LINKS_NOKIA:
 		mutex_lock(&dev->graph_mutex);
 		ret = media_device_enum_links(dev,
 				(struct media_links_enum __user *)arg);
@@ -236,6 +243,7 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 		break;
 
 	case MEDIA_IOC_SETUP_LINK:
+	case MEDIA_IOC_SETUP_LINK_NOKIA:
 		mutex_lock(&dev->graph_mutex);
 		ret = media_device_setup_link(dev,
 				(struct media_link_desc __user *)arg);

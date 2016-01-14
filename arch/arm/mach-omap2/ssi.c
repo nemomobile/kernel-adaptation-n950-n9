@@ -125,6 +125,7 @@ int __init omap_ssi_config(struct omap_ssi_board_config *ssi_config)
 		}
 		gpio_direction_input(cawake_gpio);
 		ssi_resources[offset].start = gpio_to_irq(cawake_gpio);
+		ssi_resources[offset].end = cawake_gpio; //HACK: store gpio number so we can use it instead of irq_to_gpio function
 		ssi_resources[offset].flags &= ~IORESOURCE_UNSET;
 		ssi_resources[offset].flags |= IORESOURCE_IRQ_HIGHEDGE |
 							IORESOURCE_IRQ_LOWEDGE;

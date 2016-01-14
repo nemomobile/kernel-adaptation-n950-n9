@@ -1230,7 +1230,7 @@ static struct platform_driver omap_i2c_driver = {
 	.probe		= omap_i2c_probe,
 	.remove		= omap_i2c_remove,
 	.driver		= {
-		.name	= "omap_i2c",
+		.name	= "i2c_omap",
 		.owner	= THIS_MODULE,
 		.pm	= OMAP_I2C_PM_OPS,
 		.of_match_table = of_match_ptr(omap_i2c_of_match),
@@ -1254,4 +1254,4 @@ module_exit(omap_i2c_exit_driver);
 MODULE_AUTHOR("MontaVista Software, Inc. (and others)");
 MODULE_DESCRIPTION("TI OMAP I2C bus adapter");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:omap_i2c");
+MODULE_ALIAS("platform:i2c_omap");

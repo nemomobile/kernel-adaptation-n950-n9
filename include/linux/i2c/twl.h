@@ -683,6 +683,19 @@ struct twl4030_audio_data {
 	unsigned int irq_base;
 };
 
+struct twl5031_aci_platform_data {
+	int	tvout_gpio;
+	int	jack_gpio;
+
+#define AVPLUGDET_WHEN_PLUGGED_LOW 0
+#define AVPLUGDET_WHEN_PLUGGED_HIGH 1
+	int	avplugdet_plugged;
+
+	int	(*hw_plug_set_state)(struct device *dev, bool plugged);
+	int	(*hw_plug_resource_reserve)(struct device *dev);
+	void	(*hw_plug_resource_release)(void);
+};
+
 struct twl4030_platform_data {
 	unsigned				irq_base, irq_end;
 	struct twl4030_clock_init_data		*clock;
@@ -693,6 +706,7 @@ struct twl4030_platform_data {
 	struct twl4030_usb_data			*usb;
 	struct twl4030_power_data		*power;
 	struct twl4030_audio_data		*audio;
+	struct twl5031_aci_platform_data	*aci;
 
 	/* Common LDO regulators for TWL4030/TWL6030 */
 	struct regulator_init_data		*vdac;

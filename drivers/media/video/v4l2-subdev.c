@@ -134,6 +134,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 #endif
+	struct v4l2_event ev;
+	struct v4l2_event_Nokia *evN;
+	long ret = 0;
 
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
@@ -162,6 +165,27 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return -ENOIOCTLCMD;
 
 		return v4l2_event_dequeue(vfh, arg, file->f_flags & O_NONBLOCK);
+
+	case VIDIOC_DQEVENT_NOKIA:
+		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
+			return -ENOIOCTLCMD;
+
+		evN = arg;
+		memset(&ev, 0, sizeof(ev));
+
+		ret = v4l2_event_dequeue(vfh, &ev, file->f_flags & O_NONBLOCK);
+
+		if (ret)
+		  return ret;
+
+		evN->type		= ev.type;
+		memcpy(&evN->u.data, &ev.u.data, 64);
+		evN->pending		= ev.pending;
+		evN->sequence		= ev.sequence;
+		evN->timestamp.tv_sec	= ev.timestamp.tv_sec;
+		evN->timestamp.tv_nsec	= ev.timestamp.tv_nsec;
+
+		return ret;
 
 	case VIDIOC_SUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, subscribe_event, vfh, arg);

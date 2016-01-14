@@ -504,6 +504,8 @@ static int twl5031_bcc_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = bcc->usb_current;
 		break;
+	case POWER_SUPPLY_PROP_TYPE:
+		val->intval = bcc->usb.type;
 	default:
 		ret = -EINVAL;
 	}
@@ -526,6 +528,8 @@ static int twl5031_bcc_vac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = bcc->vac_current;
 		break;
+	case POWER_SUPPLY_PROP_TYPE:
+		val->intval = bcc->vac.type;
 	default:
 		ret = -EINVAL;
 	}
@@ -535,6 +539,7 @@ static int twl5031_bcc_vac_get_property(struct power_supply *psy,
 static enum power_supply_property power_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_TYPE,
 };
 
 static int __devinit twl5031_bcc_probe(struct platform_device *pdev)

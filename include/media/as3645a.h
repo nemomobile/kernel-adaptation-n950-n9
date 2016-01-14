@@ -1,9 +1,9 @@
 /*
  * include/media/as3645a.h
  *
- * Copyright (C) 2008-2011 Nokia Corporation
+ * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+ * Contact: Ivan T. Ivanov <iivanov@mm-sol.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,43 +29,42 @@
 #define AS3645A_NAME				"as3645a"
 #define AS3645A_I2C_ADDR			(0x60 >> 1) /* W:0x60, R:0x61 */
 
-#define AS3645A_FLASH_TIMEOUT_MIN		100000	/* us */
-#define AS3645A_FLASH_TIMEOUT_MAX		850000
-#define AS3645A_FLASH_TIMEOUT_STEP		50000
-
-#define AS3645A_FLASH_INTENSITY_MIN		200	/* mA */
-#define AS3645A_FLASH_INTENSITY_MAX_1LED	500
-#define AS3645A_FLASH_INTENSITY_MAX_2LEDS	400
-#define AS3645A_FLASH_INTENSITY_STEP		20
-
-#define AS3645A_TORCH_INTENSITY_MIN		20	/* mA */
-#define AS3645A_TORCH_INTENSITY_MAX		160
-#define AS3645A_TORCH_INTENSITY_STEP		20
-
-#define AS3645A_INDICATOR_INTENSITY_MIN		0	/* uA */
-#define AS3645A_INDICATOR_INTENSITY_MAX		10000
-#define AS3645A_INDICATOR_INTENSITY_STEP	2500
-
 /*
- * as3645a_platform_data - Flash controller platform data
- * @set_power:	Set power callback
- * @vref:	VREF offset (0=0V, 1=+0.3V, 2=-0.3V, 3=+0.6V)
- * @peak:	Inductor peak current limit (0=1.25A, 1=1.5A, 2=1.75A, 3=2.0A)
- * @ext_strobe:	True if external flash strobe can be used
- * @flash_max_current:	Max flash current (mA, <= AS3645A_FLASH_INTENSITY_MAX)
- * @torch_max_current:	Max torch current (mA, >= AS3645A_TORCH_INTENSITY_MAX)
- * @timeout_max:	Max flash timeout (us, <= AS3645A_FLASH_TIMEOUT_MAX)
+ * as3645a_flash_torch_parms - Flash and torch currents and timeout limits
+ * @flash_min_current:	Min flash current (mA)
+ * @flash_max_current:	Max flash current (mA)
+ * @torch_min_current:	Min torch current (mA)
+ * @torch_max_current:	Max torch current (mA)
+ * @timeout_min:	Min flash timeout (us)
+ * @timeout_max:	Max flash timeout (us)
  */
-struct as3645a_platform_data {
-	int (*set_power)(struct v4l2_subdev *subdev, int on);
-	unsigned int vref;
-	unsigned int peak;
-	bool ext_strobe;
-
-	/* Flash and torch currents and timeout limits */
+struct as3645a_flash_torch_parms {
+	unsigned int flash_min_current;
 	unsigned int flash_max_current;
+	unsigned int torch_min_current;
 	unsigned int torch_max_current;
+	unsigned int timeout_min;
 	unsigned int timeout_max;
 };
+
+struct as3645a_platform_data {
+	int (*set_power)(struct v4l2_subdev *subdev, int on);
+	/* used to notify the entity which trigger external storbe signal */
+	void (*setup_ext_strobe)(int enable);
+	/* Sends the strobe width to the sensor strobe configuration */
+	void (*set_strobe_width)(u32 width_in_us);
+	/* positive value if Torch pin is used */
+	int ext_torch;
+	/* positive value if Flash Strobe pin is used for triggering
+	 * the Flash light (no matter where is connected to, host processor or
+	 * image sensor)
+	 */
+	int use_ext_flash_strobe;
+	/* Number of attached LEDs, 1 or 2 */
+	int num_leds;
+	/* LED limitations with this flash chip */
+	struct as3645a_flash_torch_parms *flash_torch_limits;
+};
+
 
 #endif /* __AS3645A_H__ */

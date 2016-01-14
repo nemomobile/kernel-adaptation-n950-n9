@@ -253,6 +253,23 @@ config TWL4030_MADC
 	This driver can be built as a module. If so it will be
 	named twl4030-madc
 
+config TWL5031_ACI
+	tristate "TWL5031 ACI (Accessory Control Interface) Driver"
+	depends on TWL4030_CORE && INPUT_ECI
+	select SND_JACK
+	select SND_OMAP_SOC_DFL61_TWL4030
+	help
+	The TWL5031 Accessory Control Interface functionality
+
+	TWL5031 ACI provides the following features:
+	- NAV (Nokia Audio/Video) periferals identification
+	- AV-connector resource handling
+	- DBI interface for battery identification
+
+	Say 'y' here to statically link this module into the kernel or 'm'
+	to build it as a dynamically loadable module. The module will be
+	called twl5031-aci.ko
+
 config TWL4030_POWER
 	bool "Support power resources on TWL4030 family chips"
 	depends on TWL4030_CORE && ARM
